@@ -173,7 +173,7 @@ export function Home() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search workers or services"
-              className="flex-1 rounded-full border border-border bg-surface px-4 py-2.5 text-sm outline-none focus:border-brand-solid"
+              className="flex-1 rounded-full border border-border bg-surface px-4 py-2.5 text-base outline-none focus:border-brand-solid"
             />
           </div>
 

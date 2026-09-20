@@ -12,6 +12,17 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* iOS Safari auto-zooms the page on focusing any text input/textarea/select
+   whose computed font-size is under 16px. Floor it globally (!important:
+   a bare element selector is lower specificity than a Tailwind text-*
+   class, so this must win outright) so this can't recur on a future
+   screen just because a smaller text class got used on a real input. */
+input,
+textarea,
+select {
+  font-size: 16px !important;
+}
+
 /* react-phone-number-input: blend its default styles with our tokens.
    The bordered/rounded look comes from the wrapper className in
    PhoneInput.jsx - these rules just make the inner control borderless
