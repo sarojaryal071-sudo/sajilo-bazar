@@ -19,7 +19,9 @@ Build in this order — don't jump ahead to later-phase screens.
   normal home content) and active search (tapping the search bar
   transitions in place - no separate screen/route). Active state shows
   recommended/top-rated workers immediately, then narrows live as the
-  customer types (debounced) or taps a category filter chip.
+  customer types (debounced) or taps a category filter chip. The search
+  bar lives only at the top of Home - it is not a bottom nav entry; the
+  customer bottom nav is Home / Bookings / Profile.
 - Worker detail screen — profile, services, price, ratings, "Book" action
 - Booking flow / request screen
 - Bookings list screen (customer + worker views)
