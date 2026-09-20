@@ -11,6 +11,27 @@ export async function getServiceCatalog(req, res, next) {
   }
 }
 
+export async function search(req, res, next) {
+  try {
+    const { category, serviceId, location } = req.query;
+    const results = await workersService.search({ category, serviceId, location });
+    res.json({ results });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getDetail(req, res, next) {
+  try {
+    const userId = Number(req.params.id);
+    if (!Number.isInteger(userId)) return next(new ApiError(400, 'Invalid worker id'));
+    const worker = await workersService.getWorkerDetail(userId);
+    res.json({ worker });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getMe(req, res, next) {
   try {
     const data = await workersService.getMyWorkerData(req.user.id);

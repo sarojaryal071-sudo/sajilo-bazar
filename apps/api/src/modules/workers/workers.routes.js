@@ -11,6 +11,7 @@ const upload = multer({
 export const workersRoutes = Router();
 
 workersRoutes.get('/catalog/services', workersController.getServiceCatalog);
+workersRoutes.get('/search', workersController.search);
 workersRoutes.get('/me', requireAuth, requireRole('worker'), workersController.getMe);
 workersRoutes.post(
   '/apply',
@@ -22,3 +23,7 @@ workersRoutes.post(
   ]),
   workersController.apply
 );
+
+// Must stay last - a generic :id param route would otherwise shadow the
+// specific paths above (/search, /me, /catalog/services).
+workersRoutes.get('/:id', workersController.getDetail);

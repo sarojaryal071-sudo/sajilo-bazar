@@ -8,3 +8,4 @@ export * from './schemas/workerProfile.schema.js';
 export * from './schemas/service.schema.js';
 export * from './schemas/booking.schema.js';
 export * from './schemas/verificationDocument.schema.js';
+export * from './schemas/workerSearch.schema.js';
