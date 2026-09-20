@@ -1,5 +1,11 @@
 const TOKEN_STORAGE_KEY = 'sajilo_token';
 
+// Empty in dev - Vite's proxy forwards /api to the local backend (see
+// vite.config.js). Set to the deployed API's origin (no trailing slash)
+// via VITE_API_URL in production, since frontend and backend are on
+// different domains there (Vercel + Render).
+const API_BASE = import.meta.env.VITE_API_URL || '';
+
 export function getToken() {
   return localStorage.getItem(TOKEN_STORAGE_KEY);
 }
@@ -25,7 +31,7 @@ export async function apiFetch(path, { method = 'GET', body, isFormData = false 
   if (token) headers.Authorization = `Bearer ${token}`;
   if (!isFormData) headers['Content-Type'] = 'application/json';
 
-  const response = await fetch(`/api${path}`, {
+  const response = await fetch(`${API_BASE}/api${path}`, {
     method,
     headers,
     body: body ? (isFormData ? body : JSON.stringify(body)) : undefined,
