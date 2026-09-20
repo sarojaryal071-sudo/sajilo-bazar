@@ -1,5 +1,6 @@
 import { ApiError } from '../../middleware/error.middleware.js';
 import { emitToUser } from '../../realtime/socket.js';
+import { notify } from '../notifications/notifications.service.js';
 import * as bookingsModel from './bookings.model.js';
 
 // City-scale default - no fallback tiers (e.g. widening the radius when
@@ -23,7 +24,7 @@ async function requireWorkerOwned(bookingId, workerId) {
 export async function createBooking(customerId, { workerId, serviceId, addressLabel, latitude, longitude }) {
   const workerService = await bookingsModel.findActiveWorkerService(workerId, serviceId);
   if (!workerService) throw new ApiError(404, 'This worker does not offer that service');
-  return bookingsModel.create({
+  const booking = await bookingsModel.create({
     customerId,
     workerId,
     serviceId,
@@ -32,6 +33,14 @@ export async function createBooking(customerId, { workerId, serviceId, addressLa
     latitude,
     longitude,
   });
+
+  await notify(workerId, 'booking_requested', {
+    bookingId: booking.id,
+    serviceName: booking.serviceName,
+    customerName: booking.customerName,
+  });
+
+  return booking;
 }
 
 // Creates the booking, finds online/approved/matching workers within the
@@ -45,6 +54,11 @@ export async function createInstantBooking(customerId, { serviceId, addressLabel
 
   for (const offer of offers) {
     emitToUser(offer.workerId, 'booking:new_offer', { booking, offerId: offer.id });
+    await notify(offer.workerId, 'booking_requested', {
+      bookingId: booking.id,
+      serviceName: booking.serviceName,
+      addressLabel: booking.addressLabel,
+    });
   }
 
   return { booking, matchedWorkerCount: offers.length };
@@ -72,6 +86,11 @@ export async function claimInstantBooking(bookingId, workerId) {
     emitToUser(otherWorkerId, 'booking:offer_resolved', { bookingId, status: 'expired' });
   }
 
+  await notify(booking.customerId, 'booking_accepted', {
+    bookingId: booking.id,
+    workerName: booking.workerName,
+  });
+
   return booking;
 }
 
@@ -96,7 +115,12 @@ export async function acceptBooking(bookingId, workerId) {
   if (booking.status !== 'requested') {
     throw new ApiError(400, 'Booking cannot be accepted from its current status');
   }
-  return bookingsModel.setAccepted(bookingId);
+  const updated = await bookingsModel.setAccepted(bookingId);
+  await notify(updated.customerId, 'booking_accepted', {
+    bookingId: updated.id,
+    workerName: updated.workerName,
+  });
+  return updated;
 }
 
 export async function declineBooking(bookingId, workerId) {
@@ -104,7 +128,12 @@ export async function declineBooking(bookingId, workerId) {
   if (booking.status !== 'requested') {
     throw new ApiError(400, 'Booking cannot be declined from its current status');
   }
-  return bookingsModel.setDeclined(bookingId);
+  const updated = await bookingsModel.setDeclined(bookingId);
+  await notify(updated.customerId, 'booking_declined', {
+    bookingId: updated.id,
+    workerName: updated.workerName,
+  });
+  return updated;
 }
 
 export async function startBooking(bookingId, workerId) {
@@ -112,7 +141,12 @@ export async function startBooking(bookingId, workerId) {
   if (booking.status !== 'accepted') {
     throw new ApiError(400, 'Booking cannot be started from its current status');
   }
-  return bookingsModel.setInProgress(bookingId);
+  const updated = await bookingsModel.setInProgress(bookingId);
+  await notify(updated.customerId, 'booking_status_changed', {
+    bookingId: updated.id,
+    status: 'in_progress',
+  });
+  return updated;
 }
 
 export async function completeBooking(bookingId, workerId) {
@@ -120,7 +154,12 @@ export async function completeBooking(bookingId, workerId) {
   if (booking.status !== 'in_progress') {
     throw new ApiError(400, 'Booking cannot be completed from its current status');
   }
-  return bookingsModel.setCompleted(bookingId);
+  const updated = await bookingsModel.setCompleted(bookingId);
+  await notify(updated.customerId, 'booking_status_changed', {
+    bookingId: updated.id,
+    status: 'completed',
+  });
+  return updated;
 }
 
 // Either side can cancel, but only before work has actually started - once
@@ -132,5 +171,20 @@ export async function cancelBooking(bookingId, userId, reason) {
   if (!['requested', 'accepted'].includes(booking.status)) {
     throw new ApiError(400, 'Booking can only be cancelled while requested or accepted');
   }
-  return bookingsModel.setCancelled(bookingId, userId, reason);
+  const updated = await bookingsModel.setCancelled(bookingId, userId, reason);
+
+  // Notify whichever side didn't do the cancelling - the other party
+  // always exists here (customerId is required, and a manual/claimed
+  // booking's workerId is set; an unclaimed instant request has no worker
+  // to tell yet, so there's simply nothing to notify in that case).
+  const otherPartyId = userId === updated.customerId ? updated.workerId : updated.customerId;
+  if (otherPartyId) {
+    await notify(otherPartyId, 'booking_status_changed', {
+      bookingId: updated.id,
+      status: 'cancelled',
+      cancelReason: updated.cancelReason,
+    });
+  }
+
+  return updated;
 }
