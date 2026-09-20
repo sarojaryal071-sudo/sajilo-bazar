@@ -1,0 +1,50 @@
+import { NavLink } from 'react-router-dom';
+
+const ICONS = {
+  home: (
+    <path d="M3 11.5 12 4l9 7.5M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9" />
+  ),
+  search: <path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM21 21l-4.35-4.35" />,
+  bookings: (
+    <path d="M8 2v4M16 2v4M3.5 9h17M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />
+  ),
+  profile: <path d="M20 21a8 8 0 1 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />,
+};
+
+function NavIcon({ name }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <g strokeLinecap="round" strokeLinejoin="round">{ICONS[name]}</g>
+    </svg>
+  );
+}
+
+const TABS = [
+  { to: '/home', icon: 'home', label: 'Home' },
+  { to: '/search', icon: 'search', label: 'Search' },
+  { to: '/bookings', icon: 'bookings', label: 'Bookings' },
+  { to: '/profile', icon: 'profile', label: 'Profile' },
+];
+
+export function BottomNav() {
+  return (
+    <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-surface-raised shadow-raised">
+      <div className="mx-auto flex max-w-md items-center justify-around px-2 py-2">
+        {TABS.map((tab) => (
+          <NavLink
+            key={tab.to}
+            to={tab.to}
+            className={({ isActive }) =>
+              `flex flex-col items-center gap-1 rounded-lg px-4 py-1.5 text-xs font-medium transition-colors ${
+                isActive ? 'text-brand-solid' : 'text-text-muted'
+              }`
+            }
+          >
+            <NavIcon name={tab.icon} />
+            {tab.label}
+          </NavLink>
+        ))}
+      </div>
+    </nav>
+  );
+}

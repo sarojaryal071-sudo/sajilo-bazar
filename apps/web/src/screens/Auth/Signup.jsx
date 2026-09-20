@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { isValidPhoneNumber } from 'react-phone-number-input';
 import { Screen } from '../../components/Screen.jsx';
 import { Button } from '../../components/Button.jsx';
 import { Input } from '../../components/Input.jsx';
+import { PhoneInput } from '../../components/PhoneInput.jsx';
+import { PasswordInput } from '../../components/PasswordInput.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { resolvePostAuthPath } from '../../lib/postAuthRedirect.js';
 
@@ -17,12 +20,20 @@ export function Signup() {
   const navigate = useNavigate();
   const [role, setRole] = useState(null);
   const [form, setForm] = useState({ fullName: '', phone: '', email: '', password: '' });
+  const [phoneError, setPhoneError] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    setPhoneError('');
+
+    if (!form.phone || !isValidPhoneNumber(form.phone)) {
+      setPhoneError('Enter a valid phone number, including the country code');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const user = await signup({ ...form, email: form.email || null, role });
@@ -81,14 +92,15 @@ export function Signup() {
           value={form.fullName}
           onChange={(e) => setForm({ ...form, fullName: e.target.value })}
         />
-        <Input
+        <PhoneInput
           label="Phone number"
           name="phone"
-          type="tel"
-          autoComplete="tel"
-          required
+          error={phoneError}
           value={form.phone}
-          onChange={(e) => setForm({ ...form, phone: e.target.value })}
+          onChange={(value) => {
+            setForm({ ...form, phone: value });
+            if (phoneError) setPhoneError('');
+          }}
         />
         <Input
           label="Email (optional)"
@@ -98,10 +110,9 @@ export function Signup() {
           value={form.email}
           onChange={(e) => setForm({ ...form, email: e.target.value })}
         />
-        <Input
+        <PasswordInput
           label="Password"
           name="password"
-          type="password"
           autoComplete="new-password"
           required
           minLength={8}
