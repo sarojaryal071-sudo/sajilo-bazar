@@ -30,7 +30,7 @@ export function Profile() {
   }
 
   return (
-    <Screen>
+    <Screen fillHeight={false}>
       <div className="flex items-center gap-4">
         <Avatar name={user.fullName} imageUrl={user.profileImageUrl} size={64} />
         <div>

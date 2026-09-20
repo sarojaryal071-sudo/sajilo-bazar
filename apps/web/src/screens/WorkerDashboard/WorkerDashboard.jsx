@@ -44,7 +44,7 @@ export function WorkerDashboard() {
   const copy = STATUS_COPY[data.profile.verificationStatus];
 
   return (
-    <Screen>
+    <Screen fillHeight={false}>
       <h1 className="text-2xl font-bold">Dashboard</h1>
 
       <motion.div

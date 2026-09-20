@@ -28,7 +28,7 @@ export function Home() {
   }, []);
 
   return (
-    <Screen className="pb-4">
+    <Screen className="pb-4" fillHeight={false}>
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-text-muted">Good to see you,</p>
@@ -57,6 +57,10 @@ export function Home() {
 
       {!categories && !loadError && (
         <p className="text-sm text-text-muted">Loading services...</p>
+      )}
+
+      {categories?.length === 0 && (
+        <p className="text-sm text-text-muted">No services available yet.</p>
       )}
 
       <div className="grid grid-cols-2 gap-3">
