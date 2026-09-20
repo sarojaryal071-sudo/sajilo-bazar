@@ -1,4 +1,5 @@
 import { ApiError } from '../../middleware/error.middleware.js';
+import { notify } from '../notifications/notifications.service.js';
 import * as bookingsModel from '../bookings/bookings.model.js';
 import * as chatModel from './chat.model.js';
 
@@ -17,6 +18,18 @@ export async function listMessages(bookingId, userId) {
 }
 
 export async function sendMessage(bookingId, userId, message) {
-  await requireParticipant(bookingId, userId);
-  return chatModel.create({ bookingId, senderId: userId, message });
+  const booking = await requireParticipant(bookingId, userId);
+  const created = await chatModel.create({ bookingId, senderId: userId, message });
+
+  const recipientId = userId === booking.customerId ? booking.workerId : booking.customerId;
+  const senderName = userId === booking.customerId ? booking.customerName : booking.workerName;
+  if (recipientId) {
+    await notify(recipientId, 'chat_message', {
+      bookingId,
+      senderName,
+      preview: message.length > 140 ? `${message.slice(0, 140)}...` : message,
+    });
+  }
+
+  return created;
 }

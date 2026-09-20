@@ -45,13 +45,13 @@ function OnlineToggle({ isOnline, onToggle }) {
         role="switch"
         aria-checked={isOnline}
         aria-label="Toggle online status"
-        className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${
+        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
           isOnline ? 'bg-brand-solid' : 'bg-surface-alt'
         }`}
       >
         <span
-          className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-resting transition-transform ${
-            isOnline ? 'translate-x-5' : 'translate-x-0.5'
+          className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-resting transition-transform ${
+            isOnline ? 'translate-x-5' : 'translate-x-0'
           }`}
         />
       </button>

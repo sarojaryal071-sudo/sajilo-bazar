@@ -18,6 +18,7 @@ import { BookingRequest } from './screens/BookingRequest/BookingRequest.jsx';
 import { BookingDetail } from './screens/BookingDetail/BookingDetail.jsx';
 import { BookingChat } from './screens/BookingChat/BookingChat.jsx';
 import { InstantRequest } from './screens/InstantRequest/InstantRequest.jsx';
+import { Notifications } from './screens/Notifications/Notifications.jsx';
 
 export default function App() {
   return (
@@ -81,6 +82,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <BookingChat />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/notifications"
+            element={
+              <ProtectedRoute>
+                <Notifications />
               </ProtectedRoute>
             }
           />
