@@ -1,0 +1,32 @@
+# Render Blueprint for the Sajilo Bazar API. Import this at
+# https://dashboard.render.com/blueprints - see docs/DEPLOYMENT.md for the
+# full walkthrough.
+#
+# Runs from the repo root (npm workspaces monorepo), not apps/api, so both
+# buildCommand and startCommand use --workspace to target the api package.
+services:
+  - type: web
+    name: sajilo-bazar-api
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm run migrate --workspace=apps/api
+    startCommand: npm run start --workspace=apps/api
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.22.2
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: DATABASE_URL
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: WEB_ORIGIN
+        sync: false
