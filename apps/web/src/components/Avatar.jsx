@@ -1,4 +1,8 @@
-function initials(name = '') {
+// A default parameter only covers undefined, not null - and a booking's
+// "other party" name is null whenever a manual/instant booking has no
+// worker assigned yet, so this has to handle both explicitly.
+function initials(name) {
+  if (!name) return '';
   return name
     .split(' ')
     .filter(Boolean)
