@@ -1,0 +1,22 @@
+import { z } from 'zod';
+import { VERIFICATION_STATUSES } from './enums.js';
+
+export const WorkerProfileSchema = z.object({
+  userId: z.number().int().positive(),
+  bio: z.string().max(500).nullable().optional(),
+  isOnline: z.boolean().default(false),
+  verificationStatus: z.enum(VERIFICATION_STATUSES).default('unsubmitted'),
+  ratingAvg: z.number().min(0).max(5).default(0),
+  jobsCompletedCount: z.number().int().min(0).default(0),
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
+  serviceAreaLabel: z.string().max(120).nullable().optional(), // e.g. "Baneshwor, Kathmandu"
+});
+
+export const WorkerServiceSchema = z.object({
+  id: z.number().int().positive(),
+  workerId: z.number().int().positive(),
+  serviceId: z.number().int().positive(),
+  price: z.number().positive(),
+  isActive: z.boolean().default(true),
+});

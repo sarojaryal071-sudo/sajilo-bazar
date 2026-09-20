@@ -1,0 +1,15 @@
+{
+  "name": "sajilo-bazar",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Sajilo Bazar - local services marketplace connecting skilled youth to households in Nepal",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=apps/web",
+    "dev:api": "npm run dev --workspace=apps/api",
+    "install:all": "npm install"
+  }
+}
