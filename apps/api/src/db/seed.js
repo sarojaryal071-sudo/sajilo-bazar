@@ -27,6 +27,8 @@ const WORKERS = [
     ratingAvg: 4.8,
     jobsCompletedCount: 42,
     serviceAreaLabel: 'Baneshwor, Kathmandu',
+    latitude: 27.6939,
+    longitude: 85.3352,
     bio: 'Licensed plumber with 8 years of experience fixing leaks and installations across Kathmandu.',
     services: [
       { name: 'Pipe leak repair', price: 800 },
@@ -43,6 +45,8 @@ const WORKERS = [
     ratingAvg: 3.9,
     jobsCompletedCount: 8,
     serviceAreaLabel: 'Patan, Lalitpur',
+    latitude: 27.6588,
+    longitude: 85.3247,
     bio: 'Reliable plumbing help for small repairs and installations.',
     services: [{ name: 'Pipe leak repair', price: 700 }],
   },
@@ -55,6 +59,8 @@ const WORKERS = [
     ratingAvg: 4.6,
     jobsCompletedCount: 30,
     serviceAreaLabel: 'Baneshwor, Kathmandu',
+    latitude: 27.6945,
+    longitude: 85.3361,
     bio: 'Certified electrician specializing in home wiring and safety inspections.',
     services: [
       { name: 'Wiring inspection', price: 1200 },
@@ -70,6 +76,8 @@ const WORKERS = [
     ratingAvg: 4.1,
     jobsCompletedCount: 15,
     serviceAreaLabel: 'Bhaktapur',
+    latitude: 27.671,
+    longitude: 85.4298,
     bio: 'Electrical repairs and installations, same-day service in Bhaktapur.',
     services: [
       { name: 'Fan and light installation', price: 900 },
@@ -85,6 +93,8 @@ const WORKERS = [
     ratingAvg: 4.9,
     jobsCompletedCount: 65,
     serviceAreaLabel: 'Jawalakhel, Lalitpur',
+    latitude: 27.6701,
+    longitude: 85.3159,
     bio: 'Detail-oriented home cleaning with eco-friendly products.',
     services: [
       { name: 'Deep home cleaning', price: 1500 },
@@ -101,6 +111,8 @@ const WORKERS = [
     ratingAvg: 3.5,
     jobsCompletedCount: 5,
     serviceAreaLabel: 'Kirtipur',
+    latitude: 27.6767,
+    longitude: 85.2833,
     bio: 'Affordable cleaning services for apartments and small homes.',
     services: [{ name: 'Bathroom cleaning', price: 550 }],
   },
@@ -113,6 +125,8 @@ const WORKERS = [
     ratingAvg: 4.3,
     jobsCompletedCount: 20,
     serviceAreaLabel: 'Boudha, Kathmandu',
+    latitude: 27.7215,
+    longitude: 85.3616,
     bio: 'Custom furniture and repair work, from shelving to door fixes.',
     services: [
       { name: 'Furniture assembly', price: 900 },
@@ -160,13 +174,21 @@ async function findOrCreateWorkerUser({ fullName, phone, email }) {
   return authModel.createUser({ fullName, phone, email, passwordHash, role: 'worker' });
 }
 
-async function upsertWorkerProfile(userId, { isOnline, ratingAvg, jobsCompletedCount, serviceAreaLabel, bio }) {
+// latitude/longitude are seeded regardless of isOnline, matching what a real
+// "go online" toggle would eventually save - lets a tester flip a seeded
+// worker online from the UI and immediately be matchable, no separate
+// location step needed.
+async function upsertWorkerProfile(
+  userId,
+  { isOnline, ratingAvg, jobsCompletedCount, serviceAreaLabel, latitude, longitude, bio }
+) {
   await pool.query(
     `UPDATE worker_profiles
      SET is_online = $2, verification_status = 'approved', rating_avg = $3,
-         jobs_completed_count = $4, service_area_label = $5, bio = $6, updated_at = now()
+         jobs_completed_count = $4, service_area_label = $5,
+         latitude = $6, longitude = $7, bio = $8, updated_at = now()
      WHERE user_id = $1`,
-    [userId, isOnline, ratingAvg, jobsCompletedCount, serviceAreaLabel, bio]
+    [userId, isOnline, ratingAvg, jobsCompletedCount, serviceAreaLabel, latitude, longitude, bio]
   );
 }
 

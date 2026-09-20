@@ -1,4 +1,4 @@
-import { WorkerApplyInputSchema } from '@sajilo-bazar/shared';
+import { WorkerApplyInputSchema, WorkerOnlineInputSchema } from '@sajilo-bazar/shared';
 import { ApiError } from '../../middleware/error.middleware.js';
 import * as workersService from './workers.service.js';
 
@@ -38,6 +38,16 @@ export async function getMe(req, res, next) {
     res.json(data);
   } catch (err) {
     next(err);
+  }
+}
+
+export async function setOnline(req, res, next) {
+  try {
+    const input = WorkerOnlineInputSchema.parse(req.body);
+    const profile = await workersService.setOnline(req.user.id, input);
+    res.json({ profile });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid online status', err.issues) : err);
   }
 }
 

@@ -7,6 +7,57 @@ import { Badge } from '../../components/Badge.jsx';
 import { BookingListItem } from '../../components/BookingListItem.jsx';
 import * as workersApi from '../../api/workers.api.js';
 import * as bookingsApi from '../../api/bookings.api.js';
+import { getCurrentLocation } from '../../lib/geolocation.js';
+
+function OnlineToggle({ isOnline, onToggle }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleChange() {
+    setError('');
+    setBusy(true);
+    try {
+      if (isOnline) {
+        await onToggle({ isOnline: false });
+      } else {
+        const { latitude, longitude } = await getCurrentLocation();
+        await onToggle({ isOnline: true, latitude, longitude });
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card className="mt-4 flex items-center justify-between gap-4">
+      <div className="min-w-0">
+        <p className="font-semibold">{isOnline ? "You're online" : "You're offline"}</p>
+        <p className="text-sm text-text-muted">
+          {isOnline ? 'Visible for instant requests nearby.' : 'Go online to receive instant requests.'}
+        </p>
+        {error && <p className="mt-1 text-sm text-danger">{error}</p>}
+      </div>
+      <button
+        onClick={handleChange}
+        disabled={busy}
+        role="switch"
+        aria-checked={isOnline}
+        aria-label="Toggle online status"
+        className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${
+          isOnline ? 'bg-brand-solid' : 'bg-surface-alt'
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-resting transition-transform ${
+            isOnline ? 'translate-x-5' : 'translate-x-0.5'
+          }`}
+        />
+      </button>
+    </Card>
+  );
+}
 
 const STATUS_COPY = {
   pending: {
@@ -58,6 +109,11 @@ export function WorkerDashboard() {
   const activeJobs = bookings?.filter((b) => ACTIVE_STATUSES.includes(b.status)) ?? [];
   const pendingCount = bookings?.filter((b) => b.status === 'requested').length ?? 0;
 
+  async function handleToggleOnline(input) {
+    const { profile } = await workersApi.setOnline(input);
+    setData((prev) => ({ ...prev, profile }));
+  }
+
   return (
     <Screen fillHeight={false}>
       <h1 className="text-2xl font-bold">Dashboard</h1>
@@ -78,6 +134,8 @@ export function WorkerDashboard() {
 
       {data.profile.verificationStatus === 'approved' && (
         <>
+          <OnlineToggle isOnline={data.profile.isOnline} onToggle={handleToggleOnline} />
+
           <div className="mt-4 grid grid-cols-3 gap-3">
             <Card className="flex flex-col items-center py-4 text-center">
               <p className="text-xl font-bold">{data.profile.jobsCompletedCount}</p>

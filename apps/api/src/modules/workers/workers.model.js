@@ -66,6 +66,24 @@ export async function setVerificationStatus(userId, status) {
   );
 }
 
+// Going online records wherever the worker's browser says they are right
+// now - instant-request matching needs a real coordinate, not the free-text
+// service_area_label. Going offline leaves the last known location in
+// place (harmless - they won't be matched again until back online).
+export async function setOnline(userId, { isOnline, latitude, longitude }) {
+  const { rows } = await pool.query(
+    `UPDATE worker_profiles
+     SET is_online = $2,
+         latitude = CASE WHEN $2 THEN COALESCE($3, latitude) ELSE latitude END,
+         longitude = CASE WHEN $2 THEN COALESCE($4, longitude) ELSE longitude END,
+         updated_at = now()
+     WHERE user_id = $1
+     RETURNING *`,
+    [userId, isOnline, latitude ?? null, longitude ?? null]
+  );
+  return rows[0] ? toProfile(rows[0]) : null;
+}
+
 export async function listServiceCatalog() {
   const { rows } = await pool.query('SELECT * FROM services ORDER BY category, name');
   return rows.map(toService);

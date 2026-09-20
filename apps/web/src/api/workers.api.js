@@ -21,6 +21,10 @@ export function getMyWorkerData() {
   return apiFetch('/workers/me');
 }
 
+export function setOnline({ isOnline, latitude, longitude }) {
+  return apiFetch('/workers/me/online', { method: 'PATCH', body: { isOnline, latitude, longitude } });
+}
+
 // services: [{ serviceId, price }], documents: { citizenship: File, certificate?: File }, bio: string
 export function apply({ bio, services, documents }) {
   const formData = new FormData();

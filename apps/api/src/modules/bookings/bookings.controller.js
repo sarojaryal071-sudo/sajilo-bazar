@@ -1,4 +1,4 @@
-import { BookingCreateInputSchema, BookingCancelInputSchema } from '@sajilo-bazar/shared';
+import { BookingCreateInputSchema, BookingCancelInputSchema, InstantBookingCreateInputSchema } from '@sajilo-bazar/shared';
 import { ApiError } from '../../middleware/error.middleware.js';
 import * as bookingsService from './bookings.service.js';
 
@@ -9,6 +9,34 @@ export async function create(req, res, next) {
     res.status(201).json({ booking });
   } catch (err) {
     next(err.issues ? new ApiError(400, 'Invalid booking data', err.issues) : err);
+  }
+}
+
+export async function createInstant(req, res, next) {
+  try {
+    const input = InstantBookingCreateInputSchema.parse(req.body);
+    const { booking, matchedWorkerCount } = await bookingsService.createInstantBooking(req.user.id, input);
+    res.status(201).json({ booking, matchedWorkerCount });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid instant request data', err.issues) : err);
+  }
+}
+
+export async function claim(req, res, next) {
+  try {
+    const booking = await bookingsService.claimInstantBooking(Number(req.params.id), req.user.id);
+    res.json({ booking });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function declineOffer(req, res, next) {
+  try {
+    await bookingsService.declineInstantOffer(Number(req.params.id), req.user.id);
+    res.status(204).end();
+  } catch (err) {
+    next(err);
   }
 }
 

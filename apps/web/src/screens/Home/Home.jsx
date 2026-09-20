@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Screen } from '../../components/Screen.jsx';
 import { Card } from '../../components/Card.jsx';
@@ -16,6 +16,14 @@ function SearchIcon() {
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <circle cx="11" cy="11" r="8" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M21 21l-4.35-4.35" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function BoltIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z" />
     </svg>
   );
 }
@@ -123,6 +131,19 @@ export function Home() {
             <SearchIcon />
             <span className="text-text-muted">What do you need help with?</span>
           </motion.button>
+
+          <Link to="/instant/new">
+            <motion.div
+              whileTap={{ scale: 0.98 }}
+              className="mt-3 flex w-full items-center gap-3 rounded-2xl bg-brand px-5 py-3.5 text-text-onBrand shadow-resting"
+            >
+              <BoltIcon />
+              <div>
+                <p className="font-semibold">Need someone right now?</p>
+                <p className="text-sm opacity-90">Send an instant request to nearby workers</p>
+              </div>
+            </motion.div>
+          </Link>
 
           <p className="mt-8 mb-3 text-sm font-semibold uppercase tracking-wide text-text-muted">
             Browse by category

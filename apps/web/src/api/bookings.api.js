@@ -7,6 +7,21 @@ export function create({ workerId, serviceId, addressLabel, latitude, longitude 
   });
 }
 
+export function createInstant({ serviceId, addressLabel, latitude, longitude }) {
+  return apiFetch('/bookings/instant', {
+    method: 'POST',
+    body: { serviceId, addressLabel, latitude, longitude },
+  });
+}
+
+export function claim(id) {
+  return apiFetch(`/bookings/${id}/claim`, { method: 'PATCH' });
+}
+
+export function declineOffer(id) {
+  return apiFetch(`/bookings/${id}/decline-offer`, { method: 'PATCH' });
+}
+
 export function list({ status } = {}) {
   const query = status ? `?status=${status}` : '';
   return apiFetch(`/bookings${query}`);

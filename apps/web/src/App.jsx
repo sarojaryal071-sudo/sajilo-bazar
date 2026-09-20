@@ -1,6 +1,8 @@
 import { Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext.jsx';
+import { SocketProvider } from './context/SocketContext.jsx';
 import { ProtectedRoute } from './components/ProtectedRoute.jsx';
+import { IncomingRequestPopup } from './components/IncomingRequestPopup.jsx';
 import { AppShell } from './components/AppShell.jsx';
 import { Welcome } from './screens/Welcome/Welcome.jsx';
 import { Login } from './screens/Auth/Login.jsx';
@@ -15,64 +17,80 @@ import { WorkerJobs } from './screens/WorkerJobs/WorkerJobs.jsx';
 import { BookingRequest } from './screens/BookingRequest/BookingRequest.jsx';
 import { BookingDetail } from './screens/BookingDetail/BookingDetail.jsx';
 import { BookingChat } from './screens/BookingChat/BookingChat.jsx';
+import { InstantRequest } from './screens/InstantRequest/InstantRequest.jsx';
 
 export default function App() {
   return (
     <AuthProvider>
-      <Routes>
-        <Route path="/" element={<Welcome />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
+      <SocketProvider>
+        <Routes>
+          <Route path="/" element={<Welcome />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
 
-        <Route element={<AppShell />}>
-          <Route path="/home" element={<Home />} />
-          <Route path="/bookings" element={<Bookings />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/worker/dashboard" element={<WorkerDashboard />} />
-          <Route path="/worker/jobs" element={<WorkerJobs />} />
-        </Route>
+          <Route element={<AppShell />}>
+            <Route path="/home" element={<Home />} />
+            <Route path="/bookings" element={<Bookings />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/worker/dashboard" element={<WorkerDashboard />} />
+            <Route path="/worker/jobs" element={<WorkerJobs />} />
+          </Route>
 
-        <Route
-          path="/worker/:id"
-          element={
-            <ProtectedRoute>
-              <WorkerDetail />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/worker/apply"
-          element={
-            <ProtectedRoute role="worker">
-              <WorkerApply />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/book/:workerId/:serviceId"
-          element={
-            <ProtectedRoute role="customer">
-              <BookingRequest />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/booking/:id"
-          element={
-            <ProtectedRoute>
-              <BookingDetail />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/booking/:id/chat"
-          element={
-            <ProtectedRoute>
-              <BookingChat />
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
+          <Route
+            path="/worker/:id"
+            element={
+              <ProtectedRoute>
+                <WorkerDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/worker/apply"
+            element={
+              <ProtectedRoute role="worker">
+                <WorkerApply />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/book/:workerId/:serviceId"
+            element={
+              <ProtectedRoute role="customer">
+                <BookingRequest />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/instant/new"
+            element={
+              <ProtectedRoute role="customer">
+                <InstantRequest />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/booking/:id"
+            element={
+              <ProtectedRoute>
+                <BookingDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/booking/:id/chat"
+            element={
+              <ProtectedRoute>
+                <BookingChat />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+
+        {/* Mounted outside Routes so it persists across navigation - a
+            worker should see an incoming instant request regardless of
+            which screen they're currently on. */}
+        <IncomingRequestPopup />
+      </SocketProvider>
     </AuthProvider>
   );
 }
