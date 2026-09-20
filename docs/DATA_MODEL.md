@@ -82,20 +82,44 @@ Replaces `worker_verifications` + `verification_documents` + `verification_revie
 
 Replaces `bookings` + `booking_cancellations` (cancellation fields folded in).
 
+A booking can cover multiple services in one job (see `booking_services` below) - a customer
+picking several things from the same worker creates one booking, not one per service. `price`
+is kept as a denormalized sum of `booking_services.price` rather than dropped: computing it
+on every read would mean rewriting every existing consumer of `booking.price` (booking lists,
+detail screens, notification text) to join and sum instead. It's written once at booking
+creation (manual) or at claim time (instant, once a worker's prices are known) and never
+otherwise mutated, so staleness isn't a real risk.
+
 | Column | Type | Notes |
 |---|---|---|
 | id | serial pk | |
 | type | text | `manual` \| `instant` |
 | customer_id | fk → users | |
 | worker_id | fk → users | nullable until assigned (instant flow) |
-| service_id | fk → services | |
 | status | text | `requested` \| `accepted` \| `in_progress` \| `completed` \| `cancelled` |
-| price | numeric | nullable until worker confirms final price on completion |
+| price | numeric | nullable; denormalized sum of this booking's `booking_services.price` (see above) |
 | address | text | |
 | lat / lng | numeric | |
 | cancelled_by | fk → users | nullable |
 | cancel_reason | text | nullable |
 | created_at / completed_at | timestamptz | |
+
+## 6a. `booking_services`
+
+Join table between a booking and the services it covers - one row per service selected,
+replacing the old single `bookings.service_id` column.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | serial pk | |
+| booking_id | fk → bookings | `ON DELETE CASCADE` |
+| service_id | fk → services | `ON DELETE RESTRICT` |
+| price | numeric | nullable; unique per `(booking_id, service_id)` |
+
+`price` is nullable at the row level because an instant request doesn't know which worker
+(and therefore which price) it will land with until a worker claims it - manual bookings
+populate every row's price immediately at creation, instant bookings populate it at claim
+time once the claiming worker's own prices for those services are looked up.
 
 ## 7. `booking_offers`
 
@@ -146,15 +170,22 @@ One row per message, tied directly to a booking — no separate conversation obj
 ## 11. `commission_ledger`
 
 The platform's accounting at MVP scale: a running balance, not double-entry bookkeeping.
+One row is inserted per booking when it completes; `credit_balance_after` is negative when
+the worker owes the platform, which is the normal state until Phase 8 adds in-app payment -
+until then the worker collects the full job price directly from the customer, so each
+completed job books a commission debt rather than draining a prepaid credit. The commission
+rate itself (currently a flat 15%, `COMMISSION_RATE` in
+`apps/api/src/modules/commissionLedger/commissionLedger.service.js`) isn't specified anywhere
+in the product docs - it's a placeholder pending an actual business decision.
 
 | Column | Type | Notes |
 |---|---|---|
 | id | serial pk | |
 | worker_id | fk → users | |
-| booking_id | fk → bookings | |
+| booking_id | fk → bookings | unique - one entry per completed booking |
 | job_price | numeric | worker-confirmed final price |
 | commission_amount | numeric | platform's cut |
-| credit_balance_after | numeric | worker's running prepaid balance after this entry |
+| credit_balance_after | numeric | worker's running balance after this entry; negative = owed to the platform |
 | created_at | timestamptz | |
 
 ---

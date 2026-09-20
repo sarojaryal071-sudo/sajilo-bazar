@@ -4,10 +4,8 @@ import { Screen } from '../../components/Screen.jsx';
 import { Card } from '../../components/Card.jsx';
 import { Avatar } from '../../components/Avatar.jsx';
 import { Button } from '../../components/Button.jsx';
+import { ReviewsList } from '../../components/ReviewsList.jsx';
 import * as workersApi from '../../api/workers.api.js';
-import { timeAgo } from '../../lib/timeAgo.js';
-
-const REVIEW_PREVIEW_COUNT = 3;
 
 function StarIcon() {
   return (
@@ -17,28 +15,18 @@ function StarIcon() {
   );
 }
 
-function ReviewCard({ review }) {
-  return (
-    <Card className="py-3">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-warning">
-          {'★'.repeat(review.rating)}
-          {'☆'.repeat(5 - review.rating)}
-        </p>
-        <span className="shrink-0 text-xs text-text-muted">{timeAgo(review.createdAt)}</span>
-      </div>
-      {review.comment && <p className="mt-2 text-sm text-text-muted">{review.comment}</p>}
-      <p className="mt-1 text-xs font-medium text-text-muted">&mdash; {review.customerName}</p>
-    </Card>
-  );
-}
-
 export function WorkerDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [worker, setWorker] = useState(null);
   const [error, setError] = useState('');
-  const [showAllReviews, setShowAllReviews] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  function toggleService(serviceId) {
+    setSelectedIds((prev) =>
+      prev.includes(serviceId) ? prev.filter((id) => id !== serviceId) : [...prev, serviceId]
+    );
+  }
 
   useEffect(() => {
     workersApi
@@ -59,6 +47,14 @@ export function WorkerDetail() {
   }
 
   if (!worker) return null;
+
+  const selectedTotal = worker.services
+    .filter((s) => selectedIds.includes(s.id))
+    .reduce((sum, s) => sum + s.price, 0);
+
+  function handleBookSelected() {
+    navigate(`/book/${worker.userId}/${selectedIds.join(',')}`);
+  }
 
   return (
     <Screen>
@@ -89,50 +85,52 @@ export function WorkerDetail() {
       <p className="mt-6 mb-3 text-sm font-semibold uppercase tracking-wide text-text-muted">
         Services
       </p>
+      <p className="-mt-2 mb-3 text-xs text-text-muted">Select one or more to book together.</p>
       <div className="flex flex-col gap-2">
-        {worker.services.map((service) => (
-          <Card key={service.id} className="flex items-center justify-between gap-3 py-3">
-            <div className="min-w-0">
-              <p className="font-medium">{service.name}</p>
-              <p className="text-xs capitalize text-text-muted">{service.category}</p>
-            </div>
-            <div className="flex shrink-0 items-center gap-3">
-              <p className="font-semibold">Rs. {service.price}</p>
-              <Button
-                className="px-4 py-2 text-sm"
-                onClick={() => navigate(`/book/${worker.userId}/${service.id}`)}
-              >
-                Book
-              </Button>
-            </div>
-          </Card>
-        ))}
+        {worker.services.map((service) => {
+          const selected = selectedIds.includes(service.id);
+          return (
+            <Card
+              key={service.id}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => toggleService(service.id)}
+              className={`flex cursor-pointer items-center gap-3 py-3 ${
+                selected ? 'ring-2 ring-brand-solid' : ''
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={selected}
+                onChange={() => toggleService(service.id)}
+                onClick={(e) => e.stopPropagation()}
+                className="h-5 w-5 shrink-0 accent-brand-solid"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="font-medium">{service.name}</p>
+                <p className="text-xs capitalize text-text-muted">{service.category}</p>
+              </div>
+              <p className="shrink-0 font-semibold">Rs. {service.price}</p>
+            </Card>
+          );
+        })}
       </div>
+
+      {selectedIds.length > 0 && (
+        <Card className="mt-4 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm text-text-muted">
+              {selectedIds.length} service{selectedIds.length === 1 ? '' : 's'} selected
+            </p>
+            <p className="text-lg font-bold">Rs. {selectedTotal}</p>
+          </div>
+          <Button onClick={handleBookSelected}>Book selected services</Button>
+        </Card>
+      )}
 
       <p className="mt-6 mb-3 text-sm font-semibold uppercase tracking-wide text-text-muted">
         Reviews
       </p>
-      {worker.reviews.length === 0 ? (
-        <p className="text-sm text-text-muted">No reviews yet.</p>
-      ) : (
-        <>
-          <div className="flex flex-col gap-2">
-            {(showAllReviews ? worker.reviews : worker.reviews.slice(0, REVIEW_PREVIEW_COUNT)).map(
-              (review) => (
-                <ReviewCard key={review.id} review={review} />
-              )
-            )}
-          </div>
-          {!showAllReviews && worker.reviewsCount > REVIEW_PREVIEW_COUNT && (
-            <button
-              onClick={() => setShowAllReviews(true)}
-              className="mt-3 self-start text-sm font-medium text-brand-solid"
-            >
-              See all {worker.reviewsCount} reviews
-            </button>
-          )}
-        </>
-      )}
+      <ReviewsList reviews={worker.reviews} reviewsCount={worker.reviewsCount} />
     </Screen>
   );
 }

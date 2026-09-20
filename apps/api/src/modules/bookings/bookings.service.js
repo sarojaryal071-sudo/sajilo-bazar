@@ -1,6 +1,7 @@
 import { ApiError } from '../../middleware/error.middleware.js';
 import { emitToUser } from '../../realtime/socket.js';
 import { notify } from '../notifications/notifications.service.js';
+import * as commissionLedgerService from '../commissionLedger/commissionLedger.service.js';
 import * as bookingsModel from './bookings.model.js';
 
 // City-scale default - no fallback tiers (e.g. widening the radius when
@@ -21,14 +22,19 @@ async function requireWorkerOwned(bookingId, workerId) {
   return booking;
 }
 
-export async function createBooking(customerId, { workerId, serviceId, addressLabel, latitude, longitude }) {
-  const workerService = await bookingsModel.findActiveWorkerService(workerId, serviceId);
-  if (!workerService) throw new ApiError(404, 'This worker does not offer that service');
+function serviceNames(booking) {
+  return booking.services.map((s) => s.name).join(', ');
+}
+
+export async function createBooking(customerId, { workerId, serviceIds, addressLabel, latitude, longitude }) {
+  const available = await bookingsModel.findActiveWorkerServices(workerId, serviceIds);
+  if (available.length !== serviceIds.length) {
+    throw new ApiError(404, 'This worker does not offer one or more of the selected services');
+  }
   const booking = await bookingsModel.create({
     customerId,
     workerId,
-    serviceId,
-    price: workerService.price,
+    services: available,
     addressLabel,
     latitude,
     longitude,
@@ -36,27 +42,28 @@ export async function createBooking(customerId, { workerId, serviceId, addressLa
 
   await notify(workerId, 'booking_requested', {
     bookingId: booking.id,
-    serviceName: booking.serviceName,
+    serviceName: serviceNames(booking),
     customerName: booking.customerName,
   });
 
   return booking;
 }
 
-// Creates the booking, finds online/approved/matching workers within the
-// default radius, and fans out an offer to each - the socket push is
-// best-effort (see emitToUser), the booking_offers rows are the durable
-// record a worker sees the next time they poll/open the app either way.
-export async function createInstantBooking(customerId, { serviceId, addressLabel, latitude, longitude }) {
-  const booking = await bookingsModel.createInstant({ customerId, serviceId, addressLabel, latitude, longitude });
-  const workerIds = await bookingsModel.findNearbyOnlineWorkers(serviceId, latitude, longitude, DEFAULT_RADIUS_KM);
+// Creates the booking, finds online/approved workers who offer EVERY
+// requested service within the default radius, and fans out an offer to
+// each - the socket push is best-effort (see emitToUser), the
+// booking_offers rows are the durable record a worker sees the next time
+// they poll/open the app either way.
+export async function createInstantBooking(customerId, { serviceIds, addressLabel, latitude, longitude }) {
+  const booking = await bookingsModel.createInstant({ customerId, serviceIds, addressLabel, latitude, longitude });
+  const workerIds = await bookingsModel.findNearbyOnlineWorkers(serviceIds, latitude, longitude, DEFAULT_RADIUS_KM);
   const offers = await bookingsModel.createOffers(booking.id, workerIds);
 
   for (const offer of offers) {
     emitToUser(offer.workerId, 'booking:new_offer', { booking, offerId: offer.id });
     await notify(offer.workerId, 'booking_requested', {
       bookingId: booking.id,
-      serviceName: booking.serviceName,
+      serviceName: serviceNames(booking),
       addressLabel: booking.addressLabel,
     });
   }
@@ -73,9 +80,14 @@ export async function claimInstantBooking(bookingId, workerId) {
     throw new ApiError(404, 'No pending offer found for this booking');
   }
 
-  const booking = await bookingsModel.claimInstant(bookingId, workerId);
+  const { booking, reason } = await bookingsModel.claimInstant(bookingId, workerId);
   if (!booking) {
-    throw new ApiError(409, 'This request has already been taken by another worker');
+    throw new ApiError(
+      409,
+      reason === 'services_unavailable'
+        ? 'You no longer offer all of the requested services'
+        : 'This request has already been taken by another worker'
+    );
   }
 
   await bookingsModel.markOfferAccepted(bookingId, workerId);
@@ -155,6 +167,7 @@ export async function completeBooking(bookingId, workerId) {
     throw new ApiError(400, 'Booking cannot be completed from its current status');
   }
   const updated = await bookingsModel.setCompleted(bookingId);
+  await commissionLedgerService.recordCompletion(updated);
   await notify(updated.customerId, 'booking_status_changed', {
     bookingId: updated.id,
     status: 'completed',

@@ -222,16 +222,28 @@ async function findExistingBooking(customerId, workerId, status) {
   return rows[0]?.id ?? null;
 }
 
-async function seedCompletedBookingWithReview({ customerId, workerId, serviceId, price, addressLabel, review }) {
+async function insertBookingServices(bookingId, services) {
+  for (const { serviceId, price } of services) {
+    await pool.query(
+      `INSERT INTO booking_services (booking_id, service_id, price) VALUES ($1, $2, $3)
+       ON CONFLICT (booking_id, service_id) DO NOTHING`,
+      [bookingId, serviceId, price]
+    );
+  }
+}
+
+async function seedCompletedBookingWithReview({ customerId, workerId, services, addressLabel, review }) {
   let bookingId = await findExistingBooking(customerId, workerId, 'completed');
   if (!bookingId) {
+    const totalPrice = services.reduce((sum, s) => sum + s.price, 0);
     const { rows } = await pool.query(
-      `INSERT INTO bookings (type, status, customer_id, worker_id, service_id, price, address_label, completed_at, created_at)
-       VALUES ('manual', 'completed', $1, $2, $3, $4, $5, now() - interval '2 days', now() - interval '3 days')
+      `INSERT INTO bookings (type, status, customer_id, worker_id, price, address_label, completed_at, created_at)
+       VALUES ('manual', 'completed', $1, $2, $3, $4, now() - interval '2 days', now() - interval '3 days')
        RETURNING id`,
-      [customerId, workerId, serviceId, price, addressLabel]
+      [customerId, workerId, totalPrice, addressLabel]
     );
     bookingId = rows[0].id;
+    await insertBookingServices(bookingId, services);
     console.log(`Seeded completed booking #${bookingId}`);
   }
 
@@ -246,15 +258,17 @@ async function seedCompletedBookingWithReview({ customerId, workerId, serviceId,
   }
 }
 
-async function seedCancelledBooking({ customerId, workerId, serviceId, price, addressLabel, cancelReason }) {
+async function seedCancelledBooking({ customerId, workerId, services, addressLabel, cancelReason }) {
   const existing = await findExistingBooking(customerId, workerId, 'cancelled');
   if (existing) return;
+  const totalPrice = services.reduce((sum, s) => sum + s.price, 0);
   const { rows } = await pool.query(
-    `INSERT INTO bookings (type, status, customer_id, worker_id, service_id, price, address_label, cancelled_by, cancel_reason, created_at)
-     VALUES ('manual', 'cancelled', $1, $2, $3, $4, $5, $1, $6, now() - interval '1 day')
+    `INSERT INTO bookings (type, status, customer_id, worker_id, price, address_label, cancelled_by, cancel_reason, created_at)
+     VALUES ('manual', 'cancelled', $1, $2, $3, $4, $1, $5, now() - interval '1 day')
      RETURNING id`,
-    [customerId, workerId, serviceId, price, addressLabel, cancelReason]
+    [customerId, workerId, totalPrice, addressLabel, cancelReason]
   );
+  await insertBookingServices(rows[0].id, services);
   console.log(`Seeded cancelled booking #${rows[0].id}`);
 }
 
@@ -289,8 +303,11 @@ async function main() {
   await seedCompletedBookingWithReview({
     customerId: customer.id,
     workerId: plumber.id,
-    serviceId: serviceId('plumbing', 'Pipe leak repair'),
-    price: 800,
+    // Multi-service booking, showcasing the feature: one visit, two jobs.
+    services: [
+      { serviceId: serviceId('plumbing', 'Pipe leak repair'), price: 800 },
+      { serviceId: serviceId('plumbing', 'Drain unclogging'), price: 500 },
+    ],
     addressLabel: 'Baneshwor-10, Kathmandu',
     review: { rating: 5, comment: 'Fixed the leak quickly and cleaned up after. Would book again.' },
   });
@@ -299,8 +316,7 @@ async function main() {
   await seedCancelledBooking({
     customerId: customer.id,
     workerId: electrician.id,
-    serviceId: serviceId('electrical', 'Wiring inspection'),
-    price: 1200,
+    services: [{ serviceId: serviceId('electrical', 'Wiring inspection'), price: 1200 }],
     addressLabel: 'Baneshwor-10, Kathmandu',
     cancelReason: 'Found another worker who could come sooner.',
   });

@@ -46,8 +46,11 @@ Build in this order — don't jump ahead to later-phase screens.
 
 ## Phase 5 — Commission Ledger (worker-facing)
 
-- Worker: Earnings screen (jobs completed, commission owed, credit balance)
-- Worker: Schedule screen (if kept — confirm scope; otherwise fold into Jobs)
+- Worker: Earnings screen (jobs completed, commission owed, credit balance) — reached via a
+  card on Worker Dashboard, not a bottom-nav tab
+- Worker: Schedule — folded into Jobs, not a separate screen. Jobs already lists a worker's
+  bookings by status; a dedicated schedule view is deferred until there's an actual
+  date/time-scheduling model to build it around
 
 ## Phase 6 — Admin (minimal, no theming)
 

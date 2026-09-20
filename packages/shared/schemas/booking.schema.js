@@ -4,14 +4,25 @@ import { BOOKING_TYPES, BOOKING_STATUSES, BOOKING_OFFER_STATUSES } from './enums
 // Defined now for contract stability across phases, implemented in the
 // Booking module (Phase 2-3 of the roadmap), not the Auth module.
 
+// One row per service included in a booking - price is null for an
+// instant request's services until a worker claims it (see
+// booking_services in DATA_MODEL.md for why it's nullable at the DB level).
+export const BookingServiceSchema = z.object({
+  id: z.number().int().positive(),
+  serviceId: z.number().int().positive(),
+  name: z.string(),
+  category: z.string(),
+  price: z.number().positive().nullable(),
+});
+
 export const BookingSchema = z.object({
   id: z.number().int().positive(),
   type: z.enum(BOOKING_TYPES),
   status: z.enum(BOOKING_STATUSES),
   customerId: z.number().int().positive(),
   workerId: z.number().int().positive().nullable(), // null until an instant request is accepted
-  serviceId: z.number().int().positive(),
-  price: z.number().positive().nullable(), // set by manual booking upfront, or by worker on completion
+  services: z.array(BookingServiceSchema).min(1),
+  price: z.number().positive().nullable(), // denormalized sum of services[].price - null until every service is priced
   addressLabel: z.string().max(200),
   latitude: z.number().nullable().optional(),
   longitude: z.number().nullable().optional(),
@@ -21,13 +32,14 @@ export const BookingSchema = z.object({
   completedAt: z.string().datetime().nullable().optional(),
 });
 
-// A customer directly booking a specific worker for one of their listed
-// services - manual booking only (Phase 2). Price isn't submitted by the
-// client: the backend looks up the worker's current price for serviceId so
-// it can't be tampered with.
+// A customer directly booking a specific worker for one or more of their
+// listed services (multi-select on Worker Detail) - manual booking only
+// (Phase 2). Prices aren't submitted by the client: the backend looks up
+// the worker's current price for each serviceId so it can't be tampered
+// with.
 export const BookingCreateInputSchema = z.object({
   workerId: z.number().int().positive(),
-  serviceId: z.number().int().positive(),
+  serviceIds: z.array(z.number().int().positive()).min(1),
   addressLabel: z.string().min(3).max(200),
   latitude: z.number().nullable().optional(),
   longitude: z.number().nullable().optional(),
@@ -39,9 +51,10 @@ export const BookingCancelInputSchema = z.object({
 
 // An instant request has no chosen worker - lat/lng are required (not
 // optional like the manual flow's) since matching nearby online workers
-// depends on them.
+// depends on them. Matching requires a worker who offers every requested
+// service, not just one of them.
 export const InstantBookingCreateInputSchema = z.object({
-  serviceId: z.number().int().positive(),
+  serviceIds: z.array(z.number().int().positive()).min(1),
   addressLabel: z.string().min(3).max(200),
   latitude: z.number(),
   longitude: z.number(),

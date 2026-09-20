@@ -207,9 +207,11 @@ export function BookingDetail() {
 
       <div className="flex items-center gap-4">
         <div className="min-w-0 flex-1">
-          <p className="font-semibold">{isInstantWaiting ? booking.serviceName : otherName}</p>
-          <p className="text-sm text-text-muted">
-            {isInstantWaiting ? 'Instant request' : booking.serviceName}
+          <p className="font-semibold">
+            {isInstantWaiting ? booking.services.map((s) => s.name).join(', ') : otherName}
+          </p>
+          <p className="truncate text-sm text-text-muted">
+            {isInstantWaiting ? 'Instant request' : booking.services.map((s) => s.name).join(', ')}
           </p>
         </div>
         {!isInstantWaiting && <Avatar name={otherName} imageUrl={otherImage} size={56} />}
@@ -232,9 +234,19 @@ export function BookingDetail() {
           <span className="shrink-0 text-text-muted">Address</span>
           <span className="text-right font-medium">{booking.addressLabel}</span>
         </div>
+        {booking.services.length > 0 && (
+          <div className="mt-3 flex flex-col gap-1.5 border-t border-border pt-3">
+            {booking.services.map((service) => (
+              <div key={service.id} className="flex items-center justify-between text-sm">
+                <span className="text-text-muted">{service.name}</span>
+                <span className="font-medium">{service.price !== null ? `Rs. ${service.price}` : 'Pending'}</span>
+              </div>
+            ))}
+          </div>
+        )}
         {booking.price !== null && (
-          <div className="mt-2 flex items-center justify-between text-sm">
-            <span className="text-text-muted">Price</span>
+          <div className="mt-2 flex items-center justify-between border-t border-border pt-2 text-sm">
+            <span className="text-text-muted">Total</span>
             <span className="font-semibold">Rs. {booking.price}</span>
           </div>
         )}

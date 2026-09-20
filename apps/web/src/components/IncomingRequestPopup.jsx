@@ -111,7 +111,9 @@ export function IncomingRequestPopup() {
             <p className="font-semibold">New instant request</p>
             <span className="text-sm font-semibold text-brand-solid">{secondsLeft}s</span>
           </div>
-          <p className="mt-2 text-sm capitalize text-text-muted">{current.booking.serviceName}</p>
+          <p className="mt-2 text-sm capitalize text-text-muted">
+            {current.booking.services.map((s) => s.name).join(', ')}
+          </p>
           <p className="text-sm text-text-muted">{current.booking.addressLabel}</p>
 
           <div className="mt-4 flex gap-3">

@@ -9,13 +9,18 @@ import * as workersApi from '../../api/workers.api.js';
 import * as bookingsApi from '../../api/bookings.api.js';
 
 export function BookingRequest() {
-  const { workerId, serviceId } = useParams();
+  const { workerId, serviceIds } = useParams();
   const navigate = useNavigate();
   const [worker, setWorker] = useState(null);
   const [loadError, setLoadError] = useState('');
   const [addressLabel, setAddressLabel] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const selectedIds = serviceIds
+    .split(',')
+    .map(Number)
+    .filter((n) => Number.isInteger(n) && n > 0);
 
   useEffect(() => {
     workersApi
@@ -37,17 +42,22 @@ export function BookingRequest() {
 
   if (!worker) return null;
 
-  const service = worker.services.find((s) => s.id === Number(serviceId));
-  if (!service) {
+  const services = selectedIds
+    .map((id) => worker.services.find((s) => s.id === id))
+    .filter(Boolean);
+
+  if (services.length === 0) {
     return (
       <Screen>
         <button onClick={() => navigate(-1)} className="mb-4 self-start text-sm text-text-muted">
           &larr; Back
         </button>
-        <p className="text-sm text-danger">This service is no longer offered.</p>
+        <p className="text-sm text-danger">These services are no longer offered.</p>
       </Screen>
     );
   }
+
+  const total = services.reduce((sum, s) => sum + s.price, 0);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -59,7 +69,7 @@ export function BookingRequest() {
     try {
       const { booking } = await bookingsApi.create({
         workerId: Number(workerId),
-        serviceId: Number(serviceId),
+        serviceIds: services.map((s) => s.id),
         addressLabel: addressLabel.trim(),
       });
       navigate(`/booking/${booking.id}`, { replace: true });
@@ -81,9 +91,25 @@ export function BookingRequest() {
         <Avatar name={worker.fullName} imageUrl={worker.profileImageUrl} size={56} />
         <div className="min-w-0 flex-1">
           <p className="font-semibold">{worker.fullName}</p>
-          <p className="text-sm text-text-muted">{service.name}</p>
+          <p className="text-sm text-text-muted">
+            {services.length} service{services.length === 1 ? '' : 's'} selected
+          </p>
         </div>
-        <p className="font-semibold">Rs. {service.price}</p>
+      </Card>
+
+      <Card className="mt-3">
+        <div className="flex flex-col gap-2">
+          {services.map((service) => (
+            <div key={service.id} className="flex items-center justify-between text-sm">
+              <span className="text-text-muted">{service.name}</span>
+              <span className="font-medium">Rs. {service.price}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
+          <span className="font-semibold">Total</span>
+          <span className="text-lg font-bold">Rs. {total}</span>
+        </div>
       </Card>
 
       <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
@@ -96,7 +122,7 @@ export function BookingRequest() {
         />
         {error && <p className="text-sm text-danger">{error}</p>}
         <Button type="submit" disabled={submitting} className="w-full">
-          {submitting ? 'Sending request...' : `Request booking - Rs. ${service.price}`}
+          {submitting ? 'Sending request...' : `Request booking - Rs. ${total}`}
         </Button>
       </form>
     </Screen>
