@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 
 const ICONS = {
   home: <path d="M3 11.5 12 4l9 7.5M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9" />,
@@ -23,7 +23,11 @@ function NavIcon({ name }) {
 
 const CUSTOMER_TABS = [
   { to: '/home', icon: 'home', label: 'Home' },
-  { to: '/search', icon: 'search', label: 'Search' },
+  // Search isn't a separate screen - it's Home's active state. This just
+  // routes to Home with a param it reads once to auto-focus the search bar.
+  // Not a real distinct destination, so it never shows as "active" like the
+  // others do (it shares Home's own path/route) - see standalone below.
+  { to: '/home?focusSearch=1', icon: 'search', label: 'Search', neverActive: true },
   { to: '/bookings', icon: 'bookings', label: 'Bookings' },
   { to: '/profile', icon: 'profile', label: 'Profile' },
 ];
@@ -40,20 +44,31 @@ export function BottomNav({ role }) {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-surface-raised shadow-raised">
       <div className="mx-auto flex max-w-md items-center justify-around px-2 py-2">
-        {tabs.map((tab) => (
-          <NavLink
-            key={tab.to}
-            to={tab.to}
-            className={({ isActive }) =>
-              `flex flex-col items-center gap-1 rounded-lg px-4 py-1.5 text-xs font-medium transition-colors ${
-                isActive ? 'text-brand-solid' : 'text-text-muted'
-              }`
-            }
-          >
-            <NavIcon name={tab.icon} />
-            {tab.label}
-          </NavLink>
-        ))}
+        {tabs.map((tab) =>
+          tab.neverActive ? (
+            <Link
+              key={tab.to}
+              to={tab.to}
+              className="flex flex-col items-center gap-1 rounded-lg px-4 py-1.5 text-xs font-medium text-text-muted transition-colors"
+            >
+              <NavIcon name={tab.icon} />
+              {tab.label}
+            </Link>
+          ) : (
+            <NavLink
+              key={tab.to}
+              to={tab.to}
+              className={({ isActive }) =>
+                `flex flex-col items-center gap-1 rounded-lg px-4 py-1.5 text-xs font-medium transition-colors ${
+                  isActive ? 'text-brand-solid' : 'text-text-muted'
+                }`
+              }
+            >
+              <NavIcon name={tab.icon} />
+              {tab.label}
+            </NavLink>
+          )
+        )}
       </div>
     </nav>
   );

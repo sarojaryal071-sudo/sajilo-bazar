@@ -128,24 +128,36 @@ function toSearchResult(row) {
 
 // One row per worker - their cheapest service matching the filters, via
 // DISTINCT ON. Simple filtering only (category / exact service / a text
-// match on service_area_label) - no radius/geolocation math, that's
-// Phase 3's instant-request work. Only approved workers are searchable.
-export async function searchWorkers({ category, serviceId, location }) {
+// match against worker name, service name, or service area) - no radius/
+// geolocation math, that's Phase 3's instant-request work. Only approved
+// workers are searchable. Final results are sorted best-rated first and
+// capped at 20, so a call with no filters at all doubles as "recommended/
+// top-rated workers" for Home's search-activation moment.
+export async function searchWorkers({ category, serviceId, q }) {
   const { rows } = await pool.query(
-    `SELECT DISTINCT ON (u.id)
-       u.id AS user_id, u.full_name, u.profile_image_url,
-       wp.rating_avg, wp.jobs_completed_count, wp.service_area_label,
-       ws.service_id, s.name AS service_name, s.category, ws.price
-     FROM users u
-     JOIN worker_profiles wp ON wp.user_id = u.id
-     JOIN worker_services ws ON ws.worker_id = u.id AND ws.is_active = true
-     JOIN services s ON s.id = ws.service_id
-     WHERE wp.verification_status = 'approved'
-       AND ($1::text IS NULL OR s.category = $1)
-       AND ($2::int IS NULL OR s.id = $2)
-       AND ($3::text IS NULL OR wp.service_area_label ILIKE '%' || $3 || '%')
-     ORDER BY u.id, ws.price ASC`,
-    [category ?? null, serviceId ?? null, location ?? null]
+    `SELECT * FROM (
+       SELECT DISTINCT ON (u.id)
+         u.id AS user_id, u.full_name, u.profile_image_url,
+         wp.rating_avg, wp.jobs_completed_count, wp.service_area_label,
+         ws.service_id, s.name AS service_name, s.category, ws.price
+       FROM users u
+       JOIN worker_profiles wp ON wp.user_id = u.id
+       JOIN worker_services ws ON ws.worker_id = u.id AND ws.is_active = true
+       JOIN services s ON s.id = ws.service_id
+       WHERE wp.verification_status = 'approved'
+         AND ($1::text IS NULL OR s.category = $1)
+         AND ($2::int IS NULL OR s.id = $2)
+         AND (
+           $3::text IS NULL
+           OR u.full_name ILIKE '%' || $3 || '%'
+           OR s.name ILIKE '%' || $3 || '%'
+           OR wp.service_area_label ILIKE '%' || $3 || '%'
+         )
+       ORDER BY u.id, ws.price ASC
+     ) matched
+     ORDER BY matched.rating_avg DESC
+     LIMIT 20`,
+    [category ?? null, serviceId ?? null, q ?? null]
   );
   return rows.map(toSearchResult);
 }

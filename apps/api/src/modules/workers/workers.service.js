@@ -6,11 +6,11 @@ export async function getServiceCatalog() {
   return workersModel.listServiceCatalog();
 }
 
-export async function search({ category, serviceId, location }) {
+export async function search({ category, serviceId, q }) {
   return workersModel.searchWorkers({
     category: category || null,
     serviceId: serviceId ? Number(serviceId) : null,
-    location: location || null,
+    q: q || null,
   });
 }
 

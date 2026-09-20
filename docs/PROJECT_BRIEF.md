@@ -97,7 +97,7 @@ Phase 1 — Auth & Profiles
 Phase 2 — Manual Booking
 - Backend: bookings module (manual type only), chat module, reviews module
 - Tables: bookings, chat_messages, reviews
-- Frontend: Home, Search, Worker Detail, Booking request flow, Bookings list, Booking detail/tracking, Chat, Review modal, Worker Jobs screen, Worker Dashboard
+- Frontend: Home (with inline search - see SCREENS.md), Worker Detail, Booking request flow, Bookings list, Booking detail/tracking, Chat, Review modal, Worker Jobs screen, Worker Dashboard
 - Done when: a customer can find a worker, book them directly, chat, the worker can accept/decline and mark complete, and the customer can leave a review
 
 Phase 3 — Instant Request
