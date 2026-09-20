@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Screen } from '../../components/Screen.jsx';
 import { Card } from '../../components/Card.jsx';
@@ -31,7 +31,6 @@ function BackIcon() {
 export function Home() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
   const inputRef = useRef(null);
 
   const [categories, setCategories] = useState(null);
@@ -58,19 +57,6 @@ export function Home() {
       })
       .catch(() => setLoadError('Could not load services right now.'));
   }, []);
-
-  // Nav tab entry point: /home?focusSearch=1 activates search instead of
-  // opening a separate screen. Depends on searchParams (not just []) since
-  // tapping the Search tab while already on Home doesn't remount this
-  // component - only a real searchParams change re-fires it. Clearing the
-  // param right after consuming it is what stops this from looping.
-  useEffect(() => {
-    if (searchParams.get('focusSearch')) {
-      activateSearch();
-      setSearchParams({}, { replace: true });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
 
   // Debounce typed input only - category taps and activation itself stay
   // instant (they update debouncedQuery's sibling deps directly below).
