@@ -1,0 +1,54 @@
+/* Single source of truth for design tokens - tailwind.config.js mirrors these.
+   No runtime theming engine: change values here, not per-component. */
+
+:root {
+  /* Brand gradient: deep teal -> emerald. Used on primary actions, hero
+     sections, active states only - not on every surface. */
+  --color-brand-from: #0f766e;
+  --color-brand-to: #10b981;
+  --color-brand-solid: #0d9488;
+  --color-brand-contrast: #ffffff;
+
+  /* Neutral surfaces */
+  --color-surface: #ffffff;
+  --color-surface-alt: #f8fafc;
+  --color-surface-raised: #ffffff;
+  --color-border: #e2e8f0;
+
+  /* Text */
+  --color-text: #0f172a;
+  --color-text-muted: #64748b;
+  --color-text-on-brand: #ffffff;
+
+  /* Feedback */
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+
+  /* Radius scale - one scale, used everywhere */
+  --radius-sm: 0.5rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.5rem;
+  --radius-full: 9999px;
+
+  /* Elevation - two levels: resting and raised/active */
+  --shadow-resting: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.08);
+  --shadow-raised: 0 8px 24px rgba(15, 23, 42, 0.12), 0 2px 6px rgba(15, 23, 42, 0.08);
+
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-surface: #121417;
+    --color-surface-alt: #1a1d21;
+    --color-surface-raised: #1e2126;
+    --color-border: #2a2e34;
+
+    --color-text: #f1f5f9;
+    --color-text-muted: #94a3b8;
+
+    --shadow-resting: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.24);
+    --shadow-raised: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
+  }
+}
