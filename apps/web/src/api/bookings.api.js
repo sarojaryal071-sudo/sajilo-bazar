@@ -1,16 +1,16 @@
 import { apiFetch } from './client.js';
 
-export function create({ workerId, serviceId, addressLabel, latitude, longitude }) {
+export function create({ workerId, serviceIds, addressLabel, latitude, longitude }) {
   return apiFetch('/bookings', {
     method: 'POST',
-    body: { workerId, serviceId, addressLabel, latitude, longitude },
+    body: { workerId, serviceIds, addressLabel, latitude, longitude },
   });
 }
 
-export function createInstant({ serviceId, addressLabel, latitude, longitude }) {
+export function createInstant({ serviceIds, addressLabel, latitude, longitude }) {
   return apiFetch('/bookings/instant', {
     method: 'POST',
-    body: { serviceId, addressLabel, latitude, longitude },
+    body: { serviceIds, addressLabel, latitude, longitude },
   });
 }
 

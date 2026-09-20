@@ -21,7 +21,9 @@ export function BookingListItem({ booking, viewerRole, onClick }) {
       <Avatar name={otherName} imageUrl={otherImage} size={48} />
       <div className="min-w-0 flex-1">
         <p className="truncate font-semibold">{displayName}</p>
-        <p className="truncate text-sm text-text-muted">{booking.serviceName}</p>
+        <p className="truncate text-sm text-text-muted">
+          {booking.services.map((s) => s.name).join(', ')}
+        </p>
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1.5">
         {booking.price !== null && <p className="text-sm font-semibold">Rs. {booking.price}</p>}

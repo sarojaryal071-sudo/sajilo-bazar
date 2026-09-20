@@ -12,10 +12,16 @@ export function InstantRequest() {
   const navigate = useNavigate();
   const [categories, setCategories] = useState(null);
   const [loadError, setLoadError] = useState('');
-  const [serviceId, setServiceId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [addressLabel, setAddressLabel] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  function toggleService(serviceId) {
+    setSelectedIds((prev) =>
+      prev.includes(serviceId) ? prev.filter((id) => id !== serviceId) : [...prev, serviceId]
+    );
+  }
 
   useEffect(() => {
     workersApi
@@ -33,14 +39,14 @@ export function InstantRequest() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
-    if (!serviceId) return setError('Choose what you need help with.');
+    if (selectedIds.length === 0) return setError('Choose what you need help with.');
     if (addressLabel.trim().length < 3) return setError('Enter the address where the worker should come.');
 
     setSubmitting(true);
     try {
       const { latitude, longitude } = await getCurrentLocation();
       const { booking } = await bookingsApi.createInstant({
-        serviceId,
+        serviceIds: selectedIds,
         addressLabel: addressLabel.trim(),
         latitude,
         longitude,
@@ -59,7 +65,8 @@ export function InstantRequest() {
       </button>
       <h1 className="text-xl font-bold">Instant request</h1>
       <p className="mt-1 text-sm text-text-muted">
-        We&apos;ll notify nearby online workers right away - the first to accept gets the job.
+        We&apos;ll notify nearby online workers who offer everything you pick - first to accept gets
+        the job. Pricing is confirmed once a worker accepts.
       </p>
 
       {loadError && <p className="mt-4 text-sm text-danger">{loadError}</p>}
@@ -70,18 +77,28 @@ export function InstantRequest() {
           <div key={category}>
             <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-text-muted">{category}</p>
             <div className="flex flex-col gap-2">
-              {services.map((service) => (
-                <Card
-                  key={service.id}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => setServiceId(service.id)}
-                  className={`cursor-pointer py-3 ${
-                    serviceId === service.id ? 'ring-2 ring-brand-solid' : ''
-                  }`}
-                >
-                  <p className="font-medium">{service.name}</p>
-                </Card>
-              ))}
+              {services.map((service) => {
+                const selected = selectedIds.includes(service.id);
+                return (
+                  <Card
+                    key={service.id}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => toggleService(service.id)}
+                    className={`flex cursor-pointer items-center gap-3 py-3 ${
+                      selected ? 'ring-2 ring-brand-solid' : ''
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() => toggleService(service.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="h-5 w-5 shrink-0 accent-brand-solid"
+                    />
+                    <p className="font-medium">{service.name}</p>
+                  </Card>
+                );
+              })}
             </div>
           </div>
         ))}
@@ -97,7 +114,11 @@ export function InstantRequest() {
         {error && <p className="text-sm text-danger">{error}</p>}
 
         <Button type="submit" disabled={submitting} className="w-full">
-          {submitting ? 'Finding nearby workers...' : 'Send instant request'}
+          {submitting
+            ? 'Finding nearby workers...'
+            : selectedIds.length > 0
+              ? `Send instant request - ${selectedIds.length} service${selectedIds.length === 1 ? '' : 's'}`
+              : 'Send instant request'}
         </Button>
       </form>
     </Screen>

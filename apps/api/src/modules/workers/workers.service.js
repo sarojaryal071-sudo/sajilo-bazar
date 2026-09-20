@@ -23,11 +23,12 @@ export async function getWorkerDetail(userId) {
 export async function getMyWorkerData(userId) {
   const profile = await workersModel.findProfile(userId);
   if (!profile) throw new ApiError(404, 'Worker profile not found');
-  const [services, documents] = await Promise.all([
+  const [services, documents, { reviewsCount, reviews }] = await Promise.all([
     workersModel.listWorkerServices(userId),
     workersModel.listDocuments(userId),
+    workersModel.findReviewsForWorker(userId),
   ]);
-  return { profile, services, documents };
+  return { profile, services, documents, reviewsCount, reviews };
 }
 
 export async function setOnline(userId, { isOnline, latitude, longitude }) {

@@ -19,6 +19,7 @@ import { BookingDetail } from './screens/BookingDetail/BookingDetail.jsx';
 import { BookingChat } from './screens/BookingChat/BookingChat.jsx';
 import { InstantRequest } from './screens/InstantRequest/InstantRequest.jsx';
 import { Notifications } from './screens/Notifications/Notifications.jsx';
+import { Earnings } from './screens/Earnings/Earnings.jsx';
 
 export default function App() {
   return (
@@ -54,7 +55,7 @@ export default function App() {
             }
           />
           <Route
-            path="/book/:workerId/:serviceId"
+            path="/book/:workerId/:serviceIds"
             element={
               <ProtectedRoute role="customer">
                 <BookingRequest />
@@ -90,6 +91,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Notifications />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/worker/earnings"
+            element={
+              <ProtectedRoute role="worker">
+                <Earnings />
               </ProtectedRoute>
             }
           />

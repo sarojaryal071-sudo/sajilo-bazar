@@ -1,13 +1,27 @@
 import { useEffect, useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Screen } from '../../components/Screen.jsx';
 import { Card } from '../../components/Card.jsx';
 import { Badge } from '../../components/Badge.jsx';
 import { BookingListItem } from '../../components/BookingListItem.jsx';
+import { ReviewsList } from '../../components/ReviewsList.jsx';
 import * as workersApi from '../../api/workers.api.js';
 import * as bookingsApi from '../../api/bookings.api.js';
 import { getCurrentLocation } from '../../lib/geolocation.js';
+
+function WalletIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path
+        d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="16.5" cy="13" r="1.25" />
+    </svg>
+  );
+}
 
 function OnlineToggle({ isOnline, onToggle }) {
   const [busy, setBusy] = useState(false);
@@ -151,6 +165,19 @@ export function WorkerDashboard() {
             </Card>
           </div>
 
+          <Link to="/worker/earnings">
+            <motion.div
+              whileTap={{ scale: 0.98 }}
+              className="mt-3 flex w-full items-center gap-3 rounded-2xl bg-brand px-5 py-3.5 text-text-onBrand shadow-resting"
+            >
+              <WalletIcon />
+              <div>
+                <p className="font-semibold">Earnings</p>
+                <p className="text-sm opacity-90">See jobs, commission owed, and your balance</p>
+              </div>
+            </motion.div>
+          </Link>
+
           <p className="mt-6 mb-3 text-sm font-semibold uppercase tracking-wide text-text-muted">
             Active jobs
           </p>
@@ -182,6 +209,15 @@ export function WorkerDashboard() {
           ))}
         </div>
       </Card>
+
+      {data.profile.verificationStatus === 'approved' && (
+        <>
+          <p className="mt-6 mb-3 text-sm font-semibold uppercase tracking-wide text-text-muted">
+            Reviews
+          </p>
+          <ReviewsList reviews={data.reviews} reviewsCount={data.reviewsCount} />
+        </>
+      )}
 
       <Card className="mt-4">
         <p className="font-semibold">Submitted documents</p>

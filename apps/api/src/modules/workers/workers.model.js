@@ -185,7 +185,36 @@ export async function searchWorkers({ category, serviceId, q }) {
 // expand over whatever comes back here.
 const MAX_REVIEWS_RETURNED = 50;
 
-function toWorkerDetail(profileRow, serviceRows, reviewRows) {
+// Shared by the public worker-detail view and a worker's own profile/dashboard,
+// so a worker sees the same review list a customer would see on their profile.
+// COUNT(*) OVER() runs over every matching row before LIMIT clips the result,
+// so it's the true total review count in the same round trip - no separate
+// count query needed.
+export async function findReviewsForWorker(workerId) {
+  const { rows } = await pool.query(
+    `SELECT r.id, r.rating, r.comment, r.created_at, cu.full_name AS customer_name,
+            COUNT(*) OVER() AS total_count
+     FROM reviews r
+     JOIN bookings b ON b.id = r.booking_id
+     JOIN users cu ON cu.id = b.customer_id
+     WHERE b.worker_id = $1
+     ORDER BY r.created_at DESC
+     LIMIT $2`,
+    [workerId, MAX_REVIEWS_RETURNED]
+  );
+  return {
+    reviewsCount: rows[0] ? Number(rows[0].total_count) : 0,
+    reviews: rows.map((row) => ({
+      id: row.id,
+      rating: row.rating,
+      comment: row.comment,
+      createdAt: row.created_at,
+      customerName: row.customer_name,
+    })),
+  };
+}
+
+function toWorkerDetail(profileRow, serviceRows, { reviewsCount, reviews }) {
   return {
     userId: profileRow.user_id,
     fullName: profileRow.full_name,
@@ -200,14 +229,8 @@ function toWorkerDetail(profileRow, serviceRows, reviewRows) {
       category: row.category,
       price: Number(row.price),
     })),
-    reviewsCount: reviewRows[0] ? Number(reviewRows[0].total_count) : 0,
-    reviews: reviewRows.map((row) => ({
-      id: row.id,
-      rating: row.rating,
-      comment: row.comment,
-      createdAt: row.created_at,
-      customerName: row.customer_name,
-    })),
+    reviewsCount,
+    reviews,
   };
 }
 
@@ -233,22 +256,9 @@ export async function findApprovedWorkerDetail(userId) {
     [userId]
   );
 
-  // COUNT(*) OVER() runs over every matching row before LIMIT clips the
-  // result, so it's the true total review count in the same round trip -
-  // no separate count query needed.
-  const reviews = await pool.query(
-    `SELECT r.id, r.rating, r.comment, r.created_at, cu.full_name AS customer_name,
-            COUNT(*) OVER() AS total_count
-     FROM reviews r
-     JOIN bookings b ON b.id = r.booking_id
-     JOIN users cu ON cu.id = b.customer_id
-     WHERE b.worker_id = $1
-     ORDER BY r.created_at DESC
-     LIMIT $2`,
-    [userId, MAX_REVIEWS_RETURNED]
-  );
+  const reviewData = await findReviewsForWorker(userId);
 
-  return toWorkerDetail(rows[0], services.rows, reviews.rows);
+  return toWorkerDetail(rows[0], services.rows, reviewData);
 }
 
 export const withTransaction = async (fn) => {
