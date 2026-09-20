@@ -13,6 +13,7 @@ export const workersRoutes = Router();
 workersRoutes.get('/catalog/services', workersController.getServiceCatalog);
 workersRoutes.get('/search', workersController.search);
 workersRoutes.get('/me', requireAuth, requireRole('worker'), workersController.getMe);
+workersRoutes.patch('/me/online', requireAuth, requireRole('worker'), workersController.setOnline);
 workersRoutes.post(
   '/apply',
   requireAuth,

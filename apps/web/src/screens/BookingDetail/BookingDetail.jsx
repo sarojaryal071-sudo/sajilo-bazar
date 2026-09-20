@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Screen } from '../../components/Screen.jsx';
 import { Card } from '../../components/Card.jsx';
 import { Avatar } from '../../components/Avatar.jsx';
@@ -7,10 +8,54 @@ import { Badge } from '../../components/Badge.jsx';
 import { Button } from '../../components/Button.jsx';
 import { ReviewModal } from '../../components/ReviewModal.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useSocket } from '../../context/SocketContext.jsx';
 import * as bookingsApi from '../../api/bookings.api.js';
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_TONE } from '../../lib/bookingStatus.js';
 
 const STEPS = ['requested', 'accepted', 'in_progress', 'completed'];
+const WAITING_POLL_MS = 4000;
+
+function RadarIcon() {
+  return (
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <circle cx="12" cy="12" r="9" strokeLinecap="round" />
+      <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+      <path d="M12 12 18 8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// Live "waiting for a worker" state for an unclaimed instant request -
+// pulses while polling/listening for booking:assigned, so the customer
+// isn't staring at a static screen while nearby workers are being notified.
+function WaitingForWorker() {
+  const [elapsedSec, setElapsedSec] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => setElapsedSec((s) => s + 1), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <Card className="mt-6 flex flex-col items-center gap-3 py-8 text-center">
+      <motion.div
+        animate={{ scale: [1, 1.15, 1], opacity: [0.7, 1, 0.7] }}
+        transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+        className="flex h-16 w-16 items-center justify-center rounded-full bg-brand text-text-onBrand"
+      >
+        <RadarIcon />
+      </motion.div>
+      <div>
+        <p className="font-semibold">Looking for a nearby worker...</p>
+        <p className="mt-1 text-sm text-text-muted">
+          {elapsedSec < 30
+            ? "We've notified nearby online workers - first to accept gets the job."
+            : "Still looking - this is taking longer than usual. You can keep waiting or cancel."}
+        </p>
+      </div>
+    </Card>
+  );
+}
 
 function StatusTracker({ status }) {
   const stepIndex = STEPS.indexOf(status);
@@ -68,6 +113,7 @@ export function BookingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const socket = useSocket();
   const [booking, setBooking] = useState(null);
   const [review, setReview] = useState(null);
   const [error, setError] = useState('');
@@ -93,6 +139,28 @@ export function BookingDetail() {
       .then(({ review }) => setReview(review))
       .catch(() => {});
   }, [booking?.status, id]);
+
+  const isInstantWaiting = booking?.type === 'instant' && booking?.status === 'requested' && !booking?.workerId;
+
+  // Live push for the customer waiting on an instant request - falls
+  // through instantly once a worker claims it, no need to wait for the
+  // polling fallback below.
+  useEffect(() => {
+    if (!socket || !isInstantWaiting) return;
+    function onAssigned({ booking: updated }) {
+      if (updated.id === Number(id)) setBooking(updated);
+    }
+    socket.on('booking:assigned', onAssigned);
+    return () => socket.off('booking:assigned', onAssigned);
+  }, [socket, isInstantWaiting, id]);
+
+  // Polling fallback in case the socket isn't connected (or missed the
+  // event) - same source of truth either way.
+  useEffect(() => {
+    if (!isInstantWaiting) return;
+    const interval = setInterval(load, WAITING_POLL_MS);
+    return () => clearInterval(interval);
+  }, [isInstantWaiting, load]);
 
   if (error) {
     return (
@@ -138,15 +206,19 @@ export function BookingDetail() {
       </button>
 
       <div className="flex items-center gap-4">
-        <Avatar name={otherName} imageUrl={otherImage} size={56} />
         <div className="min-w-0 flex-1">
-          <p className="font-semibold">{otherName}</p>
-          <p className="text-sm text-text-muted">{booking.serviceName}</p>
+          <p className="font-semibold">{isInstantWaiting ? booking.serviceName : otherName}</p>
+          <p className="text-sm text-text-muted">
+            {isInstantWaiting ? 'Instant request' : booking.serviceName}
+          </p>
         </div>
+        {!isInstantWaiting && <Avatar name={otherName} imageUrl={otherImage} size={56} />}
         <Badge tone={BOOKING_STATUS_TONE[booking.status]}>{BOOKING_STATUS_LABEL[booking.status]}</Badge>
       </div>
 
-      {isTerminalNonCompleted ? (
+      {isInstantWaiting ? (
+        <WaitingForWorker />
+      ) : isTerminalNonCompleted ? (
         <Card className="mt-6">
           <p className="font-semibold">{BOOKING_STATUS_LABEL[booking.status]}</p>
           {booking.cancelReason && <p className="mt-1 text-sm text-text-muted">{booking.cancelReason}</p>}
@@ -182,9 +254,11 @@ export function BookingDetail() {
       {actionError && <p className="mt-4 text-sm text-danger">{actionError}</p>}
 
       <div className="mt-6 flex flex-col gap-3">
-        <Button variant="secondary" onClick={() => navigate(`/booking/${id}/chat`)}>
-          Chat
-        </Button>
+        {!isInstantWaiting && (
+          <Button variant="secondary" onClick={() => navigate(`/booking/${id}/chat`)}>
+            Chat
+          </Button>
+        )}
 
         {isWorker && booking.status === 'requested' && (
           <div className="flex gap-3">

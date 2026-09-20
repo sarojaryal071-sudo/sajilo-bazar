@@ -37,6 +37,16 @@ export const BookingCancelInputSchema = z.object({
   reason: z.string().max(300).nullable().optional(),
 });
 
+// An instant request has no chosen worker - lat/lng are required (not
+// optional like the manual flow's) since matching nearby online workers
+// depends on them.
+export const InstantBookingCreateInputSchema = z.object({
+  serviceId: z.number().int().positive(),
+  addressLabel: z.string().min(3).max(200),
+  latitude: z.number(),
+  longitude: z.number(),
+});
+
 export const BookingOfferSchema = z.object({
   id: z.number().int().positive(),
   bookingId: z.number().int().positive(),

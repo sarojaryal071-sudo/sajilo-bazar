@@ -9,10 +9,13 @@ export const bookingsRoutes = Router();
 bookingsRoutes.use(requireAuth);
 
 bookingsRoutes.post('/', requireRole('customer'), bookingsController.create);
+bookingsRoutes.post('/instant', requireRole('customer'), bookingsController.createInstant);
 bookingsRoutes.get('/', bookingsController.list);
 bookingsRoutes.get('/:id', bookingsController.detail);
 bookingsRoutes.patch('/:id/accept', requireRole('worker'), bookingsController.accept);
 bookingsRoutes.patch('/:id/decline', requireRole('worker'), bookingsController.decline);
+bookingsRoutes.patch('/:id/claim', requireRole('worker'), bookingsController.claim);
+bookingsRoutes.patch('/:id/decline-offer', requireRole('worker'), bookingsController.declineOffer);
 bookingsRoutes.patch('/:id/start', requireRole('worker'), bookingsController.start);
 bookingsRoutes.patch('/:id/complete', requireRole('worker'), bookingsController.complete);
 bookingsRoutes.patch('/:id/cancel', bookingsController.cancel);
