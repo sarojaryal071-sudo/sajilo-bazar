@@ -4,11 +4,11 @@ export function getServiceCatalog() {
   return apiFetch('/workers/catalog/services');
 }
 
-export function search({ category, serviceId, location } = {}) {
+export function search({ category, serviceId, q } = {}) {
   const params = new URLSearchParams();
   if (category) params.set('category', category);
   if (serviceId) params.set('serviceId', serviceId);
-  if (location) params.set('location', location);
+  if (q) params.set('q', q);
   const query = params.toString();
   return apiFetch(`/workers/search${query ? `?${query}` : ''}`);
 }

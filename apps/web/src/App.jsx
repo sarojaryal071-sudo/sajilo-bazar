@@ -6,7 +6,6 @@ import { Welcome } from './screens/Welcome/Welcome.jsx';
 import { Login } from './screens/Auth/Login.jsx';
 import { Signup } from './screens/Auth/Signup.jsx';
 import { Home } from './screens/Home/Home.jsx';
-import { Search } from './screens/Search/Search.jsx';
 import { Bookings } from './screens/Bookings/Bookings.jsx';
 import { Profile } from './screens/Profile/Profile.jsx';
 import { WorkerDetail } from './screens/WorkerDetail/WorkerDetail.jsx';
@@ -24,7 +23,6 @@ export default function App() {
 
         <Route element={<AppShell />}>
           <Route path="/home" element={<Home />} />
-          <Route path="/search" element={<Search />} />
           <Route path="/bookings" element={<Bookings />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/worker/dashboard" element={<WorkerDashboard />} />
