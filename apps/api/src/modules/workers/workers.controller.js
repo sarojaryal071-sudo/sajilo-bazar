@@ -13,8 +13,8 @@ export async function getServiceCatalog(req, res, next) {
 
 export async function search(req, res, next) {
   try {
-    const { category, serviceId, location } = req.query;
-    const results = await workersService.search({ category, serviceId, location });
+    const { category, serviceId, q } = req.query;
+    const results = await workersService.search({ category, serviceId, q });
     res.json({ results });
   } catch (err) {
     next(err);
