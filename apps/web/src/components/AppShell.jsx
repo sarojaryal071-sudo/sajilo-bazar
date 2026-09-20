@@ -1,14 +1,18 @@
+import { useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { BottomNav } from './BottomNav.jsx';
+import { HamburgerMenu } from './HamburgerMenu.jsx';
 
 // Layout for the main tabbed area - auth gate plus a persistent bottom nav,
-// with a different tab set per role (customer: Home/Search/Bookings/Profile,
-// worker: Dashboard/Jobs/Profile - see BottomNav.jsx). The worker-apply
-// screen stays outside this shell; it's a standalone form flow, not a tab.
-// The notification bell lives inside BottomNav as its own tab (Messenger-
-// style), not a separate top bar - a standalone bar left an unwanted gap
-// above the content.
+// with a different tab set per role (customer: Home/Bookings, worker:
+// Dashboard/Jobs), then Alerts and a hamburger menu tab shared by both -
+// see BottomNav.jsx. The worker-apply screen stays outside this shell; it's
+// a standalone form flow, not a tab. The notification bell and hamburger
+// menu live inside BottomNav as tabs (Messenger-style), not a separate top
+// bar - a standalone bar left an unwanted gap above the content. Profile,
+// Settings, Language, Theme, and Help/Support are reachable only through
+// the hamburger menu now, not as their own bottom-nav tabs.
 //
 // This wrapper is the sole owner of the full-viewport-height guarantee for
 // everything it wraps - the inner Screen (rendered via Outlet) uses
@@ -17,6 +21,7 @@ import { BottomNav } from './BottomNav.jsx';
 // on the flex-1 wrapper, inside that height budget, not added beyond it.
 export function AppShell() {
   const { user, loading } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
@@ -26,7 +31,8 @@ export function AppShell() {
       <div className="flex flex-1 flex-col pb-20">
         <Outlet />
       </div>
-      <BottomNav role={user.role} />
+      <BottomNav role={user.role} onOpenMenu={() => setMenuOpen(true)} />
+      <HamburgerMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
     </div>
   );
 }

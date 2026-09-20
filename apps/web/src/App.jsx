@@ -20,6 +20,7 @@ import { BookingChat } from './screens/BookingChat/BookingChat.jsx';
 import { InstantRequest } from './screens/InstantRequest/InstantRequest.jsx';
 import { Notifications } from './screens/Notifications/Notifications.jsx';
 import { Earnings } from './screens/Earnings/Earnings.jsx';
+import { ComingSoon } from './screens/ComingSoon/ComingSoon.jsx';
 
 export default function App() {
   return (
@@ -36,6 +37,10 @@ export default function App() {
             <Route path="/profile" element={<Profile />} />
             <Route path="/worker/dashboard" element={<WorkerDashboard />} />
             <Route path="/worker/jobs" element={<WorkerJobs />} />
+            <Route path="/settings" element={<ComingSoon title="Settings" />} />
+            <Route path="/language" element={<ComingSoon title="Language" />} />
+            <Route path="/theme" element={<ComingSoon title="Theme" />} />
+            <Route path="/help" element={<ComingSoon title="Help & Support" />} />
           </Route>
 
           <Route

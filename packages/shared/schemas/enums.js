@@ -13,6 +13,12 @@ export const VERIFICATION_STATUSES = ['unsubmitted', 'pending', 'approved', 'rej
 // worker profile's aggregate state before any document exists).
 export const DOCUMENT_STATUSES = ['pending', 'approved', 'rejected'];
 
+// Same shape as DOCUMENT_STATUSES but a distinct concept: whether a specific
+// worker_services row is bookable yet. Same-category additions to an already
+// approved worker start 'approved'; a different category starts 'pending'
+// until admin review (Phase 6).
+export const SERVICE_APPROVAL_STATUSES = ['pending', 'approved', 'rejected'];
+
 export const BOOKING_TYPES = ['manual', 'instant'];
 
 export const BOOKING_STATUSES = [

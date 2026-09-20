@@ -1,4 +1,4 @@
-import { WorkerApplyInputSchema, WorkerOnlineInputSchema } from '@sajilo-bazar/shared';
+import { WorkerApplyInputSchema, WorkerOnlineInputSchema, WorkerAddServiceInputSchema } from '@sajilo-bazar/shared';
 import { ApiError } from '../../middleware/error.middleware.js';
 import * as workersService from './workers.service.js';
 
@@ -38,6 +38,16 @@ export async function getMe(req, res, next) {
     res.json(data);
   } catch (err) {
     next(err);
+  }
+}
+
+export async function addService(req, res, next) {
+  try {
+    const input = WorkerAddServiceInputSchema.parse(req.body);
+    const service = await workersService.addService(req.user.id, input);
+    res.status(201).json({ service });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid service data', err.issues) : err);
   }
 }
 

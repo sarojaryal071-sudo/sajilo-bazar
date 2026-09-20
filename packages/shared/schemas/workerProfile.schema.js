@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { VERIFICATION_STATUSES } from './enums.js';
+import { VERIFICATION_STATUSES, SERVICE_APPROVAL_STATUSES } from './enums.js';
 
 export const WorkerProfileSchema = z.object({
   userId: z.number().int().positive(),
@@ -27,6 +27,17 @@ export const WorkerServiceSchema = z.object({
   workerId: z.number().int().positive(),
   serviceId: z.number().int().positive(),
   serviceName: z.string().optional(), // denormalized for display, joined from services
+  category: z.string().optional(), // denormalized for display, joined from services
   price: z.number().positive(),
   isActive: z.boolean().default(true),
+  approvalStatus: z.enum(SERVICE_APPROVAL_STATUSES).default('approved'),
+});
+
+// A worker adding a service beyond what they registered with at signup -
+// picked from the existing catalog by id only, never free-text name or
+// description. Same-category-as-approved goes live immediately; a
+// different category needs admin review (see workers.service.js).
+export const WorkerAddServiceInputSchema = z.object({
+  serviceId: z.number().int().positive(),
+  price: z.number().positive(),
 });
