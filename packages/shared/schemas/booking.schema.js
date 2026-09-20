@@ -15,8 +15,26 @@ export const BookingSchema = z.object({
   addressLabel: z.string().max(200),
   latitude: z.number().nullable().optional(),
   longitude: z.number().nullable().optional(),
+  cancelledBy: z.number().int().positive().nullable().optional(),
+  cancelReason: z.string().max(300).nullable().optional(),
   createdAt: z.string().datetime().optional(),
   completedAt: z.string().datetime().nullable().optional(),
+});
+
+// A customer directly booking a specific worker for one of their listed
+// services - manual booking only (Phase 2). Price isn't submitted by the
+// client: the backend looks up the worker's current price for serviceId so
+// it can't be tampered with.
+export const BookingCreateInputSchema = z.object({
+  workerId: z.number().int().positive(),
+  serviceId: z.number().int().positive(),
+  addressLabel: z.string().min(3).max(200),
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
+});
+
+export const BookingCancelInputSchema = z.object({
+  reason: z.string().max(300).nullable().optional(),
 });
 
 export const BookingOfferSchema = z.object({

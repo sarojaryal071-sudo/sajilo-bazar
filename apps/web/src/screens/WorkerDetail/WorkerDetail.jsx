@@ -71,19 +71,23 @@ export function WorkerDetail() {
       </p>
       <div className="flex flex-col gap-2">
         {worker.services.map((service) => (
-          <Card key={service.id} className="flex items-center justify-between py-3">
-            <div>
+          <Card key={service.id} className="flex items-center justify-between gap-3 py-3">
+            <div className="min-w-0">
               <p className="font-medium">{service.name}</p>
               <p className="text-xs capitalize text-text-muted">{service.category}</p>
             </div>
-            <p className="font-semibold">Rs. {service.price}</p>
+            <div className="flex shrink-0 items-center gap-3">
+              <p className="font-semibold">Rs. {service.price}</p>
+              <Button
+                className="px-4 py-2 text-sm"
+                onClick={() => navigate(`/book/${worker.userId}/${service.id}`)}
+              >
+                Book
+              </Button>
+            </div>
           </Card>
         ))}
       </div>
-
-      <Button disabled className="mt-8 w-full opacity-50">
-        Book - coming soon
-      </Button>
     </Screen>
   );
 }

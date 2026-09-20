@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Screen } from '../../components/Screen.jsx';
 import { Card } from '../../components/Card.jsx';
 import { Badge } from '../../components/Badge.jsx';
+import { BookingListItem } from '../../components/BookingListItem.jsx';
 import * as workersApi from '../../api/workers.api.js';
+import * as bookingsApi from '../../api/bookings.api.js';
 
 const STATUS_COPY = {
   pending: {
@@ -24,8 +26,15 @@ const STATUS_COPY = {
   },
 };
 
+// "Today's jobs" has no scheduled-time field to filter on yet (see
+// DATA_MODEL.md), so this reads it as "jobs actively in motion" - accepted
+// or in_progress - rather than anything date-based.
+const ACTIVE_STATUSES = ['accepted', 'in_progress'];
+
 export function WorkerDashboard() {
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
+  const [bookings, setBookings] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -33,6 +42,10 @@ export function WorkerDashboard() {
       .getMyWorkerData()
       .then(setData)
       .finally(() => setLoading(false));
+    bookingsApi
+      .list()
+      .then(({ bookings }) => setBookings(bookings))
+      .catch(() => setBookings([]));
   }, []);
 
   if (loading) return null;
@@ -42,6 +55,8 @@ export function WorkerDashboard() {
   }
 
   const copy = STATUS_COPY[data.profile.verificationStatus];
+  const activeJobs = bookings?.filter((b) => ACTIVE_STATUSES.includes(b.status)) ?? [];
+  const pendingCount = bookings?.filter((b) => b.status === 'requested').length ?? 0;
 
   return (
     <Screen fillHeight={false}>
@@ -60,6 +75,43 @@ export function WorkerDashboard() {
           <p className="mt-2 text-sm text-text-muted">{copy.body}</p>
         </Card>
       </motion.div>
+
+      {data.profile.verificationStatus === 'approved' && (
+        <>
+          <div className="mt-4 grid grid-cols-3 gap-3">
+            <Card className="flex flex-col items-center py-4 text-center">
+              <p className="text-xl font-bold">{data.profile.jobsCompletedCount}</p>
+              <p className="text-xs text-text-muted">Completed</p>
+            </Card>
+            <Card className="flex flex-col items-center py-4 text-center">
+              <p className="text-xl font-bold">{data.profile.ratingAvg.toFixed(1)}</p>
+              <p className="text-xs text-text-muted">Rating</p>
+            </Card>
+            <Card className="flex flex-col items-center py-4 text-center">
+              <p className="text-xl font-bold">{pendingCount}</p>
+              <p className="text-xs text-text-muted">Pending</p>
+            </Card>
+          </div>
+
+          <p className="mt-6 mb-3 text-sm font-semibold uppercase tracking-wide text-text-muted">
+            Active jobs
+          </p>
+          {activeJobs.length === 0 ? (
+            <p className="text-sm text-text-muted">No active jobs right now.</p>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {activeJobs.map((booking) => (
+                <BookingListItem
+                  key={booking.id}
+                  booking={booking}
+                  viewerRole="worker"
+                  onClick={() => navigate(`/booking/${booking.id}`)}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      )}
 
       <Card className="mt-4">
         <p className="font-semibold">Your services</p>

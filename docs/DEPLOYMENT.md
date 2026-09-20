@@ -106,6 +106,25 @@ URL, there's a natural order:
    redeploy (or just save the env var - Render redeploys automatically on
    env var changes).
 
+## Demo/seed data
+
+`apps/api/src/db/seed.js` (`npm run seed --workspace=apps/api`) populates 5-8
+approved, bookable workers across every service category plus a couple of
+bookings in end-states (one completed+reviewed, one cancelled), so the
+manual-booking screens have real data right away. It's a plain data script,
+not a migration - it doesn't run automatically on deploy, and every write is
+a find-or-create or upsert, so it's always safe to re-run.
+
+Run it against Neon the same way as a manual migration:
+
+```bash
+DATABASE_URL="<your Neon pooled connection string>" npm run seed --workspace=apps/api
+```
+
+It looks for an existing customer named "Saroj Aryal" (by email first, then
+by name) and attaches the seeded bookings to that account if found, rather
+than creating a duplicate seed-only customer.
+
 ## Troubleshooting
 
 - **"self-signed certificate in certificate chain" on Render connecting to
