@@ -1,0 +1,11 @@
+node_modules/
+dist/
+dist-ssr/
+*.local
+.DS_Store
+
+# Environment files - .env.example is the template that IS committed
+apps/api/.env
+apps/web/.env
+
+*.log

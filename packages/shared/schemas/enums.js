@@ -8,6 +8,11 @@ export const MODERATION_STATUSES = ['active', 'suspended'];
 
 export const VERIFICATION_STATUSES = ['unsubmitted', 'pending', 'approved', 'rejected'];
 
+// A document's own review status is never "unsubmitted" - the row only exists once
+// it's uploaded. Separate from VERIFICATION_STATUSES above (that one also covers the
+// worker profile's aggregate state before any document exists).
+export const DOCUMENT_STATUSES = ['pending', 'approved', 'rejected'];
+
 export const BOOKING_TYPES = ['manual', 'instant'];
 
 export const BOOKING_STATUSES = [
