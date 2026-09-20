@@ -25,6 +25,14 @@ export function setOnline({ isOnline, latitude, longitude }) {
   return apiFetch('/workers/me/online', { method: 'PATCH', body: { isOnline, latitude, longitude } });
 }
 
+// Adding a service beyond what was registered at signup - serviceId picked
+// from the catalog only, never free-text. Same category as an already
+// approved service goes live immediately; a different category comes back
+// pending until admin review.
+export function addService({ serviceId, price }) {
+  return apiFetch('/workers/me/services', { method: 'POST', body: { serviceId, price } });
+}
+
 // services: [{ serviceId, price }], documents: { citizenship: File, certificate?: File }, bio: string
 export function apply({ bio, services, documents }) {
   const formData = new FormData();

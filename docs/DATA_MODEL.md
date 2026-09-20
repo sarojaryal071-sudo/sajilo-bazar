@@ -55,6 +55,15 @@ Catalog of service types (replaces `professions` + `profession_services`).
 A worker's offered services and their price for each (replaces `worker_professions` +
 `worker_services` + `worker_job_size_ranges`).
 
+A worker can add more services after signup beyond what they registered with, but only by
+picking from the existing `services` catalog - never free-text. Adding one in the same
+category as an already-approved service goes live immediately (`approval_status = approved`);
+a different category needs admin review (`pending`) before it's bookable or visible to
+customers, since it's outside what verification originally vetted. Mirrors
+`verification_documents`' approve/reject pattern rather than inventing a new one. The
+admin review screen for the pending queue is Phase 6 work - for now a pending row just stays
+correctly hidden from search/booking.
+
 | Column | Type | Notes |
 |---|---|---|
 | id | serial pk | |
@@ -62,6 +71,9 @@ A worker's offered services and their price for each (replaces `worker_professio
 | service_id | fk → services | |
 | price | numeric | worker's stated price |
 | is_active | boolean | default true |
+| approval_status | text | `pending` \| `approved` \| `rejected`, default `approved` |
+| reviewed_by | fk → users | nullable, admin who reviewed |
+| reviewed_at | timestamptz | nullable |
 
 ## 5. `verification_documents`
 

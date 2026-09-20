@@ -6,9 +6,12 @@ import { Card } from '../../components/Card.jsx';
 import { Badge } from '../../components/Badge.jsx';
 import { BookingListItem } from '../../components/BookingListItem.jsx';
 import { ReviewsList } from '../../components/ReviewsList.jsx';
+import { AddServiceModal } from '../../components/AddServiceModal.jsx';
 import * as workersApi from '../../api/workers.api.js';
 import * as bookingsApi from '../../api/bookings.api.js';
 import { getCurrentLocation } from '../../lib/geolocation.js';
+
+const SERVICE_STATUS_TONE = { pending: 'warning', rejected: 'danger' };
 
 function WalletIcon() {
   return (
@@ -101,6 +104,8 @@ export function WorkerDashboard() {
   const [data, setData] = useState(null);
   const [bookings, setBookings] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [catalog, setCatalog] = useState([]);
+  const [addServiceOpen, setAddServiceOpen] = useState(false);
 
   useEffect(() => {
     workersApi
@@ -111,7 +116,15 @@ export function WorkerDashboard() {
       .list()
       .then(({ bookings }) => setBookings(bookings))
       .catch(() => setBookings([]));
+    workersApi
+      .getServiceCatalog()
+      .then(({ services }) => setCatalog(services))
+      .catch(() => setCatalog([]));
   }, []);
+
+  function handleServiceAdded(service) {
+    setData((prev) => ({ ...prev, services: [...prev.services, service] }));
+  }
 
   if (loading) return null;
   if (!data) return null;
@@ -199,16 +212,34 @@ export function WorkerDashboard() {
       )}
 
       <Card className="mt-4">
-        <p className="font-semibold">Your services</p>
+        <div className="flex items-center justify-between">
+          <p className="font-semibold">Your services</p>
+          <button onClick={() => setAddServiceOpen(true)} className="text-sm font-medium text-brand-solid">
+            + Add service
+          </button>
+        </div>
         <div className="mt-3 flex flex-col gap-2">
           {data.services.map((service) => (
-            <div key={service.id} className="flex items-center justify-between text-sm">
-              <span className="text-text-muted">{service.serviceName}</span>
-              <span className="font-medium">Rs. {service.price}</span>
+            <div key={service.id} className="flex items-center justify-between gap-3 text-sm">
+              <span className="min-w-0 truncate text-text-muted">{service.serviceName}</span>
+              <div className="flex shrink-0 items-center gap-2">
+                {SERVICE_STATUS_TONE[service.approvalStatus] && (
+                  <Badge tone={SERVICE_STATUS_TONE[service.approvalStatus]}>{service.approvalStatus}</Badge>
+                )}
+                <span className="font-medium">Rs. {service.price}</span>
+              </div>
             </div>
           ))}
         </div>
       </Card>
+
+      <AddServiceModal
+        open={addServiceOpen}
+        onClose={() => setAddServiceOpen(false)}
+        catalog={catalog}
+        existingServiceIds={data.services.map((s) => s.serviceId)}
+        onAdded={handleServiceAdded}
+      />
 
       {data.profile.verificationStatus === 'approved' && (
         <>

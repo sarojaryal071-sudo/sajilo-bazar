@@ -31,6 +31,21 @@ export async function getMyWorkerData(userId) {
   return { profile, services, documents, reviewsCount, reviews };
 }
 
+// Controlled expansion: a worker can add more services beyond what they
+// registered with at signup, but only by id from the existing catalog -
+// never free-text. Same category as something already approved goes live
+// immediately; a different category needs admin review (Phase 6's queue)
+// before it's bookable or visible to customers.
+export async function addService(workerId, { serviceId, price }) {
+  const service = await workersModel.findServiceById(serviceId);
+  if (!service) throw new ApiError(404, 'Service not found');
+
+  const approvedCategories = await workersModel.findApprovedCategories(workerId);
+  const approvalStatus = approvedCategories.includes(service.category) ? 'approved' : 'pending';
+
+  return workersModel.addWorkerService(workerId, { serviceId, price, approvalStatus });
+}
+
 export async function setOnline(userId, { isOnline, latitude, longitude }) {
   const profile = await workersModel.setOnline(userId, { isOnline, latitude, longitude });
   if (!profile) throw new ApiError(404, 'Worker profile not found');

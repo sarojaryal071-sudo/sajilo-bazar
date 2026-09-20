@@ -31,9 +31,14 @@ export async function recordCompletion(booking) {
 export async function getMyLedger(workerId) {
   const entries = await commissionLedgerModel.listForWorker(workerId);
   const balance = entries[0]?.creditBalanceAfter ?? 0;
+  const totalEarned = round2(entries.reduce((sum, e) => sum + e.jobPrice, 0));
+  const totalCommission = round2(entries.reduce((sum, e) => sum + e.commissionAmount, 0));
   // No repayment flow exists yet (see COMMISSION_RATE comment), so a
   // negative balance is entirely unpaid commission - what's owed is just
-  // its magnitude.
+  // its magnitude, and whatever commission isn't currently owed must have
+  // been paid (always 0 today, but this stays correct once repayments
+  // exist and start moving the balance back toward zero).
   const commissionOwed = round2(Math.max(0, -balance));
-  return { balance, commissionOwed, entries };
+  const commissionPaid = round2(totalCommission - commissionOwed);
+  return { balance, totalEarned, commissionOwed, commissionPaid, entries };
 }

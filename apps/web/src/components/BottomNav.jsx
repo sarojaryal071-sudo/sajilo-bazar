@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useUnreadNotificationCount } from '../hooks/useUnreadNotificationCount.js';
 
 const ICONS = {
@@ -6,7 +6,6 @@ const ICONS = {
   bookings: (
     <path d="M8 2v4M16 2v4M3.5 9h17M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />
   ),
-  profile: <path d="M20 21a8 8 0 1 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />,
   dashboard: <path d="M4 4h7v7H4V4ZM13 4h7v4h-7V4ZM13 11h7v9h-7v-9ZM4 14h7v6H4v-6Z" />,
   jobs: (
     <path d="M4 8h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1ZM9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
@@ -17,7 +16,12 @@ const ICONS = {
       <path d="M9.5 18a2.5 2.5 0 0 0 5 0" />
     </>
   ),
+  menu: <path d="M4 7h16M4 12h16M4 17h16" />,
 };
+
+// Routes reachable only through the hamburger menu - the tab highlights as
+// active when the user is on one of these, even though it isn't a NavLink.
+const MENU_ROUTES = ['/profile', '/settings', '/language', '/theme', '/help'];
 
 function NavIcon({ name }) {
   return (
@@ -28,26 +32,29 @@ function NavIcon({ name }) {
 }
 
 // No Search tab - search lives inside Home (the search bar at its top,
-// tappable to enter search mode), not as a separate nav destination.
+// tappable to enter search mode), not as a separate nav destination. No
+// standalone Profile tab either - it moved into the hamburger menu, which
+// is always the last tab (see MENU_ROUTES / HamburgerMenu.jsx).
 const CUSTOMER_TABS = [
   { to: '/home', icon: 'home', label: 'Home' },
   { to: '/bookings', icon: 'bookings', label: 'Bookings' },
-  { to: '/profile', icon: 'profile', label: 'Profile' },
 ];
 
 const WORKER_TABS = [
   { to: '/worker/dashboard', icon: 'dashboard', label: 'Dashboard' },
   { to: '/worker/jobs', icon: 'jobs', label: 'Jobs' },
-  { to: '/profile', icon: 'profile', label: 'Profile' },
 ];
 
-// Messenger-style: the notification bell lives as its own tab alongside the
-// role's other tabs, rather than a separate top bar (which left an unwanted
-// gap above the content). It's appended here rather than baked into
-// CUSTOMER_TABS/WORKER_TABS since it carries a live badge, not a static icon.
-export function BottomNav({ role }) {
+// Messenger-style: the notification bell and the hamburger menu both live
+// as tabs alongside the role's other tabs, rather than a separate top bar
+// (which left an unwanted gap above the content). They're appended here
+// rather than baked into CUSTOMER_TABS/WORKER_TABS since the bell carries a
+// live badge and the hamburger opens an overlay instead of navigating.
+export function BottomNav({ role, onOpenMenu }) {
   const tabs = role === 'worker' ? WORKER_TABS : CUSTOMER_TABS;
   const unreadCount = useUnreadNotificationCount();
+  const location = useLocation();
+  const menuActive = MENU_ROUTES.some((route) => location.pathname.startsWith(route));
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-surface-raised shadow-raised">
@@ -85,6 +92,16 @@ export function BottomNav({ role }) {
           </span>
           Alerts
         </NavLink>
+        <button
+          onClick={onOpenMenu}
+          aria-label="Menu"
+          className={`flex flex-col items-center gap-1 rounded-lg px-4 py-1.5 text-xs font-medium transition-colors ${
+            menuActive ? 'text-brand-solid' : 'text-text-muted'
+          }`}
+        >
+          <NavIcon name="menu" />
+          Menu
+        </button>
       </div>
     </nav>
   );

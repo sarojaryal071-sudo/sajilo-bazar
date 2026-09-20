@@ -20,8 +20,10 @@ function toWorkerService(row) {
     workerId: row.worker_id,
     serviceId: row.service_id,
     serviceName: row.service_name,
+    category: row.category,
     price: Number(row.price),
     isActive: row.is_active,
+    approvalStatus: row.approval_status,
   };
 }
 
@@ -99,15 +101,60 @@ export async function replaceWorkerServices(client, workerId, services) {
   }
 }
 
+// The worker's own view shows every active service regardless of approval
+// status (including pending ones), so they can see what's awaiting review -
+// only the public-facing queries (search, worker detail, booking) filter
+// down to approved.
 export async function listWorkerServices(workerId) {
   const { rows } = await pool.query(
-    `SELECT ws.*, s.name AS service_name
+    `SELECT ws.*, s.name AS service_name, s.category
      FROM worker_services ws
      JOIN services s ON s.id = ws.service_id
      WHERE ws.worker_id = $1 AND ws.is_active = true`,
     [workerId]
   );
   return rows.map(toWorkerService);
+}
+
+// Distinct categories among a worker's already-approved services - the
+// basis for deciding whether a newly added service goes live immediately
+// (same category as something already vetted) or needs admin review.
+export async function findApprovedCategories(workerId) {
+  const { rows } = await pool.query(
+    `SELECT DISTINCT s.category
+     FROM worker_services ws
+     JOIN services s ON s.id = ws.service_id
+     WHERE ws.worker_id = $1 AND ws.approval_status = 'approved'`,
+    [workerId]
+  );
+  return rows.map((row) => row.category);
+}
+
+// Adding a service is idempotent on (worker_id, service_id) - re-adding one
+// already on the worker's list just updates its price rather than erroring,
+// matching how replaceWorkerServices already treats the apply-time set.
+export async function addWorkerService(workerId, { serviceId, price, approvalStatus }) {
+  const { rows } = await pool.query(
+    `INSERT INTO worker_services (worker_id, service_id, price, approval_status)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (worker_id, service_id)
+     DO UPDATE SET price = EXCLUDED.price, is_active = true
+     RETURNING *`,
+    [workerId, serviceId, price, approvalStatus]
+  );
+  const { rows: joined } = await pool.query(
+    `SELECT ws.*, s.name AS service_name, s.category
+     FROM worker_services ws
+     JOIN services s ON s.id = ws.service_id
+     WHERE ws.id = $1`,
+    [rows[0].id]
+  );
+  return toWorkerService(joined[0]);
+}
+
+export async function findServiceById(serviceId) {
+  const { rows } = await pool.query('SELECT * FROM services WHERE id = $1', [serviceId]);
+  return rows[0] ? toService(rows[0]) : null;
 }
 
 export async function insertDocument(client, { workerId, docType, fileUrl }) {
@@ -160,7 +207,7 @@ export async function searchWorkers({ category, serviceId, q }) {
          ws.service_id, s.name AS service_name, s.category, ws.price
        FROM users u
        JOIN worker_profiles wp ON wp.user_id = u.id
-       JOIN worker_services ws ON ws.worker_id = u.id AND ws.is_active = true
+       JOIN worker_services ws ON ws.worker_id = u.id AND ws.is_active = true AND ws.approval_status = 'approved'
        JOIN services s ON s.id = ws.service_id
        WHERE wp.verification_status = 'approved'
          AND ($1::text IS NULL OR s.category = $1)
@@ -251,7 +298,7 @@ export async function findApprovedWorkerDetail(userId) {
     `SELECT ws.service_id, ws.price, s.name AS service_name, s.category
      FROM worker_services ws
      JOIN services s ON s.id = ws.service_id
-     WHERE ws.worker_id = $1 AND ws.is_active = true
+     WHERE ws.worker_id = $1 AND ws.is_active = true AND ws.approval_status = 'approved'
      ORDER BY s.category, s.name`,
     [userId]
   );

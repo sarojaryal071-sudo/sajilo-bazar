@@ -5,6 +5,7 @@ function toEntry(row) {
     id: row.id,
     workerId: row.worker_id,
     bookingId: row.booking_id,
+    serviceNames: row.service_names ?? '',
     jobPrice: Number(row.job_price),
     commissionAmount: Number(row.commission_amount),
     creditBalanceAfter: Number(row.credit_balance_after),
@@ -32,9 +33,20 @@ export async function create({ workerId, bookingId, jobPrice, commissionAmount, 
   return toEntry(rows[0]);
 }
 
+// Each entry's service names are pulled from booking_services/services via
+// a correlated subquery rather than a join, so a multi-service booking
+// still collapses to exactly one ledger row (a join would fan out one row
+// per service).
 export async function listForWorker(workerId) {
   const { rows } = await pool.query(
-    'SELECT * FROM commission_ledger WHERE worker_id = $1 ORDER BY created_at DESC',
+    `SELECT cl.*,
+            (SELECT string_agg(s.name, ', ' ORDER BY s.name)
+             FROM booking_services bs
+             JOIN services s ON s.id = bs.service_id
+             WHERE bs.booking_id = cl.booking_id) AS service_names
+     FROM commission_ledger cl
+     WHERE cl.worker_id = $1
+     ORDER BY cl.created_at DESC`,
     [workerId]
   );
   return rows.map(toEntry);

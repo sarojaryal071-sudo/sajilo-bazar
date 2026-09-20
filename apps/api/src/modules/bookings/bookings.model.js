@@ -60,15 +60,17 @@ async function attachServices(bookings) {
 }
 
 // Only a worker's currently active offerings are bookable, and only once
-// they're approved - same rule search/detail already enforce. Returns just
-// the requested ids that are actually available; the caller checks the
-// count matches what was asked for.
+// they're approved - both the worker overall (verification_status, same
+// rule search/detail already enforce) and the specific service (its own
+// approval_status - a pending cross-category addition isn't bookable until
+// an admin reviews it). Returns just the requested ids that are actually
+// available; the caller checks the count matches what was asked for.
 export async function findActiveWorkerServices(workerId, serviceIds) {
   const { rows } = await pool.query(
     `SELECT ws.service_id, ws.price FROM worker_services ws
      JOIN worker_profiles wp ON wp.user_id = ws.worker_id
      WHERE ws.worker_id = $1 AND ws.service_id = ANY($2::int[])
-       AND ws.is_active = true AND wp.verification_status = 'approved'`,
+       AND ws.is_active = true AND ws.approval_status = 'approved' AND wp.verification_status = 'approved'`,
     [workerId, serviceIds]
   );
   return rows.map((r) => ({ serviceId: r.service_id, price: Number(r.price) }));
@@ -150,7 +152,8 @@ export async function findNearbyOnlineWorkers(serviceIds, latitude, longitude, r
            ))) <= $3
        AND (
          SELECT COUNT(DISTINCT ws.service_id) FROM worker_services ws
-         WHERE ws.worker_id = u.id AND ws.is_active = true AND ws.service_id = ANY($4::int[])
+         WHERE ws.worker_id = u.id AND ws.is_active = true AND ws.approval_status = 'approved'
+           AND ws.service_id = ANY($4::int[])
        ) = $5`,
     [latitude, longitude, radiusKm, serviceIds, serviceIds.length]
   );
@@ -194,7 +197,8 @@ export async function claimInstant(bookingId, workerId) {
     const priceRes = await client.query(
       `SELECT bs.service_id, ws.price
        FROM booking_services bs
-       JOIN worker_services ws ON ws.worker_id = $2 AND ws.service_id = bs.service_id AND ws.is_active = true
+       JOIN worker_services ws ON ws.worker_id = $2 AND ws.service_id = bs.service_id
+         AND ws.is_active = true AND ws.approval_status = 'approved'
        WHERE bs.booking_id = $1`,
       [bookingId, workerId]
     );
