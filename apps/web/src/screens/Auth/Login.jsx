@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { isValidPhoneNumber } from 'react-phone-number-input';
 import { Screen } from '../../components/Screen.jsx';
 import { Button } from '../../components/Button.jsx';
-import { Input } from '../../components/Input.jsx';
+import { PhoneInput } from '../../components/PhoneInput.jsx';
+import { PasswordInput } from '../../components/PasswordInput.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { resolvePostAuthPath } from '../../lib/postAuthRedirect.js';
 
@@ -10,12 +12,20 @@ export function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ phone: '', password: '' });
+  const [phoneError, setPhoneError] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    setPhoneError('');
+
+    if (!form.phone || !isValidPhoneNumber(form.phone)) {
+      setPhoneError('Enter a valid phone number, including the country code');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const user = await login(form);
@@ -33,19 +43,19 @@ export function Login() {
       <p className="mt-1 text-text-muted">Log in to continue.</p>
 
       <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">
-        <Input
+        <PhoneInput
           label="Phone number"
           name="phone"
-          type="tel"
-          autoComplete="tel"
-          required
+          error={phoneError}
           value={form.phone}
-          onChange={(e) => setForm({ ...form, phone: e.target.value })}
+          onChange={(value) => {
+            setForm({ ...form, phone: value });
+            if (phoneError) setPhoneError('');
+          }}
         />
-        <Input
+        <PasswordInput
           label="Password"
           name="password"
-          type="password"
           autoComplete="current-password"
           required
           value={form.password}

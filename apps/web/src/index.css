@@ -11,3 +11,33 @@ body {
   font-family: var(--font-sans);
   -webkit-tap-highlight-color: transparent;
 }
+
+/* react-phone-number-input: blend its default styles with our tokens.
+   The bordered/rounded look comes from the wrapper className in
+   PhoneInput.jsx - these rules just make the inner control borderless
+   so it reads as one field instead of two. */
+.sajilo-phone-input.PhoneInput {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 3rem;
+}
+
+.sajilo-phone-input .PhoneInputInput {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  height: 100%;
+}
+
+.sajilo-phone-input .PhoneInputCountry {
+  margin-right: 0.25rem;
+}
+
+.sajilo-phone-input .PhoneInputCountrySelectArrow {
+  color: var(--color-text-muted);
+}
