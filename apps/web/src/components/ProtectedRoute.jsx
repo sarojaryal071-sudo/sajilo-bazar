@@ -6,7 +6,7 @@ export function ProtectedRoute({ role, children }) {
 
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
-  if (role && user.role !== role) return <Navigate to="/profile" replace />;
+  if (role && user.role !== role) return <Navigate to="/home" replace />;
 
   return children;
 }
