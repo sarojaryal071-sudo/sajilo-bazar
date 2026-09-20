@@ -23,6 +23,11 @@ export function describeNotification({ type, payload }) {
       return { title: 'Booking updated', body: '' };
     case 'chat_message':
       return { title: payload.senderName || 'New message', body: payload.preview };
+    case 'review_received':
+      return {
+        title: 'New review',
+        body: `${payload.customerName} left you a ${payload.rating}-star review`,
+      };
     case 'verification_update':
       return { title: 'Verification update', body: payload.status || '' };
     default:

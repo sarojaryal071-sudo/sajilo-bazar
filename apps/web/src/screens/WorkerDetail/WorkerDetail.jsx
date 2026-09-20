@@ -5,6 +5,9 @@ import { Card } from '../../components/Card.jsx';
 import { Avatar } from '../../components/Avatar.jsx';
 import { Button } from '../../components/Button.jsx';
 import * as workersApi from '../../api/workers.api.js';
+import { timeAgo } from '../../lib/timeAgo.js';
+
+const REVIEW_PREVIEW_COUNT = 3;
 
 function StarIcon() {
   return (
@@ -14,11 +17,28 @@ function StarIcon() {
   );
 }
 
+function ReviewCard({ review }) {
+  return (
+    <Card className="py-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-warning">
+          {'★'.repeat(review.rating)}
+          {'☆'.repeat(5 - review.rating)}
+        </p>
+        <span className="shrink-0 text-xs text-text-muted">{timeAgo(review.createdAt)}</span>
+      </div>
+      {review.comment && <p className="mt-2 text-sm text-text-muted">{review.comment}</p>}
+      <p className="mt-1 text-xs font-medium text-text-muted">&mdash; {review.customerName}</p>
+    </Card>
+  );
+}
+
 export function WorkerDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [worker, setWorker] = useState(null);
   const [error, setError] = useState('');
+  const [showAllReviews, setShowAllReviews] = useState(false);
 
   useEffect(() => {
     workersApi
@@ -88,6 +108,31 @@ export function WorkerDetail() {
           </Card>
         ))}
       </div>
+
+      <p className="mt-6 mb-3 text-sm font-semibold uppercase tracking-wide text-text-muted">
+        Reviews
+      </p>
+      {worker.reviews.length === 0 ? (
+        <p className="text-sm text-text-muted">No reviews yet.</p>
+      ) : (
+        <>
+          <div className="flex flex-col gap-2">
+            {(showAllReviews ? worker.reviews : worker.reviews.slice(0, REVIEW_PREVIEW_COUNT)).map(
+              (review) => (
+                <ReviewCard key={review.id} review={review} />
+              )
+            )}
+          </div>
+          {!showAllReviews && worker.reviewsCount > REVIEW_PREVIEW_COUNT && (
+            <button
+              onClick={() => setShowAllReviews(true)}
+              className="mt-3 self-start text-sm font-medium text-brand-solid"
+            >
+              See all {worker.reviewsCount} reviews
+            </button>
+          )}
+        </>
+      )}
     </Screen>
   );
 }

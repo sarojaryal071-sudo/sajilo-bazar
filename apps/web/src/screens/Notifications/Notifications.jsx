@@ -5,16 +5,7 @@ import { Card } from '../../components/Card.jsx';
 import { useSocket } from '../../context/SocketContext.jsx';
 import * as notificationsApi from '../../api/notifications.api.js';
 import { describeNotification } from '../../lib/notificationText.js';
-
-function timeAgo(iso) {
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
+import { timeAgo } from '../../lib/timeAgo.js';
 
 export function Notifications() {
   const navigate = useNavigate();
