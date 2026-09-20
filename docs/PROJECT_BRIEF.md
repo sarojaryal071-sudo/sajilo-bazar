@@ -89,20 +89,48 @@ Work through modules in this order. For each module: write the shared Zod schema
 the frontend screen(s) against mock data generated from it → confirm the UI looks right →
 build the real backend module → swap mock data for the real API call.
 
-1. **Auth + user/worker profiles** — signup, login, role selection, worker profile +
-   services + pricing, verification document upload
-2. **Manual booking** — search/browse workers, view profile, send booking request, accept/
-   decline, booking lifecycle, basic chat, reviews
-3. **Instant request (broadcast)** — online status, radius matching, real-time fan-out
-   notification, first-accept-wins
-4. **Notifications** — in-app + push, tied to booking events and chat
-5. **Commission ledger** — the lean accounting table from `DATA_MODEL.md` (not full
-   double-entry bookkeeping — see that doc)
-6. **Admin (minimal)** — verification review, user/booking moderation, support tickets,
-   disputes
-7. **Later phases** (only after the above is working end to end): full accounting/financial
-   reporting, staff roles & permissions, deeper admin analytics — see `SCREENS.md` for what
-   maps here
+Phase 1 — Auth & Profiles
+- Backend: auth, users, workers modules; tables users, worker_profiles, services, worker_services, verification_documents
+- Frontend: Welcome, Login, Signup (role selection), Profile, Worker Apply, Worker Pending/status
+- Done when: a customer and a worker can each sign up, log in, and a worker can submit services + verification documents that land in the database
+
+Phase 2 — Manual Booking
+- Backend: bookings module (manual type only), chat module, reviews module
+- Tables: bookings, chat_messages, reviews
+- Frontend: Home, Search, Worker Detail, Booking request flow, Bookings list, Booking detail/tracking, Chat, Review modal, Worker Jobs screen, Worker Dashboard
+- Done when: a customer can find a worker, book them directly, chat, the worker can accept/decline and mark complete, and the customer can leave a review
+
+Phase 3 — Instant Request
+- Backend: extend bookings for instant type, add booking_offers table + broadcast logic, socket.io wiring for online status and fan-out
+- Frontend: Instant request creation screen, live "waiting for worker" state, worker's live incoming-request popup with accept/decline
+- Done when: posting an instant request notifies all matching online workers in real time, and the first to accept is reliably the only one assigned
+
+Phase 4 — Notifications
+- Backend: notifications module, tied into events from Phases 2-3
+- Frontend: Notification inbox screen, notification bell/badge component
+- Done when: every booking/chat event a user should know about produces a real notification
+
+Phase 5 — Commission Ledger
+- Backend: commission_ledger module and table, worker credit-balance logic
+- Frontend: Worker Earnings screen
+- Done when: completing a booking creates a ledger entry and updates the worker's balance correctly
+
+Phase 6 — Admin (minimal, no theming)
+- Backend: admin module - verification review, user/booking moderation, services/categories management
+- Frontend: Admin dashboard, verification queue, users list/detail, bookings list/detail, categories management
+- Done when: the platform can be run day-to-day from the admin panel
+
+Phase 7 — Trust & Support
+- Backend + tables: support_tickets, disputes
+- Frontend: Support ticket screens, Dispute detail
+- Done when: a bad booking has a real resolution path
+
+Phase 8 — Payments maturity
+- eSewa/Khalti in-app payment integration, automated commission deduction
+- Done when: commission collection no longer depends on worker self-reporting
+
+Phase 9 — Full accounting & scale
+- Full double-entry accounting (only if commission_ledger isn't enough), staff roles/permissions, deeper analytics, geographic/category expansion
 
 ## What to report back to the planning session
 
