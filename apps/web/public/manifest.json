@@ -1,0 +1,16 @@
+{
+  "name": "Sajilo Bazar",
+  "short_name": "Sajilo Bazar",
+  "description": "Book trusted local workers for home services in Nepal.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0d9488",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

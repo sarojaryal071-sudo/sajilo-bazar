@@ -35,3 +35,9 @@ export const AuthResponseSchema = z.object({
   token: z.string(),
   user: UserSchema,
 });
+
+export const ProfileUpdateInputSchema = z.object({
+  fullName: z.string().min(2).max(120).optional(),
+  email: z.string().email().nullable().optional(),
+  profileImageUrl: z.string().url().nullable().optional(),
+});

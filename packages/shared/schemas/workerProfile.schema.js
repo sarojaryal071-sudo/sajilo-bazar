@@ -17,6 +17,7 @@ export const WorkerServiceSchema = z.object({
   id: z.number().int().positive(),
   workerId: z.number().int().positive(),
   serviceId: z.number().int().positive(),
+  serviceName: z.string().optional(), // denormalized for display, joined from services
   price: z.number().positive(),
   isActive: z.boolean().default(true),
 });

@@ -1,0 +1,42 @@
+import { WorkerApplyInputSchema } from '@sajilo-bazar/shared';
+import { ApiError } from '../../middleware/error.middleware.js';
+import * as workersService from './workers.service.js';
+
+export async function getServiceCatalog(req, res, next) {
+  try {
+    const services = await workersService.getServiceCatalog();
+    res.json({ services });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getMe(req, res, next) {
+  try {
+    const data = await workersService.getMyWorkerData(req.user.id);
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function apply(req, res, next) {
+  try {
+    // multipart form: non-file fields arrive as strings, services as a JSON string.
+    const raw = {
+      bio: req.body.bio || undefined,
+      services: req.body.services ? JSON.parse(req.body.services) : [],
+    };
+    const input = WorkerApplyInputSchema.parse(raw);
+
+    const files = Object.entries(req.files || {}).flatMap(([docType, fileList]) =>
+      fileList.map((file) => ({ ...file, docType }))
+    );
+
+    const result = await workersService.apply(req.user.id, input, files);
+    res.status(201).json(result);
+  } catch (err) {
+    if (err instanceof SyntaxError) return next(new ApiError(400, 'services must be valid JSON'));
+    next(err.issues ? new ApiError(400, 'Invalid worker apply data', err.issues) : err);
+  }
+}
