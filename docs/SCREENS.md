@@ -15,8 +15,11 @@ Build in this order — don't jump ahead to later-phase screens.
 
 ## Phase 2 — Manual Booking
 
-- Home screen (customer) — browse/search entry point
-- Search screen — filter workers by service + location
+- Home screen (customer) — one screen, two states: resting (categories +
+  normal home content) and active search (tapping the search bar
+  transitions in place - no separate screen/route). Active state shows
+  recommended/top-rated workers immediately, then narrows live as the
+  customer types (debounced) or taps a category filter chip.
 - Worker detail screen — profile, services, price, ratings, "Book" action
 - Booking flow / request screen
 - Bookings list screen (customer + worker views)
