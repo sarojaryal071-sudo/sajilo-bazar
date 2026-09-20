@@ -4,6 +4,19 @@ export function getServiceCatalog() {
   return apiFetch('/workers/catalog/services');
 }
 
+export function search({ category, serviceId, location } = {}) {
+  const params = new URLSearchParams();
+  if (category) params.set('category', category);
+  if (serviceId) params.set('serviceId', serviceId);
+  if (location) params.set('location', location);
+  const query = params.toString();
+  return apiFetch(`/workers/search${query ? `?${query}` : ''}`);
+}
+
+export function getDetail(userId) {
+  return apiFetch(`/workers/${userId}`);
+}
+
 export function getMyWorkerData() {
   return apiFetch('/workers/me');
 }

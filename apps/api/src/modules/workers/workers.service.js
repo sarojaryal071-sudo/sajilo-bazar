@@ -6,6 +6,20 @@ export async function getServiceCatalog() {
   return workersModel.listServiceCatalog();
 }
 
+export async function search({ category, serviceId, location }) {
+  return workersModel.searchWorkers({
+    category: category || null,
+    serviceId: serviceId ? Number(serviceId) : null,
+    location: location || null,
+  });
+}
+
+export async function getWorkerDetail(userId) {
+  const detail = await workersModel.findApprovedWorkerDetail(userId);
+  if (!detail) throw new ApiError(404, 'Worker not found');
+  return detail;
+}
+
 export async function getMyWorkerData(userId) {
   const profile = await workersModel.findProfile(userId);
   if (!profile) throw new ApiError(404, 'Worker profile not found');

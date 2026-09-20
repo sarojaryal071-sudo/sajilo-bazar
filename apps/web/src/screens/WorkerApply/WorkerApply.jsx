@@ -57,7 +57,7 @@ export function WorkerApply() {
         price: Number(price),
       }));
       await workersApi.apply({ bio, services, documents });
-      navigate('/worker/status');
+      navigate('/worker/dashboard');
     } catch (err) {
       setError(err.message);
     } finally {

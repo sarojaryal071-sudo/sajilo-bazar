@@ -2,14 +2,10 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { BottomNav } from './BottomNav.jsx';
 
-// Layout for the main tabbed area (Home, Search, Bookings, Profile) - auth
-// gate plus the persistent bottom nav. Worker-apply/status screens stay
-// outside this shell for now; they're a standalone flow, not a nav tab.
-//
-// The nav itself is customer-only: Home/Search/Bookings are customer
-// screens (worker equivalents - Jobs, Dashboard - are a later build step).
-// A worker landing on /profile still renders fine, just without the tab
-// bar, same as before this shell existed.
+// Layout for the main tabbed area - auth gate plus a persistent bottom nav,
+// with a different tab set per role (customer: Home/Search/Bookings/Profile,
+// worker: Dashboard/Jobs/Profile - see BottomNav.jsx). The worker-apply
+// screen stays outside this shell; it's a standalone form flow, not a tab.
 export function AppShell() {
   const { user, loading } = useAuth();
 
@@ -17,9 +13,9 @@ export function AppShell() {
   if (!user) return <Navigate to="/login" replace />;
 
   return (
-    <div className={user.role === 'customer' ? 'pb-20' : ''}>
+    <div className="pb-20">
       <Outlet />
-      {user.role === 'customer' && <BottomNav />}
+      <BottomNav role={user.role} />
     </div>
   );
 }

@@ -9,5 +9,5 @@ export async function resolvePostAuthPath(user) {
   if (profile.verificationStatus === 'unsubmitted' || profile.verificationStatus === 'rejected') {
     return '/worker/apply';
   }
-  return '/worker/status';
+  return '/worker/dashboard';
 }

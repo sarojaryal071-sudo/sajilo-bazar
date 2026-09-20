@@ -109,6 +109,91 @@ export async function listDocuments(workerId) {
   return rows.map(toDocument);
 }
 
+function toSearchResult(row) {
+  return {
+    userId: row.user_id,
+    fullName: row.full_name,
+    profileImageUrl: row.profile_image_url,
+    ratingAvg: Number(row.rating_avg),
+    jobsCompletedCount: row.jobs_completed_count,
+    serviceAreaLabel: row.service_area_label,
+    matchedService: {
+      id: row.service_id,
+      name: row.service_name,
+      category: row.category,
+      price: Number(row.price),
+    },
+  };
+}
+
+// One row per worker - their cheapest service matching the filters, via
+// DISTINCT ON. Simple filtering only (category / exact service / a text
+// match on service_area_label) - no radius/geolocation math, that's
+// Phase 3's instant-request work. Only approved workers are searchable.
+export async function searchWorkers({ category, serviceId, location }) {
+  const { rows } = await pool.query(
+    `SELECT DISTINCT ON (u.id)
+       u.id AS user_id, u.full_name, u.profile_image_url,
+       wp.rating_avg, wp.jobs_completed_count, wp.service_area_label,
+       ws.service_id, s.name AS service_name, s.category, ws.price
+     FROM users u
+     JOIN worker_profiles wp ON wp.user_id = u.id
+     JOIN worker_services ws ON ws.worker_id = u.id AND ws.is_active = true
+     JOIN services s ON s.id = ws.service_id
+     WHERE wp.verification_status = 'approved'
+       AND ($1::text IS NULL OR s.category = $1)
+       AND ($2::int IS NULL OR s.id = $2)
+       AND ($3::text IS NULL OR wp.service_area_label ILIKE '%' || $3 || '%')
+     ORDER BY u.id, ws.price ASC`,
+    [category ?? null, serviceId ?? null, location ?? null]
+  );
+  return rows.map(toSearchResult);
+}
+
+function toWorkerDetail(profileRow, serviceRows) {
+  return {
+    userId: profileRow.user_id,
+    fullName: profileRow.full_name,
+    profileImageUrl: profileRow.profile_image_url,
+    bio: profileRow.bio,
+    ratingAvg: Number(profileRow.rating_avg),
+    jobsCompletedCount: profileRow.jobs_completed_count,
+    serviceAreaLabel: profileRow.service_area_label,
+    services: serviceRows.map((row) => ({
+      id: row.service_id,
+      name: row.service_name,
+      category: row.category,
+      price: Number(row.price),
+    })),
+    reviewsCount: 0, // no reviews module yet - see workerSearch.schema.js
+  };
+}
+
+// Public detail view - only for approved workers, same rule as search, so
+// a customer can't view an unverified worker's profile by guessing an id.
+export async function findApprovedWorkerDetail(userId) {
+  const { rows } = await pool.query(
+    `SELECT u.id AS user_id, u.full_name, u.profile_image_url,
+            wp.bio, wp.rating_avg, wp.jobs_completed_count, wp.service_area_label
+     FROM users u
+     JOIN worker_profiles wp ON wp.user_id = u.id
+     WHERE u.id = $1 AND wp.verification_status = 'approved'`,
+    [userId]
+  );
+  if (!rows[0]) return null;
+
+  const services = await pool.query(
+    `SELECT ws.service_id, ws.price, s.name AS service_name, s.category
+     FROM worker_services ws
+     JOIN services s ON s.id = ws.service_id
+     WHERE ws.worker_id = $1 AND ws.is_active = true
+     ORDER BY s.category, s.name`,
+    [userId]
+  );
+
+  return toWorkerDetail(rows[0], services.rows);
+}
+
 export const withTransaction = async (fn) => {
   const client = await pool.connect();
   try {
