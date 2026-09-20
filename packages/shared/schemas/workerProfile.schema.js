@@ -13,6 +13,15 @@ export const WorkerProfileSchema = z.object({
   serviceAreaLabel: z.string().max(120).nullable().optional(), // e.g. "Baneshwor, Kathmandu"
 });
 
+// Going online captures the worker's current coordinates (from the
+// browser) so instant-request matching has something real to match
+// against - going offline just flips the flag, no location needed.
+export const WorkerOnlineInputSchema = z.object({
+  isOnline: z.boolean(),
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
+});
+
 export const WorkerServiceSchema = z.object({
   id: z.number().int().positive(),
   workerId: z.number().int().positive(),
