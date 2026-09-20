@@ -9,8 +9,10 @@ import { Home } from './screens/Home/Home.jsx';
 import { Search } from './screens/Search/Search.jsx';
 import { Bookings } from './screens/Bookings/Bookings.jsx';
 import { Profile } from './screens/Profile/Profile.jsx';
+import { WorkerDetail } from './screens/WorkerDetail/WorkerDetail.jsx';
 import { WorkerApply } from './screens/WorkerApply/WorkerApply.jsx';
-import { WorkerStatus } from './screens/WorkerApply/WorkerStatus.jsx';
+import { WorkerDashboard } from './screens/WorkerDashboard/WorkerDashboard.jsx';
+import { WorkerJobs } from './screens/WorkerJobs/WorkerJobs.jsx';
 
 export default function App() {
   return (
@@ -25,21 +27,23 @@ export default function App() {
           <Route path="/search" element={<Search />} />
           <Route path="/bookings" element={<Bookings />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/worker/dashboard" element={<WorkerDashboard />} />
+          <Route path="/worker/jobs" element={<WorkerJobs />} />
         </Route>
 
+        <Route
+          path="/worker/:id"
+          element={
+            <ProtectedRoute>
+              <WorkerDetail />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/worker/apply"
           element={
             <ProtectedRoute role="worker">
               <WorkerApply />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/worker/status"
-          element={
-            <ProtectedRoute role="worker">
-              <WorkerStatus />
             </ProtectedRoute>
           }
         />

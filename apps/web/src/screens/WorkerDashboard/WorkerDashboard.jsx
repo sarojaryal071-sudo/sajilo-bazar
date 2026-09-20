@@ -24,7 +24,7 @@ const STATUS_COPY = {
   },
 };
 
-export function WorkerStatus() {
+export function WorkerDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -45,7 +45,7 @@ export function WorkerStatus() {
 
   return (
     <Screen>
-      <h1 className="text-2xl font-bold">Worker dashboard</h1>
+      <h1 className="text-2xl font-bold">Dashboard</h1>
 
       <motion.div
         initial={{ opacity: 0, y: 8 }}

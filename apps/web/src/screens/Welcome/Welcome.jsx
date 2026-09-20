@@ -8,7 +8,7 @@ export function Welcome() {
   const { user, loading } = useAuth();
 
   if (loading) return null;
-  if (user) return <Navigate to={user.role === 'worker' ? '/worker/status' : '/home'} replace />;
+  if (user) return <Navigate to={user.role === 'worker' ? '/worker/dashboard' : '/home'} replace />;
 
   return (
     <Screen className="justify-between">

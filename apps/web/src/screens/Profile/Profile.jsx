@@ -1,11 +1,9 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { Screen } from '../../components/Screen.jsx';
 import { Card } from '../../components/Card.jsx';
 import { Button } from '../../components/Button.jsx';
 import { Input } from '../../components/Input.jsx';
 import { Avatar } from '../../components/Avatar.jsx';
-import { Badge } from '../../components/Badge.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import * as usersApi from '../../api/users.api.js';
 
@@ -40,23 +38,6 @@ export function Profile() {
           <p className="text-sm text-text-muted">{user.clientId}</p>
         </div>
       </div>
-
-      {user.role === 'worker' && (
-        <Card className="mt-6">
-          <div className="flex items-center justify-between">
-            <p className="font-semibold">Worker status</p>
-            <Badge>Manage</Badge>
-          </div>
-          <p className="mt-2 text-sm text-text-muted">
-            View your verification status, services and pricing.
-          </p>
-          <Link to="/worker/status">
-            <Button variant="secondary" className="mt-4 w-full">
-              Go to worker dashboard
-            </Button>
-          </Link>
-        </Card>
-      )}
 
       <Card className="mt-6">
         {editing ? (
