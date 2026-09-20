@@ -32,5 +32,6 @@ export const NOTIFICATION_TYPES = [
   'booking_declined',
   'booking_status_changed',
   'chat_message',
+  'review_received',
   'verification_update',
 ];

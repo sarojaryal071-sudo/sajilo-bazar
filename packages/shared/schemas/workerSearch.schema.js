@@ -25,6 +25,14 @@ export const WorkerDetailServiceSchema = z.object({
   price: z.number().positive(),
 });
 
+export const WorkerReviewSchema = z.object({
+  id: z.number().int().positive(),
+  rating: z.number().int().min(1).max(5),
+  comment: z.string().nullable().optional(),
+  createdAt: z.string().datetime().optional(),
+  customerName: z.string(),
+});
+
 export const WorkerDetailSchema = z.object({
   userId: z.number().int().positive(),
   fullName: z.string(),
@@ -34,8 +42,8 @@ export const WorkerDetailSchema = z.object({
   jobsCompletedCount: z.number().int().min(0),
   serviceAreaLabel: z.string().nullable().optional(),
   services: z.array(WorkerDetailServiceSchema),
-  // No reviews module yet (Phase 2's manual-booking slice hasn't been built)
-  // - always 0 for now, but present so the frontend renders it honestly
-  // rather than needing a conditional.
+  // A real COUNT(*) from reviews (joined through bookings), not capped by
+  // how many review rows are actually returned below.
   reviewsCount: z.number().int().min(0).default(0),
+  reviews: z.array(WorkerReviewSchema).default([]),
 });
