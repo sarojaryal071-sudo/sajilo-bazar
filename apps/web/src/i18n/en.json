@@ -1,0 +1,20 @@
+{
+  "nav.home": "Home",
+  "nav.bookings": "Bookings",
+  "nav.dashboard": "Dashboard",
+  "nav.jobs": "Jobs",
+  "nav.alerts": "Alerts",
+  "nav.menu": "Menu",
+  "menu.title": "Menu",
+  "menu.profile": "Profile",
+  "menu.settings": "Settings",
+  "menu.language": "Language",
+  "menu.theme": "Theme",
+  "menu.help": "Help & Support",
+  "menu.logout": "Log out",
+  "menu.soon": "Soon",
+  "menu.light": "Light",
+  "menu.dark": "Dark",
+  "menu.english": "English",
+  "menu.nepali": "Nepali"
+}

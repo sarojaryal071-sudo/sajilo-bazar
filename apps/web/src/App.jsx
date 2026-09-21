@@ -1,6 +1,8 @@
 import { Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { SocketProvider } from './context/SocketContext.jsx';
+import { ThemeProvider } from './context/ThemeContext.jsx';
+import { LanguageProvider } from './context/LanguageContext.jsx';
 import { ProtectedRoute } from './components/ProtectedRoute.jsx';
 import { IncomingRequestPopup } from './components/IncomingRequestPopup.jsx';
 import { AppShell } from './components/AppShell.jsx';
@@ -40,23 +42,23 @@ import { AdminComingSoon } from './screens/Admin/AdminComingSoon.jsx';
 
 export default function App() {
   return (
-    <AuthProvider>
-      <SocketProvider>
-        <Routes>
-          <Route path="/" element={<Welcome />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
+    <ThemeProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <SocketProvider>
+            <Routes>
+              <Route path="/" element={<Welcome />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
 
-          <Route element={<AppShell />}>
-            <Route path="/home" element={<Home />} />
-            <Route path="/bookings" element={<Bookings />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/worker/dashboard" element={<WorkerDashboard />} />
-            <Route path="/worker/jobs" element={<WorkerJobs />} />
-            <Route path="/settings" element={<ComingSoon title="Settings" />} />
-            <Route path="/language" element={<ComingSoon title="Language" />} />
-            <Route path="/theme" element={<ComingSoon title="Theme" />} />
-            <Route path="/help" element={<HelpSupport />} />
+              <Route element={<AppShell />}>
+                <Route path="/home" element={<Home />} />
+                <Route path="/bookings" element={<Bookings />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/worker/dashboard" element={<WorkerDashboard />} />
+                <Route path="/worker/jobs" element={<WorkerJobs />} />
+                <Route path="/settings" element={<ComingSoon title="Settings" />} />
+                <Route path="/help" element={<HelpSupport />} />
           </Route>
 
           <Route element={<AdminShell />}>
@@ -146,11 +148,13 @@ export default function App() {
           />
         </Routes>
 
-        {/* Mounted outside Routes so it persists across navigation - a
-            worker should see an incoming instant request regardless of
-            which screen they're currently on. */}
-        <IncomingRequestPopup />
-      </SocketProvider>
-    </AuthProvider>
+            {/* Mounted outside Routes so it persists across navigation - a
+                worker should see an incoming instant request regardless of
+                which screen they're currently on. */}
+            <IncomingRequestPopup />
+          </SocketProvider>
+        </AuthProvider>
+      </LanguageProvider>
+    </ThemeProvider>
   );
 }

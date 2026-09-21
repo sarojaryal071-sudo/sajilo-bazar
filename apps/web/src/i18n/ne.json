@@ -1,0 +1,20 @@
+{
+  "nav.home": "गृहपृष्ठ",
+  "nav.bookings": "बुकिङहरू",
+  "nav.dashboard": "ड्यासबोर्ड",
+  "nav.jobs": "कामहरू",
+  "nav.alerts": "सूचनाहरू",
+  "nav.menu": "मेनु",
+  "menu.title": "मेनु",
+  "menu.profile": "प्रोफाइल",
+  "menu.settings": "सेटिङहरू",
+  "menu.language": "भाषा",
+  "menu.theme": "थिम",
+  "menu.help": "सहयोग र समर्थन",
+  "menu.logout": "लग आउट",
+  "menu.soon": "चाँडै",
+  "menu.light": "उज्यालो",
+  "menu.dark": "अँध्यारो",
+  "menu.english": "अंग्रेजी",
+  "menu.nepali": "नेपाली"
+}
