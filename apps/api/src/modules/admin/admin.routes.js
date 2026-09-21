@@ -16,3 +16,14 @@ adminRoutes.patch('/approvals/documents/:id/approve', adminController.approveDoc
 adminRoutes.patch('/approvals/documents/:id/reject', adminController.rejectDocument);
 adminRoutes.patch('/approvals/services/:id/approve', adminController.approveWorkerService);
 adminRoutes.patch('/approvals/services/:id/reject', adminController.rejectWorkerService);
+
+adminRoutes.get('/users', adminController.listUsers);
+adminRoutes.get('/users/:id', adminController.getUserDetail);
+adminRoutes.patch('/users/:id/suspend', adminController.suspendUser);
+adminRoutes.patch('/users/:id/reinstate', adminController.reinstateUser);
+adminRoutes.patch('/users/:id/notes', adminController.setUserNotes);
+
+adminRoutes.get('/bookings', adminController.listBookings);
+adminRoutes.get('/bookings/:id', adminController.getBookingDetail);
+adminRoutes.patch('/bookings/:id/cancel', adminController.cancelBooking);
+adminRoutes.patch('/bookings/:id/flag', adminController.setBookingFlag);

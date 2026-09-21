@@ -118,3 +118,167 @@ export async function decideWorkerService(id, { status, adminId }) {
   );
   return rows[0] || null;
 }
+
+// ---- Users (Round A) ----
+
+function toUserSummary(row) {
+  return {
+    id: row.id,
+    clientId: row.client_id,
+    fullName: row.full_name,
+    phone: row.phone,
+    email: row.email,
+    role: row.role,
+    moderationStatus: row.moderation_status,
+    verificationStatus: row.verification_status ?? null,
+    createdAt: row.created_at,
+  };
+}
+
+// verification_status is only meaningful for workers - the LEFT JOIN just
+// leaves it null for customers/admins rather than needing a separate query
+// shape per role. No pagination yet (LIMIT is a defensive cap, not a page
+// size) - real pagination is a later-round concern once there's enough
+// production data for it to matter.
+const USERS_LIST_CAP = 200;
+
+export async function listUsers({ role, status, q }) {
+  const { rows } = await pool.query(
+    `SELECT u.*, wp.verification_status
+     FROM users u
+     LEFT JOIN worker_profiles wp ON wp.user_id = u.id
+     WHERE ($1::text IS NULL OR u.role = $1)
+       AND ($2::text IS NULL OR u.moderation_status = $2)
+       AND ($3::text IS NULL OR u.full_name ILIKE '%' || $3 || '%' OR u.phone ILIKE '%' || $3 || '%')
+     ORDER BY u.created_at DESC
+     LIMIT ${USERS_LIST_CAP}`,
+    [role || null, status || null, q || null]
+  );
+  return rows.map(toUserSummary);
+}
+
+export async function findUserById(id) {
+  const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+  return rows[0] || null;
+}
+
+function toUserDetail(row) {
+  return {
+    ...toUserSummary(row),
+    adminNotes: row.admin_notes,
+  };
+}
+
+export async function findUserDetail(id) {
+  const { rows } = await pool.query(
+    `SELECT u.*, wp.verification_status FROM users u
+     LEFT JOIN worker_profiles wp ON wp.user_id = u.id
+     WHERE u.id = $1`,
+    [id]
+  );
+  return rows[0] ? toUserDetail(rows[0]) : null;
+}
+
+// Lean summary rows for a user's booking history - not the full
+// bookings.model.js shape (no chat/commission join), just enough for a
+// scannable list on the Users detail screen.
+export async function listBookingsForUser(userId) {
+  const { rows } = await pool.query(
+    `SELECT b.id, b.status, b.type, b.price, b.created_at, b.completed_at,
+            b.customer_id, b.worker_id,
+            cu.full_name AS customer_name, wu.full_name AS worker_name,
+            (SELECT string_agg(s.name, ', ' ORDER BY s.name)
+             FROM booking_services bs JOIN services s ON s.id = bs.service_id
+             WHERE bs.booking_id = b.id) AS service_names
+     FROM bookings b
+     JOIN users cu ON cu.id = b.customer_id
+     LEFT JOIN users wu ON wu.id = b.worker_id
+     WHERE b.customer_id = $1 OR b.worker_id = $1
+     ORDER BY b.created_at DESC`,
+    [userId]
+  );
+  return rows.map((row) => ({
+    id: row.id,
+    status: row.status,
+    type: row.type,
+    price: row.price === null ? null : Number(row.price),
+    createdAt: row.created_at,
+    completedAt: row.completed_at,
+    customerId: row.customer_id,
+    customerName: row.customer_name,
+    workerId: row.worker_id,
+    workerName: row.worker_name,
+    serviceNames: row.service_names ?? '',
+  }));
+}
+
+export async function setUserModerationStatus(id, status) {
+  const { rows } = await pool.query(
+    'UPDATE users SET moderation_status = $2, updated_at = now() WHERE id = $1 RETURNING *',
+    [id, status]
+  );
+  return rows[0] ? toUserSummary(rows[0]) : null;
+}
+
+export async function setUserAdminNotes(id, notes) {
+  const { rows } = await pool.query(
+    'UPDATE users SET admin_notes = $2, updated_at = now() WHERE id = $1 RETURNING *',
+    [id, notes]
+  );
+  return rows[0] ? toUserDetail(rows[0]) : null;
+}
+
+// ---- Bookings (Round A) ----
+
+function toBookingSummary(row) {
+  return {
+    id: row.id,
+    type: row.type,
+    status: row.status,
+    price: row.price === null ? null : Number(row.price),
+    addressLabel: row.address_label,
+    createdAt: row.created_at,
+    completedAt: row.completed_at,
+    customerId: row.customer_id,
+    customerName: row.customer_name,
+    workerId: row.worker_id,
+    workerName: row.worker_name,
+    flagged: row.flagged,
+    serviceNames: row.service_names ?? '',
+  };
+}
+
+const BOOKINGS_LIST_CAP = 200;
+
+export async function listBookingsAdmin({ status, type, from, to }) {
+  const { rows } = await pool.query(
+    `SELECT b.*, cu.full_name AS customer_name, wu.full_name AS worker_name,
+            (SELECT string_agg(s.name, ', ' ORDER BY s.name)
+             FROM booking_services bs JOIN services s ON s.id = bs.service_id
+             WHERE bs.booking_id = b.id) AS service_names
+     FROM bookings b
+     JOIN users cu ON cu.id = b.customer_id
+     LEFT JOIN users wu ON wu.id = b.worker_id
+     WHERE ($1::text IS NULL OR b.status = $1)
+       AND ($2::text IS NULL OR b.type = $2)
+       AND ($3::timestamptz IS NULL OR b.created_at >= $3)
+       AND ($4::timestamptz IS NULL OR b.created_at <= $4)
+     ORDER BY b.created_at DESC
+     LIMIT ${BOOKINGS_LIST_CAP}`,
+    [status || null, type || null, from || null, to || null]
+  );
+  return rows.map(toBookingSummary);
+}
+
+export async function findBookingRawById(id) {
+  const { rows } = await pool.query('SELECT * FROM bookings WHERE id = $1', [id]);
+  return rows[0] || null;
+}
+
+export async function setBookingFlag(id, { flagged, reason }) {
+  const { rows } = await pool.query(
+    'UPDATE bookings SET flagged = $2, flag_reason = $3 WHERE id = $1 RETURNING *',
+    [id, flagged, reason ?? null]
+  );
+  return rows[0] || null;
+}

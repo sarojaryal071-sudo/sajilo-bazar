@@ -24,6 +24,10 @@ import { Earnings } from './screens/Earnings/Earnings.jsx';
 import { ComingSoon } from './screens/ComingSoon/ComingSoon.jsx';
 import { AdminDashboard } from './screens/Admin/AdminDashboard.jsx';
 import { AdminApprovals } from './screens/Admin/AdminApprovals.jsx';
+import { AdminUsers } from './screens/Admin/AdminUsers.jsx';
+import { AdminUserDetail } from './screens/Admin/AdminUserDetail.jsx';
+import { AdminBookings } from './screens/Admin/AdminBookings.jsx';
+import { AdminBookingDetail } from './screens/Admin/AdminBookingDetail.jsx';
 import { AdminComingSoon } from './screens/Admin/AdminComingSoon.jsx';
 
 export default function App() {
@@ -50,8 +54,10 @@ export default function App() {
           <Route element={<AdminShell />}>
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/approvals" element={<AdminApprovals />} />
-            <Route path="/admin/users" element={<AdminComingSoon title="Users" />} />
-            <Route path="/admin/bookings" element={<AdminComingSoon title="Bookings" />} />
+            <Route path="/admin/users" element={<AdminUsers />} />
+            <Route path="/admin/users/:id" element={<AdminUserDetail />} />
+            <Route path="/admin/bookings" element={<AdminBookings />} />
+            <Route path="/admin/bookings/:id" element={<AdminBookingDetail />} />
             <Route path="/admin/categories" element={<AdminComingSoon title="Categories/Services" />} />
             <Route path="/admin/staff" element={<AdminComingSoon title="Staff" />} />
             <Route path="/admin/analytics" element={<AdminComingSoon title="Analytics" />} />

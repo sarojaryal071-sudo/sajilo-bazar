@@ -13,3 +13,4 @@ export * from './schemas/chatMessage.schema.js';
 export * from './schemas/review.schema.js';
 export * from './schemas/notification.schema.js';
 export * from './schemas/commissionLedger.schema.js';
+export * from './schemas/admin.schema.js';

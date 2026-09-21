@@ -1,3 +1,8 @@
+import {
+  AdminUserNotesInputSchema,
+  AdminBookingCancelInputSchema,
+  AdminBookingFlagInputSchema,
+} from '@sajilo-bazar/shared';
 import { ApiError } from '../../middleware/error.middleware.js';
 import * as adminService from './admin.service.js';
 
@@ -58,5 +63,95 @@ export async function rejectWorkerService(req, res, next) {
     res.json({ service });
   } catch (err) {
     next(err);
+  }
+}
+
+// ---- Users ----
+
+export async function listUsers(req, res, next) {
+  try {
+    const { role, status, q } = req.query;
+    const users = await adminService.listUsers({ role, status, q });
+    res.json({ users });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getUserDetail(req, res, next) {
+  try {
+    const detail = await adminService.getUserDetail(parseId(req));
+    res.json(detail);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function suspendUser(req, res, next) {
+  try {
+    const user = await adminService.suspendUser(parseId(req));
+    res.json({ user });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function reinstateUser(req, res, next) {
+  try {
+    const user = await adminService.reinstateUser(parseId(req));
+    res.json({ user });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function setUserNotes(req, res, next) {
+  try {
+    const { notes } = AdminUserNotesInputSchema.parse(req.body);
+    const user = await adminService.setUserNotes(parseId(req), notes);
+    res.json({ user });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid notes', err.issues) : err);
+  }
+}
+
+// ---- Bookings ----
+
+export async function listBookings(req, res, next) {
+  try {
+    const { status, type, from, to } = req.query;
+    const bookings = await adminService.listBookings({ status, type, from, to });
+    res.json({ bookings });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getBookingDetail(req, res, next) {
+  try {
+    const detail = await adminService.getBookingDetail(parseId(req));
+    res.json(detail);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function cancelBooking(req, res, next) {
+  try {
+    const { reason } = AdminBookingCancelInputSchema.parse(req.body);
+    const booking = await adminService.adminCancelBooking(parseId(req), req.user.id, reason);
+    res.json({ booking });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid cancellation', err.issues) : err);
+  }
+}
+
+export async function setBookingFlag(req, res, next) {
+  try {
+    const input = AdminBookingFlagInputSchema.parse(req.body);
+    const booking = await adminService.setBookingFlag(parseId(req), input);
+    res.json({ booking });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid flag input', err.issues) : err);
   }
 }

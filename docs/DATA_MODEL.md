@@ -22,6 +22,7 @@ Core identity for customers, workers, and admins.
 | password_hash | text | |
 | moderation_status | text | `active` \| `suspended`, default `active` |
 | settings | jsonb | user preferences — replaces the old separate `user_settings` table |
+| admin_notes | text | nullable — free-text, editable by any admin from the Users detail screen (Phase 6) |
 | created_at | timestamptz | |
 
 ## 2. `worker_profiles`
@@ -114,6 +115,8 @@ otherwise mutated, so staleness isn't a real risk.
 | lat / lng | numeric | |
 | cancelled_by | fk → users | nullable |
 | cancel_reason | text | nullable |
+| flagged | boolean | default false — lightweight admin moderation marker (Phase 6), not a full dispute record |
+| flag_reason | text | nullable |
 | created_at / completed_at | timestamptz | |
 
 ## 6a. `booking_services`
