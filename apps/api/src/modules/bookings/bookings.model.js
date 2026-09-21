@@ -13,6 +13,8 @@ function toBooking(row) {
     longitude: row.longitude,
     cancelledBy: row.cancelled_by,
     cancelReason: row.cancel_reason,
+    flagged: row.flagged,
+    flagReason: row.flag_reason,
     createdAt: row.created_at,
     completedAt: row.completed_at,
     customerName: row.customer_name,

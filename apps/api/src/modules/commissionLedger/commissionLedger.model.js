@@ -33,6 +33,13 @@ export async function create({ workerId, bookingId, jobPrice, commissionAmount, 
   return toEntry(rows[0]);
 }
 
+// One booking has at most one ledger entry (see the table's UNIQUE
+// (booking_id) constraint) - used by the admin Bookings detail screen.
+export async function findByBookingId(bookingId) {
+  const { rows } = await pool.query('SELECT * FROM commission_ledger WHERE booking_id = $1', [bookingId]);
+  return rows[0] ? toEntry(rows[0]) : null;
+}
+
 // Each entry's service names are pulled from booking_services/services via
 // a correlated subquery rather than a join, so a multi-service booking
 // still collapses to exactly one ledger row (a join would fan out one row
