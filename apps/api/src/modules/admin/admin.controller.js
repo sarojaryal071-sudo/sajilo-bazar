@@ -8,6 +8,8 @@ import {
   AdminSupportTicketCreateInputSchema,
   AdminSupportTicketReplyInputSchema,
   AdminSupportTicketStatusInputSchema,
+  AdminAnnouncementInputSchema,
+  AdminPolicyInputSchema,
 } from '@sajilo-bazar/shared';
 import { ApiError } from '../../middleware/error.middleware.js';
 import * as adminService from './admin.service.js';
@@ -300,5 +302,120 @@ export async function setTicketStatus(req, res, next) {
     res.json({ ticket });
   } catch (err) {
     next(err.issues ? new ApiError(400, 'Invalid status', err.issues) : err);
+  }
+}
+
+// ---- Announcements ----
+
+export async function listAnnouncements(req, res, next) {
+  try {
+    const { status, audience } = req.query;
+    const announcements = await adminService.listAnnouncements({ status, audience });
+    res.json({ announcements });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getAnnouncement(req, res, next) {
+  try {
+    const announcement = await adminService.getAnnouncement(parseId(req));
+    res.json({ announcement });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function createAnnouncement(req, res, next) {
+  try {
+    const input = AdminAnnouncementInputSchema.parse(req.body);
+    const announcement = await adminService.createAnnouncement(input, req.user.id);
+    res.status(201).json({ announcement });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid announcement input', err.issues) : err);
+  }
+}
+
+export async function updateAnnouncement(req, res, next) {
+  try {
+    const input = AdminAnnouncementInputSchema.parse(req.body);
+    const announcement = await adminService.updateAnnouncement(parseId(req), input);
+    res.json({ announcement });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid announcement input', err.issues) : err);
+  }
+}
+
+export async function publishAnnouncement(req, res, next) {
+  try {
+    const announcement = await adminService.setAnnouncementStatus(parseId(req), 'published');
+    res.json({ announcement });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function unpublishAnnouncement(req, res, next) {
+  try {
+    const announcement = await adminService.setAnnouncementStatus(parseId(req), 'unpublished');
+    res.json({ announcement });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ---- Policies ----
+
+const POLICY_TYPES = ['terms_of_service', 'privacy_policy', 'community_guidelines'];
+
+function parsePolicyType(req) {
+  const { policyType } = req.params;
+  if (!POLICY_TYPES.includes(policyType)) throw new ApiError(400, 'Invalid policy type');
+  return policyType;
+}
+
+export async function listPolicies(req, res, next) {
+  try {
+    const policies = await adminService.listPolicies();
+    res.json({ policies });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getPolicy(req, res, next) {
+  try {
+    const policy = await adminService.getPolicy(parsePolicyType(req));
+    res.json({ policy });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updatePolicy(req, res, next) {
+  try {
+    const input = AdminPolicyInputSchema.parse(req.body);
+    const policy = await adminService.updatePolicy(parsePolicyType(req), input);
+    res.json({ policy });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid policy input', err.issues) : err);
+  }
+}
+
+export async function publishPolicy(req, res, next) {
+  try {
+    const policy = await adminService.setPolicyStatus(parsePolicyType(req), 'published');
+    res.json({ policy });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function unpublishPolicy(req, res, next) {
+  try {
+    const policy = await adminService.setPolicyStatus(parsePolicyType(req), 'unpublished');
+    res.json({ policy });
+  } catch (err) {
+    next(err);
   }
 }

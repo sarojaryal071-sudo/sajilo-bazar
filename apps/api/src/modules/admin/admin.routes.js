@@ -44,3 +44,16 @@ adminRoutes.get('/support-tickets/:id', adminController.getSupportTicketDetail);
 adminRoutes.post('/support-tickets', adminController.createSupportTicket);
 adminRoutes.post('/support-tickets/:id/messages', adminController.replyToTicket);
 adminRoutes.patch('/support-tickets/:id/status', adminController.setTicketStatus);
+
+adminRoutes.get('/announcements', adminController.listAnnouncements);
+adminRoutes.get('/announcements/:id', adminController.getAnnouncement);
+adminRoutes.post('/announcements', adminController.createAnnouncement);
+adminRoutes.patch('/announcements/:id', adminController.updateAnnouncement);
+adminRoutes.patch('/announcements/:id/publish', adminController.publishAnnouncement);
+adminRoutes.patch('/announcements/:id/unpublish', adminController.unpublishAnnouncement);
+
+adminRoutes.get('/policies', adminController.listPolicies);
+adminRoutes.get('/policies/:policyType', adminController.getPolicy);
+adminRoutes.patch('/policies/:policyType', adminController.updatePolicy);
+adminRoutes.patch('/policies/:policyType/publish', adminController.publishPolicy);
+adminRoutes.patch('/policies/:policyType/unpublish', adminController.unpublishPolicy);

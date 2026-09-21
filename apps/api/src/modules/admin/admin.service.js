@@ -297,3 +297,55 @@ export async function setTicketStatus(id, status) {
   if (!ticket) throw new ApiError(404, 'Support ticket not found');
   return ticket;
 }
+
+// ---- Announcements (Round D) ----
+
+export async function listAnnouncements(filters) {
+  return adminModel.listAnnouncements(filters);
+}
+
+export async function getAnnouncement(id) {
+  const announcement = await adminModel.findAnnouncementById(id);
+  if (!announcement) throw new ApiError(404, 'Announcement not found');
+  return announcement;
+}
+
+export async function createAnnouncement(input, adminId) {
+  return adminModel.createAnnouncement({ ...input, createdBy: adminId });
+}
+
+export async function updateAnnouncement(id, input) {
+  const announcement = await adminModel.updateAnnouncement(id, input);
+  if (!announcement) throw new ApiError(404, 'Announcement not found');
+  return announcement;
+}
+
+export async function setAnnouncementStatus(id, status) {
+  const announcement = await adminModel.setAnnouncementStatus(id, status);
+  if (!announcement) throw new ApiError(404, 'Announcement not found');
+  return announcement;
+}
+
+// ---- Policies (Round D) ----
+
+export async function listPolicies() {
+  return adminModel.listPolicies();
+}
+
+export async function getPolicy(policyType) {
+  const policy = await adminModel.findPolicyByType(policyType);
+  if (!policy) throw new ApiError(404, 'Policy not found');
+  return policy;
+}
+
+export async function updatePolicy(policyType, input) {
+  const policy = await adminModel.updatePolicy(policyType, input);
+  if (!policy) throw new ApiError(404, 'Policy not found');
+  return policy;
+}
+
+export async function setPolicyStatus(policyType, status) {
+  const policy = await adminModel.setPolicyStatus(policyType, status);
+  if (!policy) throw new ApiError(404, 'Policy not found');
+  return policy;
+}

@@ -54,3 +54,20 @@ export const AdminSupportTicketReplyInputSchema = z.object({
 export const AdminSupportTicketStatusInputSchema = z.object({
   status: z.enum(['open', 'in_progress', 'resolved', 'closed']),
 });
+
+// Admin Announcements + Policies (Round D) - one shared table/UI pattern,
+// so one input schema for creating/editing an announcement and a lighter
+// one for editing a policy's body (policies are a fixed set, never created
+// or deleted from this screen).
+export const AdminAnnouncementInputSchema = z.object({
+  title: z.string().min(1).max(160),
+  body: z.string().min(1),
+  audience: z.enum(['all', 'customers', 'workers']),
+  scheduledAt: z.string().datetime().nullable().optional(),
+  expiresAt: z.string().datetime().nullable().optional(),
+});
+
+export const AdminPolicyInputSchema = z.object({
+  title: z.string().min(1).max(160),
+  body: z.string().min(1),
+});

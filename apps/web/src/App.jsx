@@ -33,6 +33,8 @@ import { AdminDisputes } from './screens/Admin/AdminDisputes.jsx';
 import { AdminDisputeDetail } from './screens/Admin/AdminDisputeDetail.jsx';
 import { AdminSupportTickets } from './screens/Admin/AdminSupportTickets.jsx';
 import { AdminSupportTicketDetail } from './screens/Admin/AdminSupportTicketDetail.jsx';
+import { AdminAnnouncements } from './screens/Admin/AdminAnnouncements.jsx';
+import { AdminPolicies } from './screens/Admin/AdminPolicies.jsx';
 import { AdminComingSoon } from './screens/Admin/AdminComingSoon.jsx';
 
 export default function App() {
@@ -72,8 +74,8 @@ export default function App() {
             <Route path="/admin/disputes/:id" element={<AdminDisputeDetail />} />
             <Route path="/admin/support" element={<AdminSupportTickets />} />
             <Route path="/admin/support/:id" element={<AdminSupportTicketDetail />} />
-            <Route path="/admin/announcements" element={<AdminComingSoon title="Announcements" />} />
-            <Route path="/admin/policies" element={<AdminComingSoon title="Policies" />} />
+            <Route path="/admin/announcements" element={<AdminAnnouncements />} />
+            <Route path="/admin/policies" element={<AdminPolicies />} />
             <Route path="/admin/settings" element={<AdminComingSoon title="Settings" />} />
           </Route>
 

@@ -137,3 +137,43 @@ export function replyToTicket(id, message) {
 export function setTicketStatus(id, status) {
   return apiFetch(`/admin/support-tickets/${id}/status`, { method: 'PATCH', body: { status } });
 }
+
+export function listAnnouncements({ status, audience } = {}) {
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  if (audience) params.set('audience', audience);
+  const query = params.toString();
+  return apiFetch(`/admin/announcements${query ? `?${query}` : ''}`);
+}
+
+export function createAnnouncement(input) {
+  return apiFetch('/admin/announcements', { method: 'POST', body: input });
+}
+
+export function updateAnnouncement(id, input) {
+  return apiFetch(`/admin/announcements/${id}`, { method: 'PATCH', body: input });
+}
+
+export function publishAnnouncement(id) {
+  return apiFetch(`/admin/announcements/${id}/publish`, { method: 'PATCH' });
+}
+
+export function unpublishAnnouncement(id) {
+  return apiFetch(`/admin/announcements/${id}/unpublish`, { method: 'PATCH' });
+}
+
+export function listPolicies() {
+  return apiFetch('/admin/policies');
+}
+
+export function updatePolicy(policyType, input) {
+  return apiFetch(`/admin/policies/${policyType}`, { method: 'PATCH', body: input });
+}
+
+export function publishPolicy(policyType) {
+  return apiFetch(`/admin/policies/${policyType}/publish`, { method: 'PATCH' });
+}
+
+export function unpublishPolicy(policyType) {
+  return apiFetch(`/admin/policies/${policyType}/unpublish`, { method: 'PATCH' });
+}
