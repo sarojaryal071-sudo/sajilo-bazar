@@ -174,6 +174,24 @@ async function findOrCreateWorkerUser({ fullName, phone, email }) {
   return authModel.createUser({ fullName, phone, email, passwordHash, role: 'worker' });
 }
 
+const SEED_ADMIN_PHONE = '+9779800000099';
+
+// Nobody signs up as admin (see SignupInputSchema) - this is the only way
+// an admin account exists locally, so the Approvals/Dashboard screens have
+// something to log in and test with.
+async function findOrCreateAdmin() {
+  const existing = await findUserByPhone(SEED_ADMIN_PHONE);
+  if (existing) return existing;
+  const passwordHash = await bcrypt.hash(SEED_PASSWORD, 10);
+  return authModel.createUser({
+    fullName: 'Admin',
+    phone: SEED_ADMIN_PHONE,
+    email: null,
+    passwordHash,
+    role: 'admin',
+  });
+}
+
 // latitude/longitude are seeded regardless of isOnline, matching what a real
 // "go online" toggle would eventually save - lets a tester flip a seeded
 // worker online from the UI and immediately be matchable, no separate
@@ -284,6 +302,9 @@ async function main() {
 
   const customer = await findOrCreateCustomer();
   console.log(`Customer: ${customer.full_name ?? customer.fullName} (#${customer.id})`);
+
+  const admin = await findOrCreateAdmin();
+  console.log(`Admin: ${admin.full_name ?? admin.fullName} (#${admin.id})`);
 
   const workers = [];
   for (const w of WORKERS) {
