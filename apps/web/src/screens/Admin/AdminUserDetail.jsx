@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Card } from '../../components/Card.jsx';
 import { Badge } from '../../components/Badge.jsx';
 import { Button } from '../../components/Button.jsx';
@@ -216,12 +216,12 @@ export function AdminUserDetail() {
               {bookings.map((b) => {
                 const otherParty = b.customerId === Number(id) ? b.workerName : b.customerName;
                 return (
-                  <tr key={b.id} className="border-b border-border last:border-0 hover:bg-surface-alt">
-                    <td className="px-4 py-3">
-                      <Link to={`/admin/bookings/${b.id}`} className="text-brand-solid hover:underline">
-                        {formatDate(b.createdAt)}
-                      </Link>
-                    </td>
+                  <tr
+                    key={b.id}
+                    onClick={() => navigate(`/admin/bookings/${b.id}`)}
+                    className="cursor-pointer border-b border-border last:border-0 hover:bg-surface-alt"
+                  >
+                    <td className="px-4 py-3 text-brand-solid">{formatDate(b.createdAt)}</td>
                     <td className="px-4 py-3 text-text-muted">{b.serviceNames}</td>
                     <td className="px-4 py-3 text-text-muted">{otherParty || '—'}</td>
                     <td className="px-4 py-3">

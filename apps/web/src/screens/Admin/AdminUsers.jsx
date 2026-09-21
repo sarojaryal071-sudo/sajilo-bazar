@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Badge } from '../../components/Badge.jsx';
 import * as adminApi from '../../api/admin.api.js';
 
@@ -10,6 +10,7 @@ function formatDate(iso) {
 }
 
 export function AdminUsers() {
+  const navigate = useNavigate();
   const [users, setUsers] = useState(null);
   const [error, setError] = useState('');
   const [role, setRole] = useState('');
@@ -76,12 +77,12 @@ export function AdminUsers() {
             </thead>
             <tbody>
               {users.map((user) => (
-                <tr key={user.id} className="border-b border-border last:border-0 hover:bg-surface-alt">
-                  <td className="px-4 py-3">
-                    <Link to={`/admin/users/${user.id}`} className="font-medium text-brand-solid hover:underline">
-                      {user.fullName}
-                    </Link>
-                  </td>
+                <tr
+                  key={user.id}
+                  onClick={() => navigate(`/admin/users/${user.id}`)}
+                  className="cursor-pointer border-b border-border last:border-0 hover:bg-surface-alt"
+                >
+                  <td className="px-4 py-3 font-medium text-brand-solid">{user.fullName}</td>
                   <td className="px-4 py-3 text-text-muted">{user.phone}</td>
                   <td className="px-4 py-3 capitalize">{user.role}</td>
                   <td className="px-4 py-3">
