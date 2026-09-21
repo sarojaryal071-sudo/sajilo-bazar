@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../../components/Button.jsx';
+import { Avatar } from '../../components/Avatar.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import * as bookingsApi from '../../api/bookings.api.js';
 
@@ -119,6 +120,7 @@ export function BookingChat() {
   }
 
   const otherName = booking && (user.role === 'worker' ? booking.customerName : booking.workerName);
+  const otherImage = booking && (user.role === 'worker' ? booking.customerImageUrl : booking.workerImageUrl);
 
   return (
     <div className="flex h-dvh flex-col bg-surface-alt">
@@ -131,6 +133,7 @@ export function BookingChat() {
           >
             <BackIcon />
           </button>
+          {otherName && <Avatar name={otherName} imageUrl={otherImage} size={36} />}
           <h1 className="truncate text-lg font-bold">{otherName || 'Chat'}</h1>
         </div>
       </header>

@@ -5,9 +5,9 @@ const TONES = {
   danger: 'bg-danger/10 text-danger',
 };
 
-export function Badge({ tone = 'neutral', children }) {
+export function Badge({ tone = 'neutral', className = '', children }) {
   return (
-    <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${TONES[tone]}`}>
+    <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${TONES[tone]} ${className}`}>
       {children}
     </span>
   );

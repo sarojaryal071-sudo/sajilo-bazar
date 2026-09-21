@@ -1,5 +1,6 @@
 import { Card } from './Card.jsx';
 import { Avatar } from './Avatar.jsx';
+import { VerifiedBadge } from './VerifiedBadge.jsx';
 
 function StarIcon() {
   return (
@@ -15,7 +16,10 @@ export function WorkerCard({ worker, onClick }) {
     <Card whileTap={{ scale: 0.98 }} onClick={onClick} className="flex cursor-pointer items-center gap-4">
       <Avatar name={worker.fullName} imageUrl={worker.profileImageUrl} size={56} />
       <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold">{worker.fullName}</p>
+        <div className="flex items-center gap-1.5">
+          <p className="truncate font-semibold">{worker.fullName}</p>
+          {worker.verificationStatus === 'approved' && <VerifiedBadge className="shrink-0" />}
+        </div>
         <p className="truncate text-sm text-text-muted">{worker.matchedService.name}</p>
         {worker.serviceAreaLabel && (
           <p className="truncate text-xs text-text-muted">{worker.serviceAreaLabel}</p>
