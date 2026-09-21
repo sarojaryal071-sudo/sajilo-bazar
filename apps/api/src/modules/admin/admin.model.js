@@ -518,3 +518,128 @@ export async function setTicketStatus(id, status) {
   );
   return rows[0] ? findSupportTicketById(id) : null;
 }
+
+// ---- Announcements + Policies (Round D) ----
+
+// isLive is computed here rather than stored - no cron exists to flip
+// status at scheduled_at/expires_at, so "live" is just "published, and any
+// schedule window says now is within it" recalculated on every read.
+function toContentItem(row) {
+  const now = Date.now();
+  const scheduledAt = row.scheduled_at ? new Date(row.scheduled_at) : null;
+  const expiresAt = row.expires_at ? new Date(row.expires_at) : null;
+  const isLive =
+    row.status === 'published' &&
+    (!scheduledAt || scheduledAt.getTime() <= now) &&
+    (!expiresAt || expiresAt.getTime() > now);
+
+  return {
+    id: row.id,
+    kind: row.kind,
+    policyType: row.policy_type,
+    title: row.title,
+    body: row.body,
+    audience: row.audience,
+    status: row.status,
+    isLive,
+    scheduledAt: row.scheduled_at,
+    expiresAt: row.expires_at,
+    publishedAt: row.published_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export async function listAnnouncements({ status, audience }) {
+  const { rows } = await pool.query(
+    `SELECT * FROM content_items
+     WHERE kind = 'announcement'
+       AND ($1::text IS NULL OR status = $1)
+       AND ($2::text IS NULL OR audience = $2)
+     ORDER BY created_at DESC`,
+    [status || null, audience || null]
+  );
+  return rows.map(toContentItem);
+}
+
+export async function findAnnouncementById(id) {
+  const { rows } = await pool.query(
+    "SELECT * FROM content_items WHERE id = $1 AND kind = 'announcement'",
+    [id]
+  );
+  return rows[0] ? toContentItem(rows[0]) : null;
+}
+
+export async function createAnnouncement({ title, body, audience, scheduledAt, expiresAt, createdBy }) {
+  const { rows } = await pool.query(
+    `INSERT INTO content_items (kind, title, body, audience, scheduled_at, expires_at, created_by)
+     VALUES ('announcement', $1, $2, $3, $4, $5, $6) RETURNING *`,
+    [title, body, audience, scheduledAt ?? null, expiresAt ?? null, createdBy]
+  );
+  return toContentItem(rows[0]);
+}
+
+export async function updateAnnouncement(id, { title, body, audience, scheduledAt, expiresAt }) {
+  const { rows } = await pool.query(
+    `UPDATE content_items
+     SET title = $2, body = $3, audience = $4, scheduled_at = $5, expires_at = $6, updated_at = now()
+     WHERE id = $1 AND kind = 'announcement'
+     RETURNING *`,
+    [id, title, body, audience, scheduledAt ?? null, expiresAt ?? null]
+  );
+  return rows[0] ? toContentItem(rows[0]) : null;
+}
+
+export async function setAnnouncementStatus(id, status) {
+  const { rows } = await pool.query(
+    `UPDATE content_items
+     SET status = $2,
+         published_at = CASE WHEN $3 THEN now() ELSE published_at END,
+         updated_at = now()
+     WHERE id = $1 AND kind = 'announcement'
+     RETURNING *`,
+    [id, status, status === 'published']
+  );
+  return rows[0] ? toContentItem(rows[0]) : null;
+}
+
+// The three policy_type rows are seeded once in the migration and never
+// created/deleted from this screen - findPolicyByType is the only lookup,
+// no listPolicies-by-id needed.
+export async function findPolicyByType(policyType) {
+  const { rows } = await pool.query(
+    "SELECT * FROM content_items WHERE policy_type = $1 AND kind = 'policy'",
+    [policyType]
+  );
+  return rows[0] ? toContentItem(rows[0]) : null;
+}
+
+export async function listPolicies() {
+  const { rows } = await pool.query(
+    "SELECT * FROM content_items WHERE kind = 'policy' ORDER BY policy_type"
+  );
+  return rows.map(toContentItem);
+}
+
+export async function updatePolicy(policyType, { title, body }) {
+  const { rows } = await pool.query(
+    `UPDATE content_items SET title = $2, body = $3, updated_at = now()
+     WHERE policy_type = $1 AND kind = 'policy'
+     RETURNING *`,
+    [policyType, title, body]
+  );
+  return rows[0] ? toContentItem(rows[0]) : null;
+}
+
+export async function setPolicyStatus(policyType, status) {
+  const { rows } = await pool.query(
+    `UPDATE content_items
+     SET status = $2,
+         published_at = CASE WHEN $3 THEN now() ELSE published_at END,
+         updated_at = now()
+     WHERE policy_type = $1 AND kind = 'policy'
+     RETURNING *`,
+    [policyType, status, status === 'published']
+  );
+  return rows[0] ? toContentItem(rows[0]) : null;
+}
