@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { isValidPhoneNumber } from 'react-phone-number-input';
-import { Screen } from '../../components/Screen.jsx';
+import { AuthScreen } from '../../components/AuthScreen.jsx';
 import { Button } from '../../components/Button.jsx';
 import { Input } from '../../components/Input.jsx';
 import { PhoneInput } from '../../components/PhoneInput.jsx';
@@ -47,9 +47,11 @@ export function Signup() {
 
   if (!role) {
     return (
-      <Screen>
-        <h1 className="text-2xl font-bold">Join Sajilo Bazar</h1>
-        <p className="mt-1 text-text-muted">First, tell us why you're here.</p>
+      <AuthScreen>
+        <div className="text-center">
+          <h1 className="text-2xl font-bold">Join Sajilo Bazar</h1>
+          <p className="mt-1 text-text-muted">First, tell us why you're here.</p>
+        </div>
 
         <div className="mt-8 flex flex-col gap-4">
           {ROLES.map((option) => (
@@ -57,7 +59,7 @@ export function Signup() {
               key={option.value}
               whileTap={{ scale: 0.98 }}
               onClick={() => setRole(option.value)}
-              className="rounded-2xl border border-border bg-surface-raised p-5 text-left shadow-resting transition-shadow hover:shadow-raised"
+              className="rounded-2xl bg-surface-alt p-5 text-left shadow-neu-inset transition-shadow"
             >
               <p className="text-lg font-semibold">{option.title}</p>
               <p className="mt-1 text-sm text-text-muted">{option.subtitle}</p>
@@ -71,16 +73,16 @@ export function Signup() {
             Log in
           </Link>
         </p>
-      </Screen>
+      </AuthScreen>
     );
   }
 
   return (
-    <Screen>
+    <AuthScreen>
       <button onClick={() => setRole(null)} className="mb-4 self-start text-sm text-text-muted">
         &larr; Back
       </button>
-      <h1 className="text-2xl font-bold">
+      <h1 className="text-center text-2xl font-bold">
         {role === 'worker' ? 'Sign up as a worker' : 'Create your account'}
       </h1>
 
@@ -120,10 +122,10 @@ export function Signup() {
           onChange={(e) => setForm({ ...form, password: e.target.value })}
         />
         {error && <p className="text-sm text-danger">{error}</p>}
-        <Button type="submit" disabled={submitting} className="mt-2 w-full">
+        <Button type="submit" disabled={submitting} className="auth-btn mt-2 w-full">
           {submitting ? 'Creating account...' : 'Create account'}
         </Button>
       </form>
-    </Screen>
+    </AuthScreen>
   );
 }

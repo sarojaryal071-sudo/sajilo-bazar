@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Screen } from '../../components/Screen.jsx';
-import { Card } from '../../components/Card.jsx';
+import { AuthScreen } from '../../components/AuthScreen.jsx';
 import { Button } from '../../components/Button.jsx';
 import * as workersApi from '../../api/workers.api.js';
 
@@ -71,11 +70,13 @@ export function WorkerApply() {
   }, {});
 
   return (
-    <Screen>
-      <h1 className="text-2xl font-bold">Apply as a worker</h1>
-      <p className="mt-1 text-text-muted">
-        Step {step + 1} of {STEPS.length}: {step === 0 ? 'Your services' : 'Verification documents'}
-      </p>
+    <AuthScreen className="max-w-lg">
+      <div className="text-center">
+        <h1 className="text-2xl font-bold">Apply as a worker</h1>
+        <p className="mt-1 text-text-muted">
+          Step {step + 1} of {STEPS.length}: {step === 0 ? 'Your services' : 'Verification documents'}
+        </p>
+      </div>
 
       {step === 0 && (
         <form onSubmit={goToDocuments} className="mt-6 flex flex-col gap-4">
@@ -86,7 +87,10 @@ export function WorkerApply() {
               </p>
               <div className="flex flex-col gap-3">
                 {services.map((service) => (
-                  <Card key={service.id} className="flex items-center justify-between gap-3">
+                  <div
+                    key={service.id}
+                    className="flex items-center justify-between gap-3 rounded-2xl bg-surface-alt p-4 shadow-neu-inset"
+                  >
                     <label className="flex flex-1 items-center gap-3">
                       <input
                         type="checkbox"
@@ -103,17 +107,17 @@ export function WorkerApply() {
                         placeholder="Price (Rs.)"
                         value={selected[service.id]}
                         onChange={(e) => setPrice(service.id, e.target.value)}
-                        className="w-28 rounded-md border border-border bg-surface px-3 py-2 text-right outline-none focus:border-brand-solid"
+                        className="w-28 rounded-md px-3 py-2 text-right outline-none"
                       />
                     )}
-                  </Card>
+                  </div>
                 ))}
               </div>
             </div>
           ))}
 
           {error && <p className="text-sm text-danger">{error}</p>}
-          <Button type="submit" className="mt-2 w-full">
+          <Button type="submit" className="auth-btn mt-2 w-full">
             Continue
           </Button>
         </form>
@@ -130,7 +134,7 @@ export function WorkerApply() {
               rows={3}
               value={bio}
               onChange={(e) => setBio(e.target.value)}
-              className="rounded-md border border-border bg-surface px-4 py-3 text-text outline-none focus:border-brand-solid"
+              className="rounded-md px-4 py-3 text-text outline-none"
             />
           </label>
 
@@ -145,16 +149,16 @@ export function WorkerApply() {
 
           {error && <p className="text-sm text-danger">{error}</p>}
           <div className="mt-2 flex gap-3">
-            <Button type="button" variant="secondary" onClick={() => setStep(0)}>
+            <Button type="button" variant="secondary" className="auth-btn" onClick={() => setStep(0)}>
               Back
             </Button>
-            <Button type="submit" disabled={submitting} className="flex-1">
+            <Button type="submit" disabled={submitting} className="auth-btn flex-1">
               {submitting ? 'Submitting...' : 'Submit application'}
             </Button>
           </div>
         </form>
       )}
-    </Screen>
+    </AuthScreen>
   );
 }
 
