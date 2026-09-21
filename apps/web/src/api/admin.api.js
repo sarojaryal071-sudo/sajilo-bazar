@@ -90,3 +90,50 @@ export function activateService(id) {
 export function deactivateService(id) {
   return apiFetch(`/admin/services/${id}/deactivate`, { method: 'PATCH' });
 }
+
+export function listDisputes({ status } = {}) {
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  const query = params.toString();
+  return apiFetch(`/admin/disputes${query ? `?${query}` : ''}`);
+}
+
+export function getDisputeDetail(id) {
+  return apiFetch(`/admin/disputes/${id}`);
+}
+
+export function createDispute({ bookingId, raisedByUserId, reason }) {
+  return apiFetch('/admin/disputes', { method: 'POST', body: { bookingId, raisedByUserId, reason } });
+}
+
+export function resolveDispute(id, { status, resolutionNotes }) {
+  return apiFetch(`/admin/disputes/${id}/resolve`, { method: 'PATCH', body: { status, resolutionNotes } });
+}
+
+export function listSupportTickets({ status, priority, q } = {}) {
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  if (priority) params.set('priority', priority);
+  if (q) params.set('q', q);
+  const query = params.toString();
+  return apiFetch(`/admin/support-tickets${query ? `?${query}` : ''}`);
+}
+
+export function getSupportTicketDetail(id) {
+  return apiFetch(`/admin/support-tickets/${id}`);
+}
+
+export function createSupportTicket({ userId, bookingId, subject, priority, message }) {
+  return apiFetch('/admin/support-tickets', {
+    method: 'POST',
+    body: { userId, bookingId, subject, priority, message },
+  });
+}
+
+export function replyToTicket(id, message) {
+  return apiFetch(`/admin/support-tickets/${id}/messages`, { method: 'POST', body: { message } });
+}
+
+export function setTicketStatus(id, status) {
+  return apiFetch(`/admin/support-tickets/${id}/status`, { method: 'PATCH', body: { status } });
+}
