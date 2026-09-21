@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { isValidPhoneNumber } from 'react-phone-number-input';
-import { Screen } from '../../components/Screen.jsx';
+import { AuthScreen } from '../../components/AuthScreen.jsx';
 import { Button } from '../../components/Button.jsx';
 import { PhoneInput } from '../../components/PhoneInput.jsx';
 import { PasswordInput } from '../../components/PasswordInput.jsx';
@@ -38,9 +38,11 @@ export function Login() {
   }
 
   return (
-    <Screen>
-      <h1 className="text-2xl font-bold">Welcome back</h1>
-      <p className="mt-1 text-text-muted">Log in to continue.</p>
+    <AuthScreen>
+      <div className="text-center">
+        <h1 className="text-2xl font-bold">Welcome back</h1>
+        <p className="mt-1 text-text-muted">Log in to continue.</p>
+      </div>
 
       <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">
         <PhoneInput
@@ -62,7 +64,7 @@ export function Login() {
           onChange={(e) => setForm({ ...form, password: e.target.value })}
         />
         {error && <p className="text-sm text-danger">{error}</p>}
-        <Button type="submit" disabled={submitting} className="mt-2 w-full">
+        <Button type="submit" disabled={submitting} className="auth-btn mt-2 w-full">
           {submitting ? 'Logging in...' : 'Log in'}
         </Button>
       </form>
@@ -73,6 +75,6 @@ export function Login() {
           Sign up
         </Link>
       </p>
-    </Screen>
+    </AuthScreen>
   );
 }

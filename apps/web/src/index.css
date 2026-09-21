@@ -52,3 +52,41 @@ select {
 .sajilo-phone-input .PhoneInputCountrySelectArrow {
   color: var(--color-text-muted);
 }
+
+/* Auth/onboarding screens (Welcome, Login, Signup, worker-apply) - a
+   neumorphic "pressed in" treatment for form controls inside the glass
+   card, scoped by the .auth-card ancestor so it never touches Input/
+   PasswordInput/PhoneInput/Button usage anywhere else in the app (those
+   components are shared - Profile, BookingRequest, InstantRequest, etc.
+   all render plain <Input> with no ancestor .auth-card, so they're
+   untouched). Checkbox/file inputs (WorkerApply's service checkboxes and
+   document upload) are excluded - the inset "pressed" look is for text-
+   entry fields, not those.
+   Buttons use an explicit .auth-btn marker rather than a bare `button`
+   selector, since PasswordInput's show/hide toggle is also a <button> and
+   shouldn't get a full neumorphic shadow. !important is needed to beat
+   Button.jsx's own shadow-resting/hover:shadow-raised utility classes,
+   whose :hover variant otherwise wins on specificity regardless of the
+   stylesheet's source order. */
+.auth-card input:not([type='checkbox']):not([type='file']),
+.auth-card textarea,
+.auth-card .sajilo-phone-input.PhoneInput {
+  background: var(--color-surface-alt);
+  border-color: transparent;
+  box-shadow: var(--shadow-neu-inset);
+}
+
+.auth-card input:not([type='checkbox']):not([type='file']):focus,
+.auth-card textarea:focus,
+.auth-card .sajilo-phone-input.PhoneInput:focus-within {
+  border-color: transparent;
+  box-shadow: var(--shadow-neu-inset), 0 0 0 2px var(--color-brand-solid);
+}
+
+.auth-card .auth-btn {
+  box-shadow: var(--shadow-neu-button) !important;
+}
+
+.auth-card .auth-btn:active {
+  box-shadow: var(--shadow-neu-inset) !important;
+}
