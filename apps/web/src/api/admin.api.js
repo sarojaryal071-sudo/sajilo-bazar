@@ -70,3 +70,23 @@ export function cancelBooking(id, reason) {
 export function setBookingFlag(id, { flagged, reason }) {
   return apiFetch(`/admin/bookings/${id}/flag`, { method: 'PATCH', body: { flagged, reason } });
 }
+
+export function getCategoriesOverview() {
+  return apiFetch('/admin/categories');
+}
+
+export function createService({ category, name, description }) {
+  return apiFetch('/admin/services', { method: 'POST', body: { category, name, description } });
+}
+
+export function updateService(id, { category, name, description }) {
+  return apiFetch(`/admin/services/${id}`, { method: 'PATCH', body: { category, name, description } });
+}
+
+export function activateService(id) {
+  return apiFetch(`/admin/services/${id}/activate`, { method: 'PATCH' });
+}
+
+export function deactivateService(id) {
+  return apiFetch(`/admin/services/${id}/deactivate`, { method: 'PATCH' });
+}

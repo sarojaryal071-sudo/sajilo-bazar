@@ -164,3 +164,51 @@ export async function setBookingFlag(id, { flagged, reason }) {
   if (!booking) throw new ApiError(404, 'Booking not found');
   return adminModel.setBookingFlag(id, { flagged, reason });
 }
+
+// ---- Categories/Services (Round B) ----
+
+// Groups the flat service list by category client-side rather than adding a
+// real `categories` table - `services.category` is already the only source
+// of truth for category grouping everywhere else in the codebase (search,
+// worker-apply, etc.), so this keeps that one convention rather than
+// forking it. pendingRequestCount is read-only context from the existing
+// cross-category approval queue (worker_services.approval_status) - this
+// screen doesn't decide those, only Approvals does.
+export async function getCategoriesOverview() {
+  const [services, pendingByCategory] = await Promise.all([
+    adminModel.listServicesAdmin(),
+    adminModel.countPendingServiceRequestsByCategory(),
+  ]);
+
+  const byCategory = new Map();
+  for (const service of services) {
+    if (!byCategory.has(service.category)) {
+      byCategory.set(service.category, { category: service.category, services: [], pendingRequestCount: 0 });
+    }
+    byCategory.get(service.category).services.push(service);
+  }
+  for (const [category, count] of Object.entries(pendingByCategory)) {
+    if (!byCategory.has(category)) {
+      byCategory.set(category, { category, services: [], pendingRequestCount: 0 });
+    }
+    byCategory.get(category).pendingRequestCount = count;
+  }
+
+  return [...byCategory.values()].sort((a, b) => a.category.localeCompare(b.category));
+}
+
+export async function createService(input) {
+  return adminModel.createService(input);
+}
+
+export async function updateService(id, input) {
+  const service = await adminModel.findServiceAdminById(id);
+  if (!service) throw new ApiError(404, 'Service not found');
+  return adminModel.updateService(id, input);
+}
+
+export async function setServiceActive(id, isActive) {
+  const service = await adminModel.findServiceAdminById(id);
+  if (!service) throw new ApiError(404, 'Service not found');
+  return adminModel.setServiceActive(id, isActive);
+}

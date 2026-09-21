@@ -28,6 +28,7 @@ import { AdminUsers } from './screens/Admin/AdminUsers.jsx';
 import { AdminUserDetail } from './screens/Admin/AdminUserDetail.jsx';
 import { AdminBookings } from './screens/Admin/AdminBookings.jsx';
 import { AdminBookingDetail } from './screens/Admin/AdminBookingDetail.jsx';
+import { AdminCategories } from './screens/Admin/AdminCategories.jsx';
 import { AdminComingSoon } from './screens/Admin/AdminComingSoon.jsx';
 
 export default function App() {
@@ -58,7 +59,7 @@ export default function App() {
             <Route path="/admin/users/:id" element={<AdminUserDetail />} />
             <Route path="/admin/bookings" element={<AdminBookings />} />
             <Route path="/admin/bookings/:id" element={<AdminBookingDetail />} />
-            <Route path="/admin/categories" element={<AdminComingSoon title="Categories/Services" />} />
+            <Route path="/admin/categories" element={<AdminCategories />} />
             <Route path="/admin/staff" element={<AdminComingSoon title="Staff" />} />
             <Route path="/admin/analytics" element={<AdminComingSoon title="Analytics" />} />
             <Route path="/admin/live-ops" element={<AdminComingSoon title="Live Ops" />} />

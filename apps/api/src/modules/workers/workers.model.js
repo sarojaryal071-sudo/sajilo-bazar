@@ -87,7 +87,9 @@ export async function setOnline(userId, { isOnline, latitude, longitude }) {
 }
 
 export async function listServiceCatalog() {
-  const { rows } = await pool.query('SELECT * FROM services ORDER BY category, name');
+  const { rows } = await pool.query(
+    'SELECT * FROM services WHERE is_active = true ORDER BY category, name'
+  );
   return rows.map(toService);
 }
 
@@ -152,8 +154,14 @@ export async function addWorkerService(workerId, { serviceId, price, approvalSta
   return toWorkerService(joined[0]);
 }
 
+// Deactivated services aren't a valid choice for a worker's own "add a
+// service" flow - returning null here makes addService() 404 the same way
+// it does for a nonexistent id.
 export async function findServiceById(serviceId) {
-  const { rows } = await pool.query('SELECT * FROM services WHERE id = $1', [serviceId]);
+  const { rows } = await pool.query(
+    'SELECT * FROM services WHERE id = $1 AND is_active = true',
+    [serviceId]
+  );
   return rows[0] ? toService(rows[0]) : null;
 }
 
@@ -209,7 +217,7 @@ export async function searchWorkers({ category, serviceId, q }) {
        FROM users u
        JOIN worker_profiles wp ON wp.user_id = u.id
        JOIN worker_services ws ON ws.worker_id = u.id AND ws.is_active = true AND ws.approval_status = 'approved'
-       JOIN services s ON s.id = ws.service_id
+       JOIN services s ON s.id = ws.service_id AND s.is_active = true
        WHERE wp.verification_status = 'approved'
          AND ($1::text IS NULL OR s.category = $1)
          AND ($2::int IS NULL OR s.id = $2)
@@ -299,7 +307,7 @@ export async function findApprovedWorkerDetail(userId) {
   const services = await pool.query(
     `SELECT ws.service_id, ws.price, s.name AS service_name, s.category
      FROM worker_services ws
-     JOIN services s ON s.id = ws.service_id
+     JOIN services s ON s.id = ws.service_id AND s.is_active = true
      WHERE ws.worker_id = $1 AND ws.is_active = true AND ws.approval_status = 'approved'
      ORDER BY s.category, s.name`,
     [userId]

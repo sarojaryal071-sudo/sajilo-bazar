@@ -27,3 +27,9 @@ adminRoutes.get('/bookings', adminController.listBookings);
 adminRoutes.get('/bookings/:id', adminController.getBookingDetail);
 adminRoutes.patch('/bookings/:id/cancel', adminController.cancelBooking);
 adminRoutes.patch('/bookings/:id/flag', adminController.setBookingFlag);
+
+adminRoutes.get('/categories', adminController.getCategoriesOverview);
+adminRoutes.post('/services', adminController.createService);
+adminRoutes.patch('/services/:id', adminController.updateService);
+adminRoutes.patch('/services/:id/activate', adminController.activateService);
+adminRoutes.patch('/services/:id/deactivate', adminController.deactivateService);

@@ -2,6 +2,7 @@ import {
   AdminUserNotesInputSchema,
   AdminBookingCancelInputSchema,
   AdminBookingFlagInputSchema,
+  AdminServiceInputSchema,
 } from '@sajilo-bazar/shared';
 import { ApiError } from '../../middleware/error.middleware.js';
 import * as adminService from './admin.service.js';
@@ -153,5 +154,54 @@ export async function setBookingFlag(req, res, next) {
     res.json({ booking });
   } catch (err) {
     next(err.issues ? new ApiError(400, 'Invalid flag input', err.issues) : err);
+  }
+}
+
+// ---- Categories/Services ----
+
+export async function getCategoriesOverview(req, res, next) {
+  try {
+    const categories = await adminService.getCategoriesOverview();
+    res.json({ categories });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function createService(req, res, next) {
+  try {
+    const input = AdminServiceInputSchema.parse(req.body);
+    const service = await adminService.createService(input);
+    res.status(201).json({ service });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid service input', err.issues) : err);
+  }
+}
+
+export async function updateService(req, res, next) {
+  try {
+    const input = AdminServiceInputSchema.parse(req.body);
+    const service = await adminService.updateService(parseId(req), input);
+    res.json({ service });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid service input', err.issues) : err);
+  }
+}
+
+export async function activateService(req, res, next) {
+  try {
+    const service = await adminService.setServiceActive(parseId(req), true);
+    res.json({ service });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deactivateService(req, res, next) {
+  try {
+    const service = await adminService.setServiceActive(parseId(req), false);
+    res.json({ service });
+  } catch (err) {
+    next(err);
   }
 }
