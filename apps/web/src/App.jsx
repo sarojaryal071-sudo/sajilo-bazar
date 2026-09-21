@@ -4,6 +4,7 @@ import { SocketProvider } from './context/SocketContext.jsx';
 import { ProtectedRoute } from './components/ProtectedRoute.jsx';
 import { IncomingRequestPopup } from './components/IncomingRequestPopup.jsx';
 import { AppShell } from './components/AppShell.jsx';
+import { AdminShell } from './components/AdminShell.jsx';
 import { Welcome } from './screens/Welcome/Welcome.jsx';
 import { Login } from './screens/Auth/Login.jsx';
 import { Signup } from './screens/Auth/Signup.jsx';
@@ -21,6 +22,8 @@ import { InstantRequest } from './screens/InstantRequest/InstantRequest.jsx';
 import { Notifications } from './screens/Notifications/Notifications.jsx';
 import { Earnings } from './screens/Earnings/Earnings.jsx';
 import { ComingSoon } from './screens/ComingSoon/ComingSoon.jsx';
+import { AdminDashboard } from './screens/Admin/AdminDashboard.jsx';
+import { AdminApprovals } from './screens/Admin/AdminApprovals.jsx';
 
 export default function App() {
   return (
@@ -41,6 +44,11 @@ export default function App() {
             <Route path="/language" element={<ComingSoon title="Language" />} />
             <Route path="/theme" element={<ComingSoon title="Theme" />} />
             <Route path="/help" element={<ComingSoon title="Help & Support" />} />
+          </Route>
+
+          <Route element={<AdminShell />}>
+            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/approvals" element={<AdminApprovals />} />
           </Route>
 
           <Route
