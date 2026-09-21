@@ -15,3 +15,11 @@ export const AdminBookingFlagInputSchema = z.object({
   flagged: z.boolean(),
   reason: z.string().max(300).nullable().optional(),
 });
+
+// Admin Categories/Services screen (Round B). Same shape for create and
+// edit - editing a service's category re-groups it in the catalog.
+export const AdminServiceInputSchema = z.object({
+  category: z.string().min(2).max(60),
+  name: z.string().min(2).max(80),
+  description: z.string().max(500).nullable().optional(),
+});

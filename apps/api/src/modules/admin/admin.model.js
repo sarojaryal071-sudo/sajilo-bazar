@@ -282,3 +282,66 @@ export async function setBookingFlag(id, { flagged, reason }) {
   );
   return rows[0] || null;
 }
+
+// ---- Categories/Services (Round B) ----
+
+function toServiceAdmin(row) {
+  return {
+    id: row.id,
+    category: row.category,
+    name: row.name,
+    description: row.description,
+    isActive: row.is_active,
+    createdAt: row.created_at,
+  };
+}
+
+// Includes inactive services (unlike the public catalog) - the admin needs
+// to see and be able to reactivate them.
+export async function listServicesAdmin() {
+  const { rows } = await pool.query('SELECT * FROM services ORDER BY category, name');
+  return rows.map(toServiceAdmin);
+}
+
+// Pending cross-category worker-service requests, grouped by category -
+// surfaced read-only on the Categories/Services screen for context (the
+// queue itself is still only actionable from Approvals).
+export async function countPendingServiceRequestsByCategory() {
+  const { rows } = await pool.query(
+    `SELECT s.category, COUNT(*)::int AS count
+     FROM worker_services ws
+     JOIN services s ON s.id = ws.service_id
+     WHERE ws.approval_status = 'pending'
+     GROUP BY s.category`
+  );
+  return Object.fromEntries(rows.map((row) => [row.category, row.count]));
+}
+
+export async function findServiceAdminById(id) {
+  const { rows } = await pool.query('SELECT * FROM services WHERE id = $1', [id]);
+  return rows[0] ? toServiceAdmin(rows[0]) : null;
+}
+
+export async function createService({ category, name, description }) {
+  const { rows } = await pool.query(
+    'INSERT INTO services (category, name, description) VALUES ($1, $2, $3) RETURNING *',
+    [category, name, description ?? null]
+  );
+  return toServiceAdmin(rows[0]);
+}
+
+export async function updateService(id, { category, name, description }) {
+  const { rows } = await pool.query(
+    'UPDATE services SET category = $2, name = $3, description = $4 WHERE id = $1 RETURNING *',
+    [id, category, name, description ?? null]
+  );
+  return rows[0] ? toServiceAdmin(rows[0]) : null;
+}
+
+export async function setServiceActive(id, isActive) {
+  const { rows } = await pool.query(
+    'UPDATE services SET is_active = $2 WHERE id = $1 RETURNING *',
+    [id, isActive]
+  );
+  return rows[0] ? toServiceAdmin(rows[0]) : null;
+}
