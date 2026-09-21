@@ -3,6 +3,11 @@ import {
   AdminBookingCancelInputSchema,
   AdminBookingFlagInputSchema,
   AdminServiceInputSchema,
+  AdminDisputeCreateInputSchema,
+  AdminDisputeResolveInputSchema,
+  AdminSupportTicketCreateInputSchema,
+  AdminSupportTicketReplyInputSchema,
+  AdminSupportTicketStatusInputSchema,
 } from '@sajilo-bazar/shared';
 import { ApiError } from '../../middleware/error.middleware.js';
 import * as adminService from './admin.service.js';
@@ -203,5 +208,97 @@ export async function deactivateService(req, res, next) {
     res.json({ service });
   } catch (err) {
     next(err);
+  }
+}
+
+// ---- Disputes ----
+
+export async function listDisputes(req, res, next) {
+  try {
+    const { status } = req.query;
+    const disputes = await adminService.listDisputes({ status });
+    res.json({ disputes });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getDisputeDetail(req, res, next) {
+  try {
+    const detail = await adminService.getDisputeDetail(parseId(req));
+    res.json(detail);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function createDispute(req, res, next) {
+  try {
+    const input = AdminDisputeCreateInputSchema.parse(req.body);
+    const dispute = await adminService.createDispute(input);
+    res.status(201).json({ dispute });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid dispute input', err.issues) : err);
+  }
+}
+
+export async function resolveDispute(req, res, next) {
+  try {
+    const input = AdminDisputeResolveInputSchema.parse(req.body);
+    const dispute = await adminService.resolveDispute(parseId(req), req.user.id, input);
+    res.json({ dispute });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid resolution input', err.issues) : err);
+  }
+}
+
+// ---- Support tickets ----
+
+export async function listSupportTickets(req, res, next) {
+  try {
+    const { status, priority, q } = req.query;
+    const tickets = await adminService.listSupportTickets({ status, priority, q });
+    res.json({ tickets });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getSupportTicketDetail(req, res, next) {
+  try {
+    const detail = await adminService.getSupportTicketDetail(parseId(req));
+    res.json(detail);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function createSupportTicket(req, res, next) {
+  try {
+    const input = AdminSupportTicketCreateInputSchema.parse(req.body);
+    const ticket = await adminService.createSupportTicket(input);
+    res.status(201).json({ ticket });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid ticket input', err.issues) : err);
+  }
+}
+
+export async function replyToTicket(req, res, next) {
+  try {
+    const { message } = AdminSupportTicketReplyInputSchema.parse(req.body);
+    const messages = await adminService.replyToTicket(parseId(req), req.user.id, message);
+    res.status(201).json({ messages });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid message', err.issues) : err);
+  }
+}
+
+export async function setTicketStatus(req, res, next) {
+  try {
+    const { status } = AdminSupportTicketStatusInputSchema.parse(req.body);
+    const ticket = await adminService.setTicketStatus(parseId(req), status);
+    res.json({ ticket });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid status', err.issues) : err);
   }
 }

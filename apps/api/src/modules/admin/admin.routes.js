@@ -33,3 +33,14 @@ adminRoutes.post('/services', adminController.createService);
 adminRoutes.patch('/services/:id', adminController.updateService);
 adminRoutes.patch('/services/:id/activate', adminController.activateService);
 adminRoutes.patch('/services/:id/deactivate', adminController.deactivateService);
+
+adminRoutes.get('/disputes', adminController.listDisputes);
+adminRoutes.get('/disputes/:id', adminController.getDisputeDetail);
+adminRoutes.post('/disputes', adminController.createDispute);
+adminRoutes.patch('/disputes/:id/resolve', adminController.resolveDispute);
+
+adminRoutes.get('/support-tickets', adminController.listSupportTickets);
+adminRoutes.get('/support-tickets/:id', adminController.getSupportTicketDetail);
+adminRoutes.post('/support-tickets', adminController.createSupportTicket);
+adminRoutes.post('/support-tickets/:id/messages', adminController.replyToTicket);
+adminRoutes.patch('/support-tickets/:id/status', adminController.setTicketStatus);

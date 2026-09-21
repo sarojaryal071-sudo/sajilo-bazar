@@ -29,6 +29,10 @@ import { AdminUserDetail } from './screens/Admin/AdminUserDetail.jsx';
 import { AdminBookings } from './screens/Admin/AdminBookings.jsx';
 import { AdminBookingDetail } from './screens/Admin/AdminBookingDetail.jsx';
 import { AdminCategories } from './screens/Admin/AdminCategories.jsx';
+import { AdminDisputes } from './screens/Admin/AdminDisputes.jsx';
+import { AdminDisputeDetail } from './screens/Admin/AdminDisputeDetail.jsx';
+import { AdminSupportTickets } from './screens/Admin/AdminSupportTickets.jsx';
+import { AdminSupportTicketDetail } from './screens/Admin/AdminSupportTicketDetail.jsx';
 import { AdminComingSoon } from './screens/Admin/AdminComingSoon.jsx';
 
 export default function App() {
@@ -64,8 +68,10 @@ export default function App() {
             <Route path="/admin/analytics" element={<AdminComingSoon title="Analytics" />} />
             <Route path="/admin/live-ops" element={<AdminComingSoon title="Live Ops" />} />
             <Route path="/admin/accounting" element={<AdminComingSoon title="Accounting" />} />
-            <Route path="/admin/disputes" element={<AdminComingSoon title="Disputes" />} />
-            <Route path="/admin/support" element={<AdminComingSoon title="Support tickets" />} />
+            <Route path="/admin/disputes" element={<AdminDisputes />} />
+            <Route path="/admin/disputes/:id" element={<AdminDisputeDetail />} />
+            <Route path="/admin/support" element={<AdminSupportTickets />} />
+            <Route path="/admin/support/:id" element={<AdminSupportTicketDetail />} />
             <Route path="/admin/announcements" element={<AdminComingSoon title="Announcements" />} />
             <Route path="/admin/policies" element={<AdminComingSoon title="Policies" />} />
             <Route path="/admin/settings" element={<AdminComingSoon title="Settings" />} />

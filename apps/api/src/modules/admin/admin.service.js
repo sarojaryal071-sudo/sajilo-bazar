@@ -212,3 +212,88 @@ export async function setServiceActive(id, isActive) {
   if (!service) throw new ApiError(404, 'Service not found');
   return adminModel.setServiceActive(id, isActive);
 }
+
+// ---- Disputes (Round C) ----
+
+export async function listDisputes(filters) {
+  return adminModel.listDisputes(filters);
+}
+
+// Reuses the booking's own chat transcript (the same conversation the
+// dispute is about) rather than a separate dispute thread - matches the
+// plan's "linked booking + chat transcript" rather than a message log of
+// its own.
+export async function getDisputeDetail(id) {
+  const dispute = await adminModel.findDisputeById(id);
+  if (!dispute) throw new ApiError(404, 'Dispute not found');
+
+  const [booking, messages] = await Promise.all([
+    bookingsModel.findById(dispute.bookingId),
+    chatModel.listByBooking(dispute.bookingId),
+  ]);
+
+  return { dispute, booking, messages };
+}
+
+// No customer/worker self-service "raise a dispute" flow exists yet, so an
+// admin logs it on behalf of whichever party reported it - raisedByUserId
+// must actually be a party to the booking, same integrity a real
+// self-service flow would get for free from req.user.id.
+export async function createDispute({ bookingId, raisedByUserId, reason }) {
+  const booking = await bookingsModel.findById(bookingId);
+  if (!booking) throw new ApiError(404, 'Booking not found');
+  if (![booking.customerId, booking.workerId].includes(raisedByUserId)) {
+    throw new ApiError(400, 'raisedByUserId must be a party to this booking');
+  }
+  return adminModel.createDispute({ bookingId, raisedByUserId, reason });
+}
+
+export async function resolveDispute(id, adminId, { status, resolutionNotes }) {
+  const dispute = await adminModel.findDisputeById(id);
+  if (!dispute) throw new ApiError(404, 'Dispute not found');
+  if (dispute.status !== 'open') throw new ApiError(400, 'This dispute has already been decided');
+  return adminModel.resolveDispute(id, { status, resolutionNotes, adminId });
+}
+
+// ---- Support tickets (Round C) ----
+
+export async function listSupportTickets(filters) {
+  return adminModel.listSupportTickets(filters);
+}
+
+export async function getSupportTicketDetail(id) {
+  const ticket = await adminModel.findSupportTicketById(id);
+  if (!ticket) throw new ApiError(404, 'Support ticket not found');
+
+  const [messages, booking] = await Promise.all([
+    adminModel.listTicketMessages(id),
+    ticket.bookingId ? bookingsModel.findById(ticket.bookingId) : null,
+  ]);
+
+  return { ticket, messages, booking };
+}
+
+export async function createSupportTicket({ userId, bookingId, subject, priority, message }) {
+  const user = await adminModel.findUserById(userId);
+  if (!user) throw new ApiError(404, 'User not found');
+  if (bookingId) {
+    const booking = await bookingsModel.findById(bookingId);
+    if (!booking) throw new ApiError(404, 'Booking not found');
+  }
+  return adminModel.createSupportTicket({ userId, bookingId, subject, priority, message });
+}
+
+// The admin's own reply - sender is always the responding admin, unlike the
+// ticket's opening message which is recorded as coming from the reporting
+// user (see createSupportTicket above).
+export async function replyToTicket(id, adminId, message) {
+  const ticket = await adminModel.findSupportTicketById(id);
+  if (!ticket) throw new ApiError(404, 'Support ticket not found');
+  return adminModel.addTicketMessage(id, { senderId: adminId, message });
+}
+
+export async function setTicketStatus(id, status) {
+  const ticket = await adminModel.setTicketStatus(id, status);
+  if (!ticket) throw new ApiError(404, 'Support ticket not found');
+  return ticket;
+}
