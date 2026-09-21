@@ -54,8 +54,15 @@
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
+/* Dark values are declared twice on purpose (plain CSS has no mixins):
+   once for the OS-level default (prefers-color-scheme, only when nothing
+   overrides it) and once for an explicit user choice via data-theme,
+   which always wins regardless of OS preference. ThemeContext.jsx is the
+   only place that ever sets data-theme on :root - it forces "light" on
+   Welcome/Login/Signup regardless of the stored preference, and mirrors
+   the stored/system choice everywhere else. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme]) {
     --color-surface: #121417;
     --color-surface-alt: #1a1d21;
     --color-surface-raised: #1e2126;
@@ -76,4 +83,24 @@
     --color-glass-surface: rgba(30, 33, 38, 0.6);
     --color-glass-border: rgba(255, 255, 255, 0.08);
   }
+}
+
+:root[data-theme='dark'] {
+  --color-surface: #121417;
+  --color-surface-alt: #1a1d21;
+  --color-surface-raised: #1e2126;
+  --color-border: #2a2e34;
+
+  --color-text: #f1f5f9;
+  --color-text-muted: #94a3b8;
+
+  --shadow-resting: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.24);
+  --shadow-raised: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
+
+  --shadow-neu-card: 28px 28px 64px rgba(0, 0, 0, 0.55), -20px -20px 52px rgba(255, 255, 255, 0.035);
+  --shadow-neu-inset: inset 3px 3px 7px rgba(0, 0, 0, 0.5), inset -3px -3px 7px rgba(255, 255, 255, 0.025);
+  --shadow-neu-button: 8px 8px 18px rgba(0, 0, 0, 0.55), -6px -6px 16px rgba(255, 255, 255, 0.04);
+
+  --color-glass-surface: rgba(30, 33, 38, 0.6);
+  --color-glass-border: rgba(255, 255, 255, 0.08);
 }

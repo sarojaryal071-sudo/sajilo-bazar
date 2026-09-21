@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useUnreadNotificationCount } from '../hooks/useUnreadNotificationCount.js';
+import { useLanguage } from '../context/LanguageContext.jsx';
 
 const ICONS = {
   home: <path d="M3 11.5 12 4l9 7.5M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9" />,
@@ -21,7 +22,7 @@ const ICONS = {
 
 // Routes reachable only through the hamburger menu - the tab highlights as
 // active when the user is on one of these, even though it isn't a NavLink.
-const MENU_ROUTES = ['/profile', '/settings', '/language', '/theme', '/help'];
+const MENU_ROUTES = ['/profile', '/settings', '/help'];
 
 function NavIcon({ name }) {
   return (
@@ -36,13 +37,13 @@ function NavIcon({ name }) {
 // standalone Profile tab either - it moved into the hamburger menu, which
 // is always the last tab (see MENU_ROUTES / HamburgerMenu.jsx).
 const CUSTOMER_TABS = [
-  { to: '/home', icon: 'home', label: 'Home' },
-  { to: '/bookings', icon: 'bookings', label: 'Bookings' },
+  { to: '/home', icon: 'home', labelKey: 'nav.home' },
+  { to: '/bookings', icon: 'bookings', labelKey: 'nav.bookings' },
 ];
 
 const WORKER_TABS = [
-  { to: '/worker/dashboard', icon: 'dashboard', label: 'Dashboard' },
-  { to: '/worker/jobs', icon: 'jobs', label: 'Jobs' },
+  { to: '/worker/dashboard', icon: 'dashboard', labelKey: 'nav.dashboard' },
+  { to: '/worker/jobs', icon: 'jobs', labelKey: 'nav.jobs' },
 ];
 
 // Messenger-style: the notification bell and the hamburger menu both live
@@ -54,6 +55,7 @@ export function BottomNav({ role, onOpenMenu }) {
   const tabs = role === 'worker' ? WORKER_TABS : CUSTOMER_TABS;
   const unreadCount = useUnreadNotificationCount();
   const location = useLocation();
+  const { t } = useLanguage();
   const menuActive = MENU_ROUTES.some((route) => location.pathname.startsWith(route));
 
   return (
@@ -70,7 +72,7 @@ export function BottomNav({ role, onOpenMenu }) {
             }
           >
             <NavIcon name={tab.icon} />
-            {tab.label}
+            {t(tab.labelKey)}
           </NavLink>
         ))}
         <NavLink
@@ -90,7 +92,7 @@ export function BottomNav({ role, onOpenMenu }) {
               </span>
             )}
           </span>
-          Alerts
+          {t('nav.alerts')}
         </NavLink>
         <button
           onClick={onOpenMenu}
@@ -100,7 +102,7 @@ export function BottomNav({ role, onOpenMenu }) {
           }`}
         >
           <NavIcon name="menu" />
-          Menu
+          {t('nav.menu')}
         </button>
       </div>
     </nav>

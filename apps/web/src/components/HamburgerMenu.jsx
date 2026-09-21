@@ -1,6 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useTheme } from '../context/ThemeContext.jsx';
+import { useLanguage } from '../context/LanguageContext.jsx';
 
 function ProfileIcon() {
   return (
@@ -36,10 +38,19 @@ function LanguageIcon() {
   );
 }
 
-function ThemeIcon() {
-  return (
+function ThemeIcon({ dark }) {
+  return dark ? (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.4 5.4 0 0 1-7.54-7.54A9 9 0 0 0 12 3Z" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ) : (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="12" r="5" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -69,17 +80,11 @@ function LogoutIcon() {
   );
 }
 
-const MENU_ITEMS = [
-  { to: '/profile', icon: ProfileIcon, label: 'Profile' },
-  { to: '/settings', icon: SettingsIcon, label: 'Settings', comingSoon: true },
-  { to: '/language', icon: LanguageIcon, label: 'Language', comingSoon: true },
-  { to: '/theme', icon: ThemeIcon, label: 'Theme', comingSoon: true },
-  { to: '/help', icon: HelpIcon, label: 'Help & Support' },
-];
-
 export function HamburgerMenu({ open, onClose }) {
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { theme, setTheme } = useTheme();
+  const { language, setLanguage, t } = useLanguage();
 
   function go(to) {
     onClose();
@@ -108,11 +113,11 @@ export function HamburgerMenu({ open, onClose }) {
             exit={{ x: '100%' }}
             transition={{ type: 'tween', duration: 0.2 }}
             role="dialog"
-            aria-label="Menu"
+            aria-label={t('menu.title')}
             className="fixed inset-y-0 right-0 z-50 flex w-72 max-w-[80%] flex-col bg-surface-raised shadow-raised"
           >
             <div className="flex items-center justify-between border-b border-border px-5 py-4">
-              <p className="font-semibold">Menu</p>
+              <p className="font-semibold">{t('menu.title')}</p>
               <button onClick={onClose} aria-label="Close menu" className="text-text-muted">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
@@ -121,17 +126,53 @@ export function HamburgerMenu({ open, onClose }) {
             </div>
 
             <div className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
-              {MENU_ITEMS.map(({ to, icon: Icon, label, comingSoon }) => (
-                <button
-                  key={to}
-                  onClick={() => go(to)}
-                  className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-surface-alt"
-                >
-                  <Icon />
-                  <span className="flex-1">{label}</span>
-                  {comingSoon && <span className="text-xs text-text-muted">Soon</span>}
-                </button>
-              ))}
+              <button
+                onClick={() => go('/profile')}
+                className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-surface-alt"
+              >
+                <ProfileIcon />
+                <span className="flex-1">{t('menu.profile')}</span>
+              </button>
+              <button
+                onClick={() => go('/settings')}
+                className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-surface-alt"
+              >
+                <SettingsIcon />
+                <span className="flex-1">{t('menu.settings')}</span>
+                <span className="text-xs text-text-muted">{t('menu.soon')}</span>
+              </button>
+
+              {/* Instant-apply on tap - no separate page, unlike the rest of
+                  this list. Each is a single row that cycles its own value
+                  and updates the app immediately. */}
+              <button
+                onClick={() => setLanguage(language === 'en' ? 'ne' : 'en')}
+                className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-surface-alt"
+              >
+                <LanguageIcon />
+                <span className="flex-1">{t('menu.language')}</span>
+                <span className="text-xs text-text-muted">
+                  {language === 'en' ? t('menu.english') : t('menu.nepali')}
+                </span>
+              </button>
+              <button
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-surface-alt"
+              >
+                <ThemeIcon dark={theme === 'dark'} />
+                <span className="flex-1">{t('menu.theme')}</span>
+                <span className="text-xs text-text-muted">
+                  {theme === 'dark' ? t('menu.dark') : t('menu.light')}
+                </span>
+              </button>
+
+              <button
+                onClick={() => go('/help')}
+                className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-surface-alt"
+              >
+                <HelpIcon />
+                <span className="flex-1">{t('menu.help')}</span>
+              </button>
             </div>
 
             <div className="border-t border-border p-3">
@@ -140,7 +181,7 @@ export function HamburgerMenu({ open, onClose }) {
                 className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium text-danger hover:bg-surface-alt"
               >
                 <LogoutIcon />
-                Log out
+                {t('menu.logout')}
               </button>
             </div>
           </motion.div>
