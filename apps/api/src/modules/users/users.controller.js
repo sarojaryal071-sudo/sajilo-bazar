@@ -1,4 +1,4 @@
-import { ProfileUpdateInputSchema } from '@sajilo-bazar/shared';
+import { ProfileUpdateInputSchema, SupportTicketCreateInputSchema } from '@sajilo-bazar/shared';
 import { ApiError } from '../../middleware/error.middleware.js';
 import * as usersService from './users.service.js';
 
@@ -27,5 +27,15 @@ export async function uploadPhoto(req, res, next) {
     res.json({ user });
   } catch (err) {
     next(err);
+  }
+}
+
+export async function createSupportTicket(req, res, next) {
+  try {
+    const input = SupportTicketCreateInputSchema.parse(req.body);
+    const ticket = await usersService.createSupportTicket(req.user.id, input);
+    res.status(201).json({ ticket });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid support ticket', err.issues) : err);
   }
 }

@@ -109,6 +109,51 @@ function CancelSection({ busy, onCancel }) {
   );
 }
 
+// "Report a problem" - the missing self-service entry point into the
+// disputes table admin already has a full list/detail/resolve screen for
+// (Round C). Once filed for this session, it just confirms rather than
+// letting the same visit file a duplicate.
+function ReportProblemSection({ busy, filed, onSubmit }) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState('');
+
+  if (filed) {
+    return <p className="text-sm text-text-muted">Your report has been sent to our support team.</p>;
+  }
+
+  if (!open) {
+    return (
+      <Button variant="secondary" onClick={() => setOpen(true)}>
+        Report a problem
+      </Button>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <textarea
+        rows={3}
+        placeholder="What went wrong?"
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        className="rounded-md border border-border bg-surface px-4 py-3 text-text outline-none focus:border-brand-solid"
+      />
+      <div className="flex gap-3">
+        <Button variant="secondary" className="flex-1" onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
+        <Button
+          className="flex-1"
+          disabled={busy || !reason.trim()}
+          onClick={() => onSubmit(reason.trim())}
+        >
+          Submit report
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function BookingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -120,6 +165,8 @@ export function BookingDetail() {
   const [actionError, setActionError] = useState('');
   const [busy, setBusy] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [disputeBusy, setDisputeBusy] = useState(false);
+  const [disputeFiled, setDisputeFiled] = useState(false);
 
   const load = useCallback(() => {
     bookingsApi
@@ -197,6 +244,19 @@ export function BookingDetail() {
     const { review: created } = await bookingsApi.createReview(id, { rating, comment });
     setReview(created);
     setReviewOpen(false);
+  }
+
+  async function handleReportProblem(reason) {
+    setActionError('');
+    setDisputeBusy(true);
+    try {
+      await bookingsApi.createDispute(id, reason);
+      setDisputeFiled(true);
+    } catch (err) {
+      setActionError(err.message);
+    } finally {
+      setDisputeBusy(false);
+    }
   }
 
   return (
@@ -302,6 +362,9 @@ export function BookingDetail() {
         )}
         {!isWorker && booking.status === 'completed' && !review && (
           <Button onClick={() => setReviewOpen(true)}>Leave a review</Button>
+        )}
+        {!isInstantWaiting && (
+          <ReportProblemSection busy={disputeBusy} filed={disputeFiled} onSubmit={handleReportProblem} />
         )}
       </div>
 

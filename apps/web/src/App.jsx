@@ -22,6 +22,7 @@ import { InstantRequest } from './screens/InstantRequest/InstantRequest.jsx';
 import { Notifications } from './screens/Notifications/Notifications.jsx';
 import { Earnings } from './screens/Earnings/Earnings.jsx';
 import { ComingSoon } from './screens/ComingSoon/ComingSoon.jsx';
+import { HelpSupport } from './screens/HelpSupport/HelpSupport.jsx';
 import { AdminDashboard } from './screens/Admin/AdminDashboard.jsx';
 import { AdminApprovals } from './screens/Admin/AdminApprovals.jsx';
 import { AdminUsers } from './screens/Admin/AdminUsers.jsx';
@@ -55,7 +56,7 @@ export default function App() {
             <Route path="/settings" element={<ComingSoon title="Settings" />} />
             <Route path="/language" element={<ComingSoon title="Language" />} />
             <Route path="/theme" element={<ComingSoon title="Theme" />} />
-            <Route path="/help" element={<ComingSoon title="Help & Support" />} />
+            <Route path="/help" element={<HelpSupport />} />
           </Route>
 
           <Route element={<AdminShell />}>

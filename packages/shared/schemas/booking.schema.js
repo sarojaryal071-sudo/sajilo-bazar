@@ -60,6 +60,15 @@ export const InstantBookingCreateInputSchema = z.object({
   longitude: z.number(),
 });
 
+// Self-service "Report a problem" on a booking's own detail screen - the
+// customer/worker-facing counterpart to AdminDisputeCreateInputSchema
+// (admin.schema.js), which an admin uses to log one on a party's behalf.
+// bookingId/raisedByUserId come from the route param and req.user.id, not
+// the body, since the reporter can only ever be reporting themselves.
+export const BookingDisputeInputSchema = z.object({
+  reason: z.string().min(1).max(1000),
+});
+
 export const BookingOfferSchema = z.object({
   id: z.number().int().positive(),
   bookingId: z.number().int().positive(),

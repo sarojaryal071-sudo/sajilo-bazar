@@ -51,6 +51,10 @@ export function cancel(id, reason) {
   return apiFetch(`/bookings/${id}/cancel`, { method: 'PATCH', body: { reason } });
 }
 
+export function createDispute(id, reason) {
+  return apiFetch(`/bookings/${id}/dispute`, { method: 'POST', body: { reason } });
+}
+
 export function listMessages(bookingId) {
   return apiFetch(`/bookings/${bookingId}/messages`);
 }

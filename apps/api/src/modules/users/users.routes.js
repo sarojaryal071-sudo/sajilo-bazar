@@ -13,3 +13,4 @@ export const usersRoutes = Router();
 usersRoutes.get('/me', requireAuth, usersController.getMe);
 usersRoutes.patch('/me', requireAuth, usersController.updateMe);
 usersRoutes.post('/me/photo', requireAuth, upload.single('photo'), usersController.uploadPhoto);
+usersRoutes.post('/me/support-tickets', requireAuth, usersController.createSupportTicket);
