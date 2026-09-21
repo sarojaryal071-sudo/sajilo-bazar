@@ -179,6 +179,7 @@ function toSearchResult(row) {
     userId: row.user_id,
     fullName: row.full_name,
     profileImageUrl: row.profile_image_url,
+    verificationStatus: row.verification_status,
     ratingAvg: Number(row.rating_avg),
     jobsCompletedCount: row.jobs_completed_count,
     serviceAreaLabel: row.service_area_label,
@@ -202,7 +203,7 @@ export async function searchWorkers({ category, serviceId, q }) {
   const { rows } = await pool.query(
     `SELECT * FROM (
        SELECT DISTINCT ON (u.id)
-         u.id AS user_id, u.full_name, u.profile_image_url,
+         u.id AS user_id, u.full_name, u.profile_image_url, wp.verification_status,
          wp.rating_avg, wp.jobs_completed_count, wp.service_area_label,
          ws.service_id, s.name AS service_name, s.category, ws.price
        FROM users u
@@ -266,6 +267,7 @@ function toWorkerDetail(profileRow, serviceRows, { reviewsCount, reviews }) {
     userId: profileRow.user_id,
     fullName: profileRow.full_name,
     profileImageUrl: profileRow.profile_image_url,
+    verificationStatus: profileRow.verification_status,
     bio: profileRow.bio,
     ratingAvg: Number(profileRow.rating_avg),
     jobsCompletedCount: profileRow.jobs_completed_count,
@@ -285,7 +287,7 @@ function toWorkerDetail(profileRow, serviceRows, { reviewsCount, reviews }) {
 // a customer can't view an unverified worker's profile by guessing an id.
 export async function findApprovedWorkerDetail(userId) {
   const { rows } = await pool.query(
-    `SELECT u.id AS user_id, u.full_name, u.profile_image_url,
+    `SELECT u.id AS user_id, u.full_name, u.profile_image_url, wp.verification_status,
             wp.bio, wp.rating_avg, wp.jobs_completed_count, wp.service_area_label
      FROM users u
      JOIN worker_profiles wp ON wp.user_id = u.id

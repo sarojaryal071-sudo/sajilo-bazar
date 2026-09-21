@@ -5,6 +5,7 @@ import { Card } from '../../components/Card.jsx';
 import { Avatar } from '../../components/Avatar.jsx';
 import { Button } from '../../components/Button.jsx';
 import { ReviewsList } from '../../components/ReviewsList.jsx';
+import { VerifiedBadge } from '../../components/VerifiedBadge.jsx';
 import * as workersApi from '../../api/workers.api.js';
 
 function StarIcon() {
@@ -65,7 +66,10 @@ export function WorkerDetail() {
       <div className="flex items-center gap-4">
         <Avatar name={worker.fullName} imageUrl={worker.profileImageUrl} size={72} />
         <div>
-          <h1 className="text-xl font-bold">{worker.fullName}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold">{worker.fullName}</h1>
+            {worker.verificationStatus === 'approved' && <VerifiedBadge />}
+          </div>
           {worker.serviceAreaLabel && (
             <p className="text-sm text-text-muted">{worker.serviceAreaLabel}</p>
           )}

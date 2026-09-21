@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { VERIFICATION_STATUSES } from './enums.js';
 
 // One row per worker in search results - their cheapest service matching
 // the search filters, not their full service list (that's on the detail
@@ -7,6 +8,7 @@ export const WorkerSearchResultSchema = z.object({
   userId: z.number().int().positive(),
   fullName: z.string(),
   profileImageUrl: z.string().url().nullable().optional(),
+  verificationStatus: z.enum(VERIFICATION_STATUSES),
   ratingAvg: z.number().min(0).max(5),
   jobsCompletedCount: z.number().int().min(0),
   serviceAreaLabel: z.string().nullable().optional(),
@@ -37,6 +39,7 @@ export const WorkerDetailSchema = z.object({
   userId: z.number().int().positive(),
   fullName: z.string(),
   profileImageUrl: z.string().url().nullable().optional(),
+  verificationStatus: z.enum(VERIFICATION_STATUSES),
   bio: z.string().nullable().optional(),
   ratingAvg: z.number().min(0).max(5),
   jobsCompletedCount: z.number().int().min(0),

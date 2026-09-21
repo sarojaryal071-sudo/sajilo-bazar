@@ -20,3 +20,12 @@ export async function updateMe(req, res, next) {
     next(err.issues ? new ApiError(400, 'Invalid profile data', err.issues) : err);
   }
 }
+
+export async function uploadPhoto(req, res, next) {
+  try {
+    const user = await usersService.uploadPhoto(req.user.id, req.file);
+    res.json({ user });
+  } catch (err) {
+    next(err);
+  }
+}
