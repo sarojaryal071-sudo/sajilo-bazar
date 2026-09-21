@@ -13,3 +13,7 @@ export function uploadPhoto(file) {
   formData.append('photo', file);
   return apiFetch('/users/me/photo', { method: 'POST', body: formData, isFormData: true });
 }
+
+export function createSupportTicket({ subject, message }) {
+  return apiFetch('/users/me/support-tickets', { method: 'POST', body: { subject, message } });
+}

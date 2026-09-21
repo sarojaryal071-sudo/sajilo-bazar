@@ -1,4 +1,9 @@
-import { BookingCreateInputSchema, BookingCancelInputSchema, InstantBookingCreateInputSchema } from '@sajilo-bazar/shared';
+import {
+  BookingCreateInputSchema,
+  BookingCancelInputSchema,
+  InstantBookingCreateInputSchema,
+  BookingDisputeInputSchema,
+} from '@sajilo-bazar/shared';
 import { ApiError } from '../../middleware/error.middleware.js';
 import * as bookingsService from './bookings.service.js';
 
@@ -103,5 +108,15 @@ export async function cancel(req, res, next) {
     res.json({ booking });
   } catch (err) {
     next(err.issues ? new ApiError(400, 'Invalid cancel data', err.issues) : err);
+  }
+}
+
+export async function createDispute(req, res, next) {
+  try {
+    const { reason } = BookingDisputeInputSchema.parse(req.body);
+    const dispute = await bookingsService.createDispute(Number(req.params.id), req.user.id, reason);
+    res.status(201).json({ dispute });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid report', err.issues) : err);
   }
 }

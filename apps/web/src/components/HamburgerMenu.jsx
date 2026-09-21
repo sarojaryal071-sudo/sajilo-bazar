@@ -74,7 +74,7 @@ const MENU_ITEMS = [
   { to: '/settings', icon: SettingsIcon, label: 'Settings', comingSoon: true },
   { to: '/language', icon: LanguageIcon, label: 'Language', comingSoon: true },
   { to: '/theme', icon: ThemeIcon, label: 'Theme', comingSoon: true },
-  { to: '/help', icon: HelpIcon, label: 'Help & Support', comingSoon: true },
+  { to: '/help', icon: HelpIcon, label: 'Help & Support' },
 ];
 
 export function HamburgerMenu({ open, onClose }) {

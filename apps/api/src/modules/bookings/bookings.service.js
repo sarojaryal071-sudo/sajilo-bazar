@@ -3,6 +3,7 @@ import { emitToUser } from '../../realtime/socket.js';
 import { notify } from '../notifications/notifications.service.js';
 import * as commissionLedgerService from '../commissionLedger/commissionLedger.service.js';
 import * as bookingsModel from './bookings.model.js';
+import * as adminModel from '../admin/admin.model.js';
 
 // City-scale default - no fallback tiers (e.g. widening the radius when
 // nobody's nearby) for this first pass; a customer with no match just sees
@@ -200,4 +201,17 @@ export async function cancelBooking(bookingId, userId, reason) {
   }
 
   return updated;
+}
+
+// "Report a problem" from the booking detail screen - the disputes table
+// and its admin-side list/detail/resolve screens already exist (Round C);
+// this is just the missing self-service entry point, reusing the same
+// row shape an admin would create on a party's behalf. Data access is
+// reused from adminModel directly rather than adminService, matching how
+// admin.service.js itself only ever reaches into other modules' *.model.js.
+export async function createDispute(bookingId, userId, reason) {
+  const booking = await bookingsModel.findById(bookingId);
+  if (!booking) throw new ApiError(404, 'Booking not found');
+  assertParticipant(booking, userId);
+  return adminModel.createDispute({ bookingId, raisedByUserId: userId, reason });
 }

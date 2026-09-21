@@ -19,6 +19,7 @@ bookingsRoutes.patch('/:id/decline-offer', requireRole('worker'), bookingsContro
 bookingsRoutes.patch('/:id/start', requireRole('worker'), bookingsController.start);
 bookingsRoutes.patch('/:id/complete', requireRole('worker'), bookingsController.complete);
 bookingsRoutes.patch('/:id/cancel', bookingsController.cancel);
+bookingsRoutes.post('/:id/dispute', bookingsController.createDispute);
 
 // Chat and review both live under a specific booking, and both need to
 // check the requester is a participant on it - nested here rather than as
