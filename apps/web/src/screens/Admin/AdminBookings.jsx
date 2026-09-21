@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Badge } from '../../components/Badge.jsx';
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_TONE } from '../../lib/bookingStatus.js';
 import * as adminApi from '../../api/admin.api.js';
@@ -9,6 +9,7 @@ function formatDate(iso) {
 }
 
 export function AdminBookings() {
+  const navigate = useNavigate();
   const [bookings, setBookings] = useState(null);
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
@@ -92,11 +93,13 @@ export function AdminBookings() {
             </thead>
             <tbody>
               {bookings.map((b) => (
-                <tr key={b.id} className="border-b border-border last:border-0 hover:bg-surface-alt">
-                  <td className="px-4 py-3">
-                    <Link to={`/admin/bookings/${b.id}`} className="font-medium text-brand-solid hover:underline">
-                      {formatDate(b.createdAt)}
-                    </Link>
+                <tr
+                  key={b.id}
+                  onClick={() => navigate(`/admin/bookings/${b.id}`)}
+                  className="cursor-pointer border-b border-border last:border-0 hover:bg-surface-alt"
+                >
+                  <td className="px-4 py-3 font-medium text-brand-solid">
+                    {formatDate(b.createdAt)}
                     {b.flagged && <Badge tone="danger" className="ml-2">Flagged</Badge>}
                   </td>
                   <td className="px-4 py-3 text-text-muted">{b.customerName}</td>
