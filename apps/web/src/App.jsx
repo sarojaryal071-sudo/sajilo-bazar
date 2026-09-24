@@ -7,7 +7,7 @@ import { ProtectedRoute } from './components/ProtectedRoute.jsx';
 import { IncomingRequestPopup } from './components/IncomingRequestPopup.jsx';
 import { AppShell } from './components/AppShell.jsx';
 import { AdminShell } from './components/AdminShell.jsx';
-import { Welcome } from './screens/Welcome/Welcome.jsx';
+import { Landing } from './screens/Landing/Landing.jsx';
 import { Login } from './screens/Auth/Login.jsx';
 import { Signup } from './screens/Auth/Signup.jsx';
 import { Home } from './screens/Home/Home.jsx';
@@ -48,7 +48,7 @@ export default function App() {
         <AuthProvider>
           <SocketProvider>
             <Routes>
-              <Route path="/" element={<Welcome />} />
+              <Route path="/" element={<Landing />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
 
