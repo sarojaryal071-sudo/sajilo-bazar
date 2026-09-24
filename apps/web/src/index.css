@@ -101,27 +101,3 @@ select {
   box-shadow: var(--shadow-neu-inset) !important;
 }
 
-/* Static brand illustrations (Landing hero, auth-screen side panel) - fades
-   the image's top and side edges to transparent so it dissolves into the
-   brand-gradient layer stacked behind it (bg-brand, z-index below the img)
-   instead of showing a hard rectangular edge. Two gradient layers
-   intersected: the vertical one only fades the top (stays opaque all the
-   way to the bottom edge), the horizontal one fades both left and right.
-   No plugin - Tailwind ships no mask utilities. */
-.hero-image-mask {
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 22%, black 100%),
-    linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%);
-  -webkit-mask-composite: source-in, source-in;
-  mask-image: linear-gradient(to bottom, transparent 0%, black 22%, black 100%),
-    linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%);
-  mask-composite: intersect;
-}
-
-.auth-image-mask {
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 14%, black 100%),
-    linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%);
-  -webkit-mask-composite: source-in, source-in;
-  mask-image: linear-gradient(to bottom, transparent 0%, black 14%, black 100%),
-    linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%);
-  mask-composite: intersect;
-}
