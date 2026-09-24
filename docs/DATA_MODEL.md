@@ -193,6 +193,13 @@ rate itself (currently a flat 15%, `COMMISSION_RATE` in
 `apps/api/src/modules/commissionLedger/commissionLedger.service.js`) isn't specified anywhere
 in the product docs - it's a placeholder pending an actual business decision.
 
+Because a row is only ever inserted at the moment of completion, any booking that reached
+`completed` status before this table (or its insert call in `bookings.service.js`) existed
+has no ledger row and never will on its own. Run
+`npm run backfill:ledger --workspace apps/api` (`apps/api/src/db/backfillCommissionLedger.js`)
+once against any environment carrying pre-existing completed bookings - safe to re-run,
+skips anything already backfilled.
+
 | Column | Type | Notes |
 |---|---|---|
 | id | serial pk | |

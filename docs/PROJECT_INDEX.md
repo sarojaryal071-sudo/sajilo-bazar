@@ -8,11 +8,12 @@ This index is filled in incrementally - only files touched by a task get an entr
 here as part of that task. A file with no entry yet doesn't mean it's undocumented
 forever, just that no session has touched it since this index was introduced.
 
-_Last updated: 2026-09-24 — Worker Earnings: Dashboard snapshot card + full Earnings screen (range chart, paginated history)_
+_Last updated: 2026-09-24 — Backfill script for commission_ledger entries missing from bookings completed before the ledger's insert call existed_
 
 ## apps/api
 | File | Purpose |
 |---|---|
+| `src/db/backfillCommissionLedger.js` | One-time (idempotent, safe to re-run) script: finds completed bookings with no `commission_ledger` row and inserts them, recomputing each affected worker's running balance chain in chronological order. Run via `npm run backfill:ledger --workspace apps/api` |
 | `src/modules/commissionLedger/commissionLedger.model.js` | SQL for the commission ledger: create on booking completion, latest balance, lifetime/month/week totals (`findTotals`), zero-filled daily/monthly series for charts, paginated transaction history with customer name |
 | `src/modules/commissionLedger/commissionLedger.service.js` | Business logic: 15% `COMMISSION_RATE`, `recordCompletion` (called from bookings.service.js), `getSummary`/`getSparkline`/`getSeries`/`getHistory` for the Earnings screen and Dashboard card |
 | `src/modules/commissionLedger/commissionLedger.controller.js` | Route handlers for `GET /commission-ledger/me/{summary,sparkline,series,history}` |
