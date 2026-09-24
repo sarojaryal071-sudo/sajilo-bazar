@@ -10,6 +10,7 @@ import { BOOKING_STATUS_LABEL, BOOKING_STATUS_TONE } from '../lib/bookingStatus.
 export function BookingListItem({ booking, viewerRole, onClick }) {
   const otherName = viewerRole === 'worker' ? booking.customerName : booking.workerName;
   const otherImage = viewerRole === 'worker' ? booking.customerImageUrl : booking.workerImageUrl;
+  const otherHandle = viewerRole === 'worker' ? null : booking.workerHandle;
   const displayName = otherName ?? 'Finding a worker...';
 
   return (
@@ -20,7 +21,10 @@ export function BookingListItem({ booking, viewerRole, onClick }) {
     >
       <Avatar name={otherName} imageUrl={otherImage} size={48} />
       <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold">{displayName}</p>
+        <p className="truncate font-semibold">
+          {displayName}
+          {otherHandle && <span className="ml-1.5 font-normal text-text-muted">{otherHandle}</span>}
+        </p>
         <p className="truncate text-sm text-text-muted">
           {booking.services.map((s) => s.name).join(', ')}
         </p>

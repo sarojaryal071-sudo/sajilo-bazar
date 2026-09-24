@@ -85,15 +85,25 @@ export async function countPendingDocumentsForWorker(workerId) {
   return rows[0].count;
 }
 
-export async function decideDocument(id, { status, adminId }) {
+export async function decideDocument(id, { status, adminId, comment }) {
   const { rows } = await pool.query(
     `UPDATE verification_documents
-     SET status = $2, reviewed_by = $3, reviewed_at = now()
+     SET status = $2, reviewed_by = $3, reviewed_at = now(), review_comment = $4
      WHERE id = $1 AND status = 'pending'
      RETURNING *`,
-    [id, status, adminId]
+    [id, status, adminId, comment ?? null]
   );
   return rows[0] || null;
+}
+
+// All-time count, not scoped to one application attempt - the basis for
+// the 3-strikes support escalation (see admin.service.js decideDocument).
+export async function countRejectedDocumentsForWorker(workerId) {
+  const { rows } = await pool.query(
+    "SELECT COUNT(*)::int AS count FROM verification_documents WHERE worker_id = $1 AND status = 'rejected'",
+    [workerId]
+  );
+  return rows[0].count;
 }
 
 export async function setWorkerVerificationStatus(workerId, status) {
@@ -566,6 +576,25 @@ export async function findAnnouncementById(id) {
   const { rows } = await pool.query(
     "SELECT * FROM content_items WHERE id = $1 AND kind = 'announcement'",
     [id]
+  );
+  return rows[0] ? toContentItem(rows[0]) : null;
+}
+
+// Public-facing (Home promo banner) - the single latest live announcement
+// for a given audience, computing "live" directly in SQL (published, and
+// within any schedule window) rather than fetching every published row and
+// filtering in JS. audience 'all' announcements show to every audience.
+export async function findLatestActiveAnnouncement(audience) {
+  const { rows } = await pool.query(
+    `SELECT * FROM content_items
+     WHERE kind = 'announcement'
+       AND status = 'published'
+       AND audience IN ($1, 'all')
+       AND (scheduled_at IS NULL OR scheduled_at <= now())
+       AND (expires_at IS NULL OR expires_at > now())
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [audience]
   );
   return rows[0] ? toContentItem(rows[0]) : null;
 }

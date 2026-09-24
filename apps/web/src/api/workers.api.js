@@ -25,6 +25,12 @@ export function setOnline({ isOnline, latitude, longitude }) {
   return apiFetch('/workers/me/online', { method: 'PATCH', body: { isOnline, latitude, longitude } });
 }
 
+// Marks the one-time post-approval welcome as shown - idempotent, safe to
+// call more than once (a no-op after the first).
+export function ackWelcome() {
+  return apiFetch('/workers/me/welcome', { method: 'PATCH' });
+}
+
 // Adding a service beyond what was registered at signup - serviceId picked
 // from the catalog only, never free-text. Same category as an already
 // approved service goes live immediately; a different category comes back

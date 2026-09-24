@@ -52,6 +52,10 @@ export async function setOnline(userId, { isOnline, latitude, longitude }) {
   return profile;
 }
 
+export async function ackWelcome(userId) {
+  return workersModel.ackWelcome(userId);
+}
+
 // The worker-apply flow: set services + pricing, upload verification documents,
 // and flip verification_status to "pending" for admin review (Phase 6).
 export async function apply(userId, { bio, services }, files) {

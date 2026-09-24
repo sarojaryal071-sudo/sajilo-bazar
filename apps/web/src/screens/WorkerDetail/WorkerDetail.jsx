@@ -70,6 +70,7 @@ export function WorkerDetail() {
             <h1 className="text-xl font-bold">{worker.fullName}</h1>
             {worker.verificationStatus === 'approved' && <VerifiedBadge />}
           </div>
+          {worker.handle && <p className="text-sm text-text-muted">{worker.handle}</p>}
           {worker.serviceAreaLabel && (
             <p className="text-sm text-text-muted">{worker.serviceAreaLabel}</p>
           )}

@@ -20,6 +20,7 @@ export function WorkerCard({ worker, onClick }) {
           <p className="truncate font-semibold">{worker.fullName}</p>
           {worker.verificationStatus === 'approved' && <VerifiedBadge className="shrink-0" />}
         </div>
+        {worker.handle && <p className="text-xs text-text-muted">{worker.handle}</p>}
         <p className="truncate text-sm text-text-muted">{worker.matchedService.name}</p>
         {worker.serviceAreaLabel && (
           <p className="truncate text-xs text-text-muted">{worker.serviceAreaLabel}</p>

@@ -7,6 +7,7 @@ import { VERIFICATION_STATUSES } from './enums.js';
 export const WorkerSearchResultSchema = z.object({
   userId: z.number().int().positive(),
   fullName: z.string(),
+  handle: z.string().max(10).nullable().optional(),
   profileImageUrl: z.string().url().nullable().optional(),
   verificationStatus: z.enum(VERIFICATION_STATUSES),
   ratingAvg: z.number().min(0).max(5),
@@ -38,6 +39,7 @@ export const WorkerReviewSchema = z.object({
 export const WorkerDetailSchema = z.object({
   userId: z.number().int().positive(),
   fullName: z.string(),
+  handle: z.string().max(10).nullable().optional(),
   profileImageUrl: z.string().url().nullable().optional(),
   verificationStatus: z.enum(VERIFICATION_STATUSES),
   bio: z.string().nullable().optional(),

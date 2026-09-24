@@ -21,6 +21,7 @@ function toBooking(row) {
     customerImageUrl: row.customer_image_url,
     workerName: row.worker_name,
     workerImageUrl: row.worker_image_url,
+    workerHandle: row.worker_handle,
     services: [],
   };
 }
@@ -28,10 +29,11 @@ function toBooking(row) {
 const SELECT_BOOKING = `
   SELECT b.*,
     cu.full_name AS customer_name, cu.profile_image_url AS customer_image_url,
-    wu.full_name AS worker_name, wu.profile_image_url AS worker_image_url
+    wu.full_name AS worker_name, wu.profile_image_url AS worker_image_url, wp.handle AS worker_handle
   FROM bookings b
   JOIN users cu ON cu.id = b.customer_id
   LEFT JOIN users wu ON wu.id = b.worker_id
+  LEFT JOIN worker_profiles wp ON wp.user_id = b.worker_id
 `;
 
 // Batches the services lookup across every booking passed in, rather than
