@@ -18,3 +18,11 @@ export const BOOKING_STATUS_TONE = {
   cancelled: 'danger',
   declined: 'danger',
 };
+
+// A terminal status with no worker ever assigned (workerId still null) means
+// an unclaimed instant request that was cancelled, or a scheduled request
+// that auto-expired unanswered (also reuses 'declined' - see bookings.model.js
+// expireOverdueScheduledRequests) - "Finding a worker..." is only true while
+// actively searching (status 'requested'), so it's wrong to keep showing that
+// once the search is over.
+export const NO_WORKER_TERMINAL_STATUSES = ['cancelled', 'declined'];

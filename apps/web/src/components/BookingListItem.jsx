@@ -1,17 +1,21 @@
 import { Card } from './Card.jsx';
 import { Avatar } from './Avatar.jsx';
+import { NoWorkerAvatar } from './NoWorkerAvatar.jsx';
 import { Badge } from './Badge.jsx';
-import { BOOKING_STATUS_LABEL, BOOKING_STATUS_TONE } from '../lib/bookingStatus.js';
+import { BOOKING_STATUS_LABEL, BOOKING_STATUS_TONE, NO_WORKER_TERMINAL_STATUSES } from '../lib/bookingStatus.js';
 
 // Shared by the customer Bookings list and worker Jobs list - viewerRole
 // decides which side of the booking to show as "the other person". An
 // instant request has no worker until one's assigned, so otherName can be
-// null on the customer's side - show a placeholder rather than a blank row.
+// null on the customer's side - "Finding a worker..." only while that's
+// still true (status 'requested'); once it's terminal with no worker ever
+// assigned, that copy would be actively wrong (implies still searching).
 export function BookingListItem({ booking, viewerRole, onClick }) {
   const otherName = viewerRole === 'worker' ? booking.customerName : booking.workerName;
   const otherImage = viewerRole === 'worker' ? booking.customerImageUrl : booking.workerImageUrl;
   const otherHandle = viewerRole === 'worker' ? null : booking.workerHandle;
-  const displayName = otherName ?? 'Finding a worker...';
+  const neverMatched = !otherName && NO_WORKER_TERMINAL_STATUSES.includes(booking.status);
+  const displayName = otherName ?? (neverMatched ? 'No worker found' : 'Finding a worker...');
 
   return (
     <Card
@@ -19,7 +23,11 @@ export function BookingListItem({ booking, viewerRole, onClick }) {
       onClick={onClick}
       className="flex cursor-pointer items-center gap-4"
     >
-      <Avatar name={otherName} imageUrl={otherImage} size={48} />
+      {neverMatched ? (
+        <NoWorkerAvatar size={48} />
+      ) : (
+        <Avatar name={otherName} imageUrl={otherImage} size={48} />
+      )}
       <div className="min-w-0 flex-1">
         <p className="truncate font-semibold">
           {displayName}
