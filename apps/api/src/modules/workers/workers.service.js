@@ -2,6 +2,7 @@ import { ApiError } from '../../middleware/error.middleware.js';
 import { uploadBuffer } from '../../lib/cloudinary.js';
 import * as workersModel from './workers.model.js';
 import { tierForStoredScore } from '../trustScore/trustScore.service.js';
+import { computeEffectiveOnline } from '../../lib/availability.js';
 
 // The model returns the raw stored score internally (see workers.model.js
 // toSearchResult/toWorkerDetail) - this is the one place it turns into the
@@ -32,8 +33,15 @@ export async function getWorkerDetail(userId) {
 }
 
 export async function getMyWorkerData(userId) {
-  const profile = await workersModel.findProfile(userId);
+  let profile = await workersModel.findProfile(userId);
   if (!profile) throw new ApiError(404, 'Worker profile not found');
+
+  // Dashboard load is the worker's own natural touchpoint - resync their
+  // effective online status against their schedule here so they never see
+  // a stale toggle (see syncEffectiveOnline).
+  const synced = await syncEffectiveOnline(userId, profile);
+  if (synced) profile = synced;
+
   const [services, documents, { reviewsCount, reviews }] = await Promise.all([
     workersModel.listWorkerServices(userId),
     workersModel.listDocuments(userId),
@@ -91,6 +99,55 @@ export async function setOnline(userId, { isOnline, latitude, longitude }) {
 
 export async function ackWelcome(userId) {
   return workersModel.ackWelcome(userId);
+}
+
+// Recomputes a worker's effective online status against their availability
+// schedule (see apps/api/src/lib/availability.js) and, if it has actually
+// changed, persists it without touching online_overridden_at (this isn't a
+// new manual action). Returns the refreshed profile when a sync happened,
+// or null when nothing needed to change - including a worker with no
+// schedule set at all, who stays in today's pure-manual-toggle mode.
+async function syncEffectiveOnline(workerId, profile) {
+  const blocks = await workersModel.listAvailability(workerId);
+  if (blocks.length === 0) return null;
+
+  const overriddenAt = await workersModel.findOnlineOverriddenAt(workerId);
+  const effective = computeEffectiveOnline({ blocks, manualIsOnline: profile.isOnline, overriddenAt });
+  if (effective === profile.isOnline) return null;
+
+  await workersModel.setIsOnlineFromSchedule(workerId, effective);
+  return { ...profile, isOnline: effective };
+}
+
+// Run once right before instant-request matching (bookings.service.js) -
+// the one place effective online status genuinely has to be correct at the
+// moment it's read, not just eventually-consistent via a worker's own
+// touchpoints. Bounded by how many workers actually have a schedule set,
+// not by booking volume.
+export async function syncAllWorkersWithAvailability() {
+  const workers = await workersModel.listWorkersWithAvailability();
+  for (const worker of workers) {
+    await syncEffectiveOnline(worker.userId, { isOnline: worker.isOnline });
+  }
+}
+
+export async function getAvailability(workerId) {
+  return workersModel.listAvailability(workerId);
+}
+
+export async function setAvailability(workerId, blocks) {
+  const saved = await workersModel.replaceAvailability(workerId, blocks);
+  // The schedule just changed - resync immediately rather than waiting for
+  // the next dashboard load, so the worker sees the right status right away.
+  const profile = await workersModel.findProfile(workerId);
+  await syncEffectiveOnline(workerId, profile);
+  return saved;
+}
+
+export async function setTypicalResponseHours(workerId, hours) {
+  const profile = await workersModel.setTypicalResponseHours(workerId, hours);
+  if (!profile) throw new ApiError(404, 'Worker profile not found');
+  return profile;
 }
 
 // The worker-apply flow: set services + pricing, upload verification documents,

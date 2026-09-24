@@ -8,11 +8,19 @@ This index is filled in incrementally - only files touched by a task get an entr
 here as part of that task. A file with no entry yet doesn't mean it's undocumented
 forever, just that no session has touched it since this index was introduced.
 
-_Last updated: 2026-09-24 — Fix disputes only filable after completion, not on active bookings_
+_Last updated: 2026-09-24 — Scheduled booking against worker-set availability (business plan §13)_
 
 ## apps/api
 | File | Purpose |
 |---|---|
+| `src/db/migrations/026_scheduled_booking_and_availability.sql` | Adds `bookings.scheduled_for`/`.response_deadline_hours`/`.respond_by` (all null for an urgent booking); `worker_profiles.typical_response_hours` (self-reported) and `.online_overridden_at` (when the worker last manually toggled online/offline); new `worker_availability_blocks` table (weekly recurring, `day_of_week` 0-6 per JS `Date#getDay()`) |
+| `src/db/migrations/027_add_booking_request_expired_notification_type.sql` | Adds `booking_request_expired` to `notifications.type`'s CHECK constraint (same drop/re-add pattern as migration 013) |
+| `src/lib/availability.js` | Pure computation, no cron: `computeEffectiveOnline({blocks, manualIsOnline, overriddenAt, now})` - a manual override wins until `nextBoundaryAfter` the block it was set relative to; `isWithinBlock` |
+| `src/modules/workers/workers.model.js` | `setOnline` now stamps `online_overridden_at`; new `setIsOnlineFromSchedule` (schedule-driven sync path, doesn't touch the override timestamp), `setTypicalResponseHours`, `listAvailability`/`replaceAvailability` (delete+insert, like `replaceWorkerServices`), `findOnlineOverriddenAt`, `listWorkersWithAvailability`; search/detail queries + `toProfile` gain `typicalResponseHours` |
+| `src/modules/workers/workers.service.js` | `syncEffectiveOnline` (recompute+persist if changed, called from `getMyWorkerData` on every dashboard load) and `syncAllWorkersWithAvailability` (run once right before instant-request matching - see bookings.service.js); `getAvailability`/`setAvailability`/`setTypicalResponseHours` |
+| `src/modules/workers/workers.controller.js` / `workers.routes.js` | `GET`/`PUT /me/availability`, `PATCH /me/response-time` |
+| `src/modules/bookings/bookings.model.js` | `create()` accepts `scheduledFor`/`responseDeadlineHours`, computing and storing `respondBy` (`now() + responseDeadlineHours hours`) in the same INSERT; new `expireOverdueScheduledRequests()` - single indexed `UPDATE ... WHERE status='requested' AND respond_by < now()`, reusing the `declined` status (no new status) with an explanatory `cancel_reason` |
+| `src/modules/bookings/bookings.service.js` | `createBooking` validates `respondBy <= scheduledFor` server-side; `sweepExpiredScheduledRequests()` (calls the model sweep + notifies each customer) run at the top of `listBookings`/`getBooking`/`acceptBooking`/`declineBooking`; `createInstantBooking` calls `workersService.syncAllWorkersWithAvailability()` right before matching so a scheduled worker's status is always current at the moment it's read |
 | `src/db/migrations/025_trust_score_and_phone_scoping.sql` | Adds `worker_profiles.approved_at` (stamped whenever verification flips to approved - backfilled from `updated_at`) and `.trust_score` (nullable raw 0-100, stored); `bookings.initiated_by` (`worker`\|`customer`, null for admin overrides); `disputes.at_fault` (`worker`\|`customer`\|`none`, null until resolved) |
 | `src/modules/trustScore/trustScore.model.js` | `findScoringProfile`, `findRecentReliabilityJobs` (a worker's own terminal jobs only - completed + worker-initiated cancellations, customer-initiated ones fully excluded), `updateTrustScore` |
 | `src/modules/trustScore/trustScore.service.js` | Computes the 0-100 score (rating 40% + reliability 30% + tenure 15%, capped at 12mo + disputes 15%, -20/at-fault incident); 30-day grace period (no prior "Newly Joined"/featured-placement mechanism existed anywhere in the codebase - this is new, see the module's own comments); `recomputeAndStore`/`getMyTrustScore` (worker's own full breakdown+tips); `tierForStoredScore` (customer-facing tier only: `building_trust`\|`trusted`\|`highly_trusted`); `checkCancellationEscalation` (rolling-30-job worker-cancellation rate, min 10 jobs, fires a 3-strikes-style ticket once on crossing 15% - see its own comment on the single-call invariant); `checkDisputeEscalation` (rolling-30-day at-fault-worker dispute count, fires at exactly 3, reusing `adminModel.createSupportTicket`) |
@@ -44,6 +52,14 @@ _Last updated: 2026-09-24 — Fix disputes only filable after completion, not on
 ## apps/web
 | File | Purpose |
 |---|---|
+| `src/screens/WorkerAvailability/WorkerAvailability.jsx` | New screen: weekly availability blocks (day + start/end time, add/remove, replace-all save) and the optional "usually replies within Xh" field. Linked from WorkerDashboard's online toggle |
+| `src/api/workers.api.js` | `getAvailability`/`setAvailability`/`setTypicalResponseHours` |
+| `src/api/bookings.api.js` | `create()` takes optional `scheduledFor`/`responseDeadlineHours` - both omitted (not sent as null) for an urgent booking |
+| `src/screens/BookingRequest/BookingRequest.jsx` | Now/"Schedule for later" mode toggle - schedule mode adds a `datetime-local` picker (min 5 minutes out) and a 1/6/24h response-deadline preset picker, both required together |
+| `src/screens/WorkerDetail/WorkerDetail.jsx` | Shows `typicalResponseHours` ("Usually replies within Xh") when the worker has set one |
+| `src/components/BookingListItem.jsx` | Shows "Scheduled for ..." when `booking.scheduledFor` is set |
+| `src/screens/BookingDetail/BookingDetail.jsx` | Shows scheduled date/time + (while `requested`) the response-deadline "Respond by" time |
+| `src/lib/notificationText.js` | `booking_request_expired` copy ("Scheduled request expired...") |
 | `src/lib/geolocation.js` | `getCurrentLocation` now distinguishes `PERMISSION_DENIED` from other errors (position-unavailable/timeout get their own message rather than the misleading "allow it and try again" one); adds `getGeolocationPermissionState()` (wraps `navigator.permissions.query({name:'geolocation'})`, falls back to `'unknown'` where unsupported) and `getLocationBlockedMessage()` (platform-aware - iOS gets Settings-app instructions, everyone else gets site-settings instructions) |
 | `src/screens/WorkerDashboard/WorkerDashboard.jsx` | `OnlineToggle`'s `handleChange` checks the geolocation permission state before going online - `'denied'` short-circuits straight to `getLocationBlockedMessage()` (the browser won't re-prompt on its own); `'prompt'`/`'unknown'` still call `getCurrentLocation()`, which is what triggers the native permission popup |
 | `src/components/TrustMeter.jsx` | Worker's own full trust-score panel (WorkerDashboard) - meter, per-factor breakdown, actionable tips; shows a grace-period notice instead while `inGracePeriod` |
@@ -67,6 +83,11 @@ _Last updated: 2026-09-24 — Fix disputes only filable after completion, not on
 ## packages/shared
 | File | Purpose |
 |---|---|
+| `schemas/availability.schema.js` | `AvailabilityBlockSchema` (`dayOfWeek` 0-6, `startTime`/`endTime` as `HH:MM`), `AvailabilityReplaceInputSchema`, `TypicalResponseHoursInputSchema` |
+| `schemas/enums.js` | `RESPONSE_DEADLINE_HOURS` (`[1, 6, 24]`); `NOTIFICATION_TYPES` gained `booking_request_expired` |
+| `schemas/booking.schema.js` | `BookingSchema` gained `scheduledFor`/`responseDeadlineHours`/`respondBy`; `BookingCreateInputSchema` gained optional `scheduledFor`/`responseDeadlineHours` (must be given together, `scheduledFor` must be in the future) |
+| `schemas/workerProfile.schema.js` | `WorkerProfileSchema` gained `typicalResponseHours` |
+| `schemas/workerSearch.schema.js` | `WorkerSearchResultSchema`/`WorkerDetailSchema` gained `typicalResponseHours` |
 | `schemas/trustScore.schema.js` | `TrustScoreSchema` - worker's own panel only (score/breakdown/tips, null while in grace period) |
 | `schemas/enums.js` | `TRUST_TIERS` (`building_trust`\|`trusted`\|`highly_trusted`) |
 | `schemas/workerSearch.schema.js` | `WorkerSearchResultSchema`/`WorkerDetailSchema` gained `trustTier` (tier only, never the raw score) |

@@ -32,6 +32,10 @@ export const BOOKING_STATUSES = [
 
 export const BOOKING_OFFER_STATUSES = ['pending', 'accepted', 'expired', 'declined'];
 
+// Preset choices only for a scheduled booking's response deadline - not
+// freeform (business plan §13).
+export const RESPONSE_DEADLINE_HOURS = [1, 6, 24];
+
 // Customer-facing trust tier only - the raw 0-100 score, its per-factor
 // breakdown, and any dispute count are worker-eyes-only (see trustScore
 // module). 'building_trust' also covers a worker still in the grace period.
@@ -41,6 +45,7 @@ export const NOTIFICATION_TYPES = [
   'booking_requested',
   'booking_accepted',
   'booking_declined',
+  'booking_request_expired',
   'booking_status_changed',
   'chat_message',
   'review_received',

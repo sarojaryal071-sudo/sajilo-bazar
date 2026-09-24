@@ -28,6 +28,16 @@ export function BookingListItem({ booking, viewerRole, onClick }) {
         <p className="truncate text-sm text-text-muted">
           {booking.services.map((s) => s.name).join(', ')}
         </p>
+        {booking.scheduledFor && (
+          <p className="truncate text-xs text-brand-solid">
+            Scheduled for {new Date(booking.scheduledFor).toLocaleString(undefined, {
+              month: 'short',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+            })}
+          </p>
+        )}
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1.5">
         {booking.price !== null && <p className="text-sm font-semibold">Rs. {booking.price}</p>}

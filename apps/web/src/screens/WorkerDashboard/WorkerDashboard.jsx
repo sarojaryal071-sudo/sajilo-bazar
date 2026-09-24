@@ -375,6 +375,13 @@ export function WorkerDashboard() {
         <>
           <OnlineToggle isOnline={data.profile.isOnline} onToggle={handleToggleOnline} />
 
+          <button
+            onClick={() => navigate('/worker/availability')}
+            className="mt-2 self-start text-sm font-medium text-brand-solid"
+          >
+            Manage availability &rarr;
+          </button>
+
           <div className="mt-4 grid grid-cols-3 gap-3">
             <Card className="flex flex-col items-center py-4 text-center">
               <p className="text-xl font-bold">{data.profile.jobsCompletedCount}</p>

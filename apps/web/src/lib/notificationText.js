@@ -10,6 +10,11 @@ export function describeNotification({ type, payload }) {
       return { title: 'Booking accepted', body: `${payload.workerName} accepted your booking` };
     case 'booking_declined':
       return { title: 'Booking declined', body: `${payload.workerName} declined your booking` };
+    case 'booking_request_expired':
+      return {
+        title: 'Scheduled request expired',
+        body: 'The worker did not respond within the deadline - try booking someone else.',
+      };
     case 'booking_status_changed':
       if (payload.status === 'in_progress') {
         return { title: 'Job started', body: 'Your worker started the job' };

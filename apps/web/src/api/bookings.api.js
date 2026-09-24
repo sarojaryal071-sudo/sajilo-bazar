@@ -1,10 +1,22 @@
 import { apiFetch } from './client.js';
 
-export function create({ workerId, serviceIds, addressLabel, latitude, longitude }) {
-  return apiFetch('/bookings', {
-    method: 'POST',
-    body: { workerId, serviceIds, addressLabel, latitude, longitude },
-  });
+// scheduledFor/responseDeadlineHours are omitted (not just null) for an
+// urgent "now" booking - the shared schema requires both-or-neither.
+export function create({
+  workerId,
+  serviceIds,
+  addressLabel,
+  latitude,
+  longitude,
+  scheduledFor,
+  responseDeadlineHours,
+}) {
+  const body = { workerId, serviceIds, addressLabel, latitude, longitude };
+  if (scheduledFor) {
+    body.scheduledFor = scheduledFor;
+    body.responseDeadlineHours = responseDeadlineHours;
+  }
+  return apiFetch('/bookings', { method: 'POST', body });
 }
 
 export function createInstant({ serviceIds, addressLabel, latitude, longitude }) {

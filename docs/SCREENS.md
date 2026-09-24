@@ -22,8 +22,14 @@ Build in this order — don't jump ahead to later-phase screens.
   customer types (debounced) or taps a category filter chip. The search
   bar lives only at the top of Home - it is not a bottom nav entry; the
   customer bottom nav is Home / Bookings / Profile.
-- Worker detail screen — profile, services, price, ratings, "Book" action
-- Booking flow / request screen
+- Worker detail screen — profile, services, price, ratings, "Book" action, trust badge,
+  and "usually replies within Xh" when the worker has set one (see business plan §13
+  section below)
+- Booking flow / request screen — Now/"Schedule for later" mode toggle at the top
+  (business plan §13); schedule mode adds a date/time picker and a 1/6/24h
+  response-deadline preset picker, both required together. Available directly from any
+  worker's profile, the same entry point as an urgent booking - not gated to
+  unmatched/broadcast-fallback workers
 - Bookings list screen (customer + worker views)
 - Booking detail / tracking screen
 - In-app chat (tied to a booking) — single seamless composer bar (not the
@@ -63,9 +69,26 @@ Build in this order — don't jump ahead to later-phase screens.
   owed, credit balance; full range chart - 7D/30D/All; paginated transaction history with
   customer, amount, commission, and running balance per job) — reached via the Dashboard
   card, not a bottom-nav tab
-- Worker: Schedule — folded into Jobs, not a separate screen. Jobs already lists a worker's
-  bookings by status; a dedicated schedule view is deferred until there's an actual
-  date/time-scheduling model to build it around
+- Worker: Schedule — still folded into Jobs, not a separate "calendar" screen; a scheduled
+  booking shows up in the same Jobs list as any other, with its scheduled date/time and
+  response deadline visible on the detail screen. (An actual date/time-scheduling *model*
+  now exists - see "Scheduled Booking & Worker Availability" below - but a dedicated
+  calendar/schedule view of it is still deferred.)
+
+## Scheduled Booking & Worker Availability (business plan §13)
+
+Not part of the original phase numbering in `PROJECT_BRIEF.md` - promoted to active build
+directly from the business plan. Reuses the existing manual-booking flow rather than a
+parallel system (see `DATA_MODEL.md`'s "Scheduled booking + worker availability").
+
+- Worker: Availability screen (`/worker/availability`, linked from the Dashboard's online
+  toggle) — weekly recurring availability blocks (day + start/end time, add/remove,
+  replace-all save) and the optional self-reported "usually replies within Xh" field. Going
+  online/offline is still the Dashboard's own manual toggle - it overrides the schedule
+  until the next block boundary, it doesn't replace the toggle.
+- Booking flow / request screen (Phase 2, extended above) — Now/"Schedule for later" toggle.
+- Booking detail / tracking screen (Phase 2, extended) — shows the scheduled date/time and,
+  while still awaiting a response, the "Respond by" deadline.
 
 ## Phase 6 — Admin (minimal, no theming)
 

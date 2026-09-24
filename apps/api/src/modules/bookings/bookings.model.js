@@ -21,6 +21,9 @@ function toBooking(row) {
     cancelledBy: row.cancelled_by,
     cancelReason: row.cancel_reason,
     initiatedBy: row.initiated_by,
+    scheduledFor: row.scheduled_for,
+    responseDeadlineHours: row.response_deadline_hours,
+    respondBy: row.respond_by,
     flagged: row.flagged,
     flagReason: row.flag_reason,
     createdAt: row.created_at,
@@ -91,16 +94,40 @@ export async function findActiveWorkerServices(workerId, serviceIds) {
 }
 
 // Manual booking, worker known upfront - every service gets its real price
-// snapshotted immediately.
-export async function create({ customerId, workerId, services, addressLabel, latitude, longitude }) {
+// snapshotted immediately. scheduledFor/responseDeadlineHours are both null
+// for an urgent ("now") booking; when both are given, respondBy is computed
+// here (now + responseDeadlineHours) and stored, so the expiry sweep is a
+// single indexed comparison rather than interval arithmetic on every read.
+export async function create({
+  customerId,
+  workerId,
+  services,
+  addressLabel,
+  latitude,
+  longitude,
+  scheduledFor = null,
+  responseDeadlineHours = null,
+}) {
   const totalPrice = services.reduce((sum, s) => sum + s.price, 0);
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `INSERT INTO bookings (customer_id, worker_id, price, address_label, latitude, longitude)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-      [customerId, workerId, totalPrice, addressLabel, latitude ?? null, longitude ?? null]
+      `INSERT INTO bookings (customer_id, worker_id, price, address_label, latitude, longitude,
+                              scheduled_for, response_deadline_hours, respond_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8,
+               CASE WHEN $8::smallint IS NOT NULL THEN now() + ($8::text || ' hours')::interval ELSE NULL END)
+       RETURNING id`,
+      [
+        customerId,
+        workerId,
+        totalPrice,
+        addressLabel,
+        latitude ?? null,
+        longitude ?? null,
+        scheduledFor,
+        responseDeadlineHours,
+      ]
     );
     const bookingId = rows[0].id;
     for (const s of services) {
@@ -345,6 +372,26 @@ export async function setCompleted(id) {
     client.release();
   }
   return findById(id);
+}
+
+// Reuses the codebase's existing computed-on-read idiom (see
+// admin.model.js toContentItem's isLive) but made durable, since a
+// booking's status has to be consistent for other consumers (the worker's
+// own accept/decline, notifications) rather than just a display
+// computation. A single indexed UPDATE, race-safe: acceptBooking's own
+// status==='requested' guard naturally rejects a late accept once this has
+// run. Reused status ('declined') per the spec - no new status needed;
+// cancel_reason carries the distinguishing note. Returns the bookings it
+// expired so the caller can notify their customers.
+export async function expireOverdueScheduledRequests() {
+  const { rows } = await pool.query(
+    `UPDATE bookings
+     SET status = 'declined',
+         cancel_reason = 'Request expired - the worker did not respond within the deadline'
+     WHERE status = 'requested' AND respond_by IS NOT NULL AND respond_by < now()
+     RETURNING id, customer_id, worker_id`
+  );
+  return rows.map((r) => ({ id: r.id, customerId: r.customer_id, workerId: r.worker_id }));
 }
 
 // initiatedBy is null for an admin override (adminCancelBooking) - neither
