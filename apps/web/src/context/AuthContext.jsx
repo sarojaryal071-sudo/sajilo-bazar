@@ -36,6 +36,36 @@ export function AuthProvider({ children }) {
     return user;
   }, []);
 
+  // Either logs the user straight in (existing Google-linked account, or a
+  // phone+password account sharing the same verified email) and returns
+  // { user }, or - for a genuinely new sign-in - returns
+  // { needsPhone: true, pendingToken, fullName, email } without touching
+  // the stored token/user at all, so the caller can collect phone+role and
+  // call completeGoogleSignup next.
+  const googleAuth = useCallback(async (idToken) => {
+    const result = await authApi.google(idToken);
+    if (result.needsPhone) return result;
+    setToken(result.token);
+    setUser(result.user);
+    return { user: result.user };
+  }, []);
+
+  const completeGoogleSignup = useCallback(async (input) => {
+    const { token, user } = await authApi.completeGoogleSignup(input);
+    setToken(token);
+    setUser(user);
+    return user;
+  }, []);
+
+  // Resets the password and logs the user in with the new one in the same
+  // step - see auth.service.js forgotPassword.
+  const forgotPassword = useCallback(async (input) => {
+    const { token, user } = await authApi.forgotPassword(input);
+    setToken(token);
+    setUser(user);
+    return user;
+  }, []);
+
   const logout = useCallback(() => {
     setToken(null);
     setUser(null);
@@ -48,7 +78,9 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, signup, login, logout, refreshUser }}>
+    <AuthContext.Provider
+      value={{ user, loading, signup, login, googleAuth, completeGoogleSignup, forgotPassword, logout, refreshUser }}
+    >
       {children}
     </AuthContext.Provider>
   );
