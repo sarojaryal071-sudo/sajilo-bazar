@@ -8,7 +8,7 @@ This index is filled in incrementally - only files touched by a task get an entr
 here as part of that task. A file with no entry yet doesn't mean it's undocumented
 forever, just that no session has touched it since this index was introduced.
 
-_Last updated: 2026-09-24 — Public landing page at `/`_
+_Last updated: 2026-09-24 — Landing footer overhaul + /terms and /privacy pages_
 
 ## apps/api
 | File | Purpose |
@@ -58,8 +58,12 @@ _Last updated: 2026-09-24 — Public landing page at `/`_
 ## apps/web
 | File | Purpose |
 |---|---|
-| `src/screens/Landing/Landing.jsx` | New public marketing page at `/` - one universal page (no persona-split content), replaces the old minimal `Welcome` screen at the same route (deleted, no longer referenced anywhere). Same auth-redirect logic as before: `loading` → `FullScreenSpinner`, logged-in user → their dashboard (unchanged). Sections: sticky header (wordmark, in-page anchor nav, Sign up/Log in), hero, "the idea", How it works (4 steps), Trust & Safety (4 points), About/status (no city, no pricing/commission - not public information), footer (Sign up/Log in again + a contact line). Sign up/Log in route to the existing `/signup`/`/login` screens - no new auth UI. Built entirely from existing shared components/tokens (`Card`, `Button`, the same `bg-brand` gradient and glow-blur treatment `AuthScreen.jsx` uses) - no new "marketing" visual language |
-| `src/App.jsx` | `/` now renders `Landing` instead of `Welcome` |
+| `src/components/Wordmark.jsx` | New: extracted from `Landing.jsx` (was a private component there) - the "SB" mark + "Sajilo Bazar" text, now also reused by `LegalPage.jsx` |
+| `src/screens/Legal/legalContent.js` | Verbatim content (not paraphrased) for `/terms` and `/privacy`, as `{ title, subtitle, effectiveDate, sections: [{ heading, blocks: [{type:'p'|'ul', ...}] }], docNote }` - includes the source documents' own placeholder brackets (e.g. contact email "to be added") and draft-status footer note |
+| `src/screens/Legal/LegalPage.jsx` | Shared plain long-form layout for `/terms`/`/privacy` - simpler than the rest of Landing (no gradient hero/icon cards) since it's a legal document, not a marketing surface. Small header (Wordmark + "Back to home"), readable max-w-2xl column, standard heading hierarchy |
+| `src/screens/Legal/Terms.jsx` / `src/screens/Legal/Privacy.jsx` | Thin wrappers: `<LegalPage content={TERMS_CONTENT / PRIVACY_CONTENT} />` |
+| `src/screens/Landing/Landing.jsx` | New public marketing page at `/` - one universal page (no persona-split content), replaces the old minimal `Welcome` screen at the same route (deleted, no longer referenced anywhere). Same auth-redirect logic as before: `loading` → `FullScreenSpinner`, logged-in user → their dashboard (unchanged). Sections: sticky header (wordmark, in-page anchor nav, Sign up/Log in), hero, "the idea", How it works (4 steps), Trust & Safety (4 points), About/status (no city, no pricing/commission - not public information). Footer rebuilt (no longer repeats Sign up/Log in, which only ever appear in the header): small Wordmark, link list (Terms & Conditions → `/terms`, Privacy Policy → `/privacy`, Contact Us → scrolls to the footer's own contact line, no fabricated email), Facebook/X/Instagram icon links (all `#` placeholders with a TODO - no real profile URLs exist yet), and a copyright line. Sign up/Log in route to the existing `/signup`/`/login` screens - no new auth UI. Built entirely from existing shared components/tokens (`Card`, `Button`, the same `bg-brand` gradient and glow-blur treatment `AuthScreen.jsx` uses) - no new "marketing" visual language |
+| `src/App.jsx` | `/` renders `Landing`; new public `/terms` and `/privacy` routes alongside `/`, `/login`, `/signup` |
 | `src/components/Skeleton.jsx` | New shared loading primitives: `SkeletonBlock` (pulsing `bg-border` block - not `bg-surface-alt`, which is nearly indistinguishable from the page background and was invisible in practice), `Spinner`, `FullScreenSpinner` (full-viewport centered spinner, for spots with no known destination-screen shape to mimic) |
 | `src/components/ProtectedRoute.jsx` | `if (loading) return null` → `<FullScreenSpinner />` - this gate runs before every authenticated screen mounts, so it was the single biggest source of the blank-screen flash on cold load/refresh |
 | `src/components/AppShell.jsx` / `src/components/AdminShell.jsx` | Same auth-gate fix as `ProtectedRoute.jsx` (both have their own separate `loading` check) |
