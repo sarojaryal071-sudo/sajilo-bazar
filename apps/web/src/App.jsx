@@ -8,6 +8,8 @@ import { IncomingRequestPopup } from './components/IncomingRequestPopup.jsx';
 import { AppShell } from './components/AppShell.jsx';
 import { AdminShell } from './components/AdminShell.jsx';
 import { Landing } from './screens/Landing/Landing.jsx';
+import { Terms } from './screens/Legal/Terms.jsx';
+import { Privacy } from './screens/Legal/Privacy.jsx';
 import { Login } from './screens/Auth/Login.jsx';
 import { Signup } from './screens/Auth/Signup.jsx';
 import { Home } from './screens/Home/Home.jsx';
@@ -51,6 +53,8 @@ export default function App() {
               <Route path="/" element={<Landing />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/privacy" element={<Privacy />} />
 
               <Route element={<AppShell />}>
                 <Route path="/home" element={<Home />} />

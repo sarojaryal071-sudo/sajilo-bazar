@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Card } from '../../components/Card.jsx';
 import { Button } from '../../components/Button.jsx';
 import { FullScreenSpinner } from '../../components/Skeleton.jsx';
+import { Wordmark } from '../../components/Wordmark.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 
 const NAV_LINKS = [
@@ -101,17 +102,6 @@ const TRUST_POINTS = [
   { icon: <StarIcon />, text: 'Ratings and reviews after every job.' },
   { icon: <DisputeIcon />, text: 'A problem? File a dispute right from the app.' },
 ];
-
-function Wordmark({ className = '' }) {
-  return (
-    <span className={`inline-flex shrink-0 items-center gap-2 ${className}`}>
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand text-sm font-extrabold text-text-onBrand shadow-resting">
-        SB
-      </span>
-      <span className="whitespace-nowrap text-base font-extrabold tracking-tight sm:text-lg">Sajilo Bazar</span>
-    </span>
-  );
-}
 
 function LandingHeader() {
   return (
@@ -243,22 +233,81 @@ function About() {
   );
 }
 
+function FacebookIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M13.5 21v-7.5h2.5l.5-3h-3V8.5c0-.87.24-1.46 1.49-1.46H16.6V4.35C16.3 4.31 15.3 4.22 14.13 4.22c-2.44 0-4.11 1.49-4.11 4.22V10.5H7.5v3H10V21h3.5Z" />
+    </svg>
+  );
+}
+
+function XIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M18.9 3H21.8l-6.32 7.22L23 21h-5.9l-4.62-6.03L7.16 21H4.26l6.76-7.73L4 3h6.05l4.18 5.52L18.9 3Zm-1.03 16.17h1.64L7.22 4.74H5.46l12.41 14.43Z" />
+    </svg>
+  );
+}
+
+function InstagramIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17" cy="7" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+const FOOTER_LINKS = [
+  { to: '/terms', label: 'Terms & Conditions' },
+  { to: '/privacy', label: 'Privacy Policy' },
+];
+
+// TODO: swap these '#' placeholders for Sajilo Bazar's real social profile
+// URLs once those accounts exist - no real handles are set up yet, so
+// linking to a guessed URL would be worse than a placeholder.
+const SOCIAL_LINKS = [
+  { href: '#', label: 'Facebook', icon: <FacebookIcon /> },
+  { href: '#', label: 'Twitter / X', icon: <XIcon /> },
+  { href: '#', label: 'Instagram', icon: <InstagramIcon /> },
+];
+
 function LandingFooter() {
   return (
     <footer className="border-t border-border px-5 py-12">
       <div className="mx-auto flex max-w-5xl flex-col items-center gap-6 text-center">
         <Wordmark />
-        <div className="flex gap-3">
-          <Link to="/login">
-            <Button variant="secondary" className="px-6 py-2.5 text-sm">
-              Log in
-            </Button>
-          </Link>
-          <Link to="/signup">
-            <Button className="px-6 py-2.5 text-sm">Sign up</Button>
-          </Link>
+
+        <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm font-medium text-text-muted">
+          {FOOTER_LINKS.map((link) => (
+            <Link key={link.to} to={link.to} className="transition-colors hover:text-text">
+              {link.label}
+            </Link>
+          ))}
+          <a href="#footer-contact" className="transition-colors hover:text-text">
+            Contact Us
+          </a>
+        </nav>
+
+        <div className="flex items-center gap-3">
+          {SOCIAL_LINKS.map((social) => (
+            <a
+              key={social.label}
+              href={social.href}
+              aria-label={social.label}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-alt text-text-muted transition-colors hover:text-brand-solid"
+            >
+              {social.icon}
+            </a>
+          ))}
         </div>
-        <p className="text-sm text-text-muted">Have questions? We&apos;d love to hear from you.</p>
+
+        <p id="footer-contact" className="text-sm text-text-muted">
+          Have questions? We&apos;d love to hear from you.
+        </p>
+
+        <p className="text-xs text-text-muted">&copy; {new Date().getFullYear()} Sajilo Bazar. All rights reserved.</p>
       </div>
     </footer>
   );

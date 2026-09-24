@@ -12,7 +12,12 @@ Build in this order — don't jump ahead to later-phase screens.
   about, footer) with Sign up/Log in CTAs routing to the real signup/login screens below; a
   logged-in visitor hitting `/` still redirects straight to their dashboard, same as before.
   One universal page, no persona-split content, no business-model internals (pricing/
-  commission) - see `docs/PROJECT_INDEX.md` for the file.
+  commission) - see `docs/PROJECT_INDEX.md` for the file. Its footer links to the two
+  public legal pages below.
+- Legal pages (`/terms`, `/privacy`) — public, unauthenticated, plain long-form pages
+  rendering the platform's actual Terms & Conditions and Privacy Policy (full text, not a
+  marketing surface - simpler styling than the rest of Landing). Linked from the Landing
+  footer.
 - Login
 - Signup (role selection: customer / worker)
 - Profile screen (view/edit own profile)
