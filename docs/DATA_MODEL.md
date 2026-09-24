@@ -249,9 +249,14 @@ skips anything already backfilled.
 Built in the admin panel's Round C (Phase 6), predating this file's last full pass - documented
 properly here now since the trust-score task extends it. A customer/worker can self-report via
 a booking's own detail screen (`bookings.service.js` `createDispute`) or an admin can log one on
-a party's behalf; either way it lands in this one table. Self-service filing has a hard cutoff -
-only within 24 hours of the booking's `completed_at` (enforced on the endpoint itself) - the
-admin-logged path has no such cutoff, since an admin may need to log an older case.
+a party's behalf; either way it lands in this one table. Self-service filing is only allowed on
+`accepted`/`in_progress`/`completed` bookings (not `requested` - no worker to report yet - or
+`cancelled`/`declined` - nothing ongoing to report against). A hard 24-hour cutoff only applies
+once the booking has `completed_at` set - an active (`accepted`/`in_progress`) booking has no
+filing deadline at all, since it needs to be reportable immediately (a worker who never shows
+up, or a mid-job safety issue) rather than gated behind a completion that may never happen if
+the worker ghosts. Enforced on the endpoint itself, not just a UI hint. The admin-logged path
+has no such restriction, since an admin may need to log a case on any booking.
 
 `at_fault` is only meaningful once `status = 'resolved'` (a `dismissed` dispute has no fault
 finding, so the service layer forces it to null regardless of what's sent). Only an at-fault
