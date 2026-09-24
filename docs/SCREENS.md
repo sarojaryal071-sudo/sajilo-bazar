@@ -26,7 +26,17 @@ Build in this order — don't jump ahead to later-phase screens.
 - Booking flow / request screen
 - Bookings list screen (customer + worker views)
 - Booking detail / tracking screen
-- In-app chat (tied to a booking)
+- In-app chat (tied to a booking) — single seamless composer bar (not the
+  neumorphic auth-only style): a "+" on the left expands a small popup with
+  Camera and Attach file (Messenger-style, not laid out inline in the bar);
+  where send sits, a mic icon shows when the text field is empty and swaps
+  to a send arrow the instant typing starts - tapping the mic currently
+  just shows a "Voice messages coming soon" toast, actual voice recording
+  is a later round. Photo/PDF attachments (images + PDF, 10MB cap) reuse
+  the Cloudinary pipeline and persist on the chat message row itself (not
+  a transient preview), since disputes reuse the booking's chat transcript
+  as evidence. An image renders as an inline thumbnail (tap for full-size);
+  a PDF renders as a file chip with name, tap-to-open.
 - Review/rating modal (post-completion)
 - Worker: Jobs screen (incoming/active/past bookings)
 - Worker: Dashboard (today's jobs, quick stats)

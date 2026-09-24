@@ -8,11 +8,16 @@ This index is filled in incrementally - only files touched by a task get an entr
 here as part of that task. A file with no entry yet doesn't mean it's undocumented
 forever, just that no session has touched it since this index was introduced.
 
-_Last updated: 2026-09-24 — Backfill script for commission_ledger entries missing from bookings completed before the ledger's insert call existed_
+_Last updated: 2026-09-24 — Chat input restyle ("+" attach menu, mic/send swap) + photo/PDF attachments_
 
 ## apps/api
 | File | Purpose |
 |---|---|
+| `src/db/migrations/023_add_chat_attachments.sql` | Adds `attachment_url`/`attachment_type`/`attachment_name` to `chat_messages`, makes `message` nullable, adds a CHECK requiring at least one of message/attachment |
+| `src/modules/chat/chat.model.js` | `chat_messages` CRUD; `create()` now also accepts attachment fields |
+| `src/modules/chat/chat.service.js` | `sendMessage` (text) and `sendAttachment` (Cloudinary upload, reusing the same pipeline as verification docs/profile photos) - both notify the other party |
+| `src/modules/chat/chat.controller.js` | Route handlers, incl. `sendAttachment` for the new multipart endpoint |
+| `src/modules/chat/chat.routes.js` | `POST /:bookingId/messages/attachment` - multer memory storage, fileFilter limited to images + PDF, 10MB cap |
 | `src/db/backfillCommissionLedger.js` | One-time (idempotent, safe to re-run) script: finds completed bookings with no `commission_ledger` row and inserts them, recomputing each affected worker's running balance chain in chronological order. Run via `npm run backfill:ledger --workspace apps/api` |
 | `src/modules/commissionLedger/commissionLedger.model.js` | SQL for the commission ledger: create on booking completion, latest balance, lifetime/month/week totals (`findTotals`), zero-filled daily/monthly series for charts, paginated transaction history with customer name |
 | `src/modules/commissionLedger/commissionLedger.service.js` | Business logic: 15% `COMMISSION_RATE`, `recordCompletion` (called from bookings.service.js), `getSummary`/`getSparkline`/`getSeries`/`getHistory` for the Earnings screen and Dashboard card |
@@ -22,6 +27,8 @@ _Last updated: 2026-09-24 — Backfill script for commission_ledger entries miss
 ## apps/web
 | File | Purpose |
 |---|---|
+| `src/screens/BookingChat/BookingChat.jsx` | In-app chat tied to a booking. Seamless pill composer with a "+" popup (Camera / Attach file, opens the device camera/file picker via hidden `<input type="file">`), a mic icon that swaps to a send arrow once the draft has text (mic just shows a "Voice messages coming soon" toast this round), inline image thumbnails (tap for a full-size viewer) and PDF file chips |
+| `src/api/bookings.api.js` | `sendAttachment(bookingId, file)` added - multipart upload to `/bookings/:id/messages/attachment` |
 | `src/api/commissionLedger.api.js` | Client for the four `/commission-ledger/me/*` endpoints |
 | `src/components/EarningsChart.jsx` | Zero-dependency inline-SVG bar chart, shared by the Dashboard sparkline (`compact`) and the full Earnings range chart |
 | `src/screens/WorkerDashboard/WorkerDashboard.jsx` | Worker home screen; includes the compact `EarningsCard` (7-day sparkline, this week's total + jobs count) that links to `/worker/earnings` |
@@ -30,6 +37,7 @@ _Last updated: 2026-09-24 — Backfill script for commission_ledger entries miss
 ## packages/shared
 | File | Purpose |
 |---|---|
+| `schemas/chatMessage.schema.js` | `ChatMessageSchema` - `message` nullable, plus `attachmentUrl`/`attachmentType`/`attachmentName` |
 | `schemas/commissionLedger.schema.js` | `CommissionLedgerEntrySchema` - one row of a worker's commission ledger, incl. `customerName` |
 
 ## docs
