@@ -46,8 +46,13 @@ Build in this order — don't jump ahead to later-phase screens.
 
 ## Phase 5 — Commission Ledger (worker-facing)
 
-- Worker: Earnings screen (jobs completed, commission owed, credit balance) — reached via a
-  card on Worker Dashboard, not a bottom-nav tab
+- Worker: Dashboard earnings card — compact snapshot (7-day sparkline, this week's total,
+  jobs-completed count) sitting alongside the existing today's-jobs/quick-stats content;
+  tapping it navigates to the full Earnings screen
+- Worker: Earnings screen (summary row: total lifetime earnings, this month, commission
+  owed, credit balance; full range chart - 7D/30D/All; paginated transaction history with
+  customer, amount, commission, and running balance per job) — reached via the Dashboard
+  card, not a bottom-nav tab
 - Worker: Schedule — folded into Jobs, not a separate screen. Jobs already lists a worker's
   bookings by status; a dedicated schedule view is deferred until there's an actual
   date/time-scheduling model to build it around

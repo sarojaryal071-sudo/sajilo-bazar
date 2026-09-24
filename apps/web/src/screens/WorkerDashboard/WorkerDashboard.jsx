@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Navigate, useNavigate, Link } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Screen } from '../../components/Screen.jsx';
 import { Card } from '../../components/Card.jsx';
@@ -8,22 +8,44 @@ import { Button } from '../../components/Button.jsx';
 import { BookingListItem } from '../../components/BookingListItem.jsx';
 import { ReviewsList } from '../../components/ReviewsList.jsx';
 import { AddServiceModal } from '../../components/AddServiceModal.jsx';
+import { EarningsChart } from '../../components/EarningsChart.jsx';
 import * as workersApi from '../../api/workers.api.js';
 import * as bookingsApi from '../../api/bookings.api.js';
+import * as commissionLedgerApi from '../../api/commissionLedger.api.js';
 import { getCurrentLocation } from '../../lib/geolocation.js';
 
 const SERVICE_STATUS_TONE = { pending: 'warning', rejected: 'danger' };
 
-function WalletIcon() {
+function ChevronIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path
-        d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="16.5" cy="13" r="1.25" />
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
+  );
+}
+
+// Compact snapshot on the Dashboard - a 7-day sparkline plus this week's
+// total and jobs-completed count, tapping through to the full Earnings
+// screen (see docs/SCREENS.md Phase 5). Deliberately small: it sits
+// alongside the existing today's-jobs/quick-stats content, not in place
+// of it.
+function EarningsCard({ summary, sparkline, onClick }) {
+  return (
+    <Card whileTap={{ scale: 0.98 }} onClick={onClick} className="mt-4 cursor-pointer">
+      <div className="flex items-center gap-4">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm text-text-muted">This week</p>
+          <p className="mt-0.5 text-2xl font-bold">Rs. {summary.thisWeekEarned}</p>
+          <p className="mt-0.5 text-xs text-text-muted">
+            {summary.thisWeekJobsCompleted} job{summary.thisWeekJobsCompleted === 1 ? '' : 's'} completed
+          </p>
+        </div>
+        <div className="w-20 shrink-0">
+          <EarningsChart data={sparkline} height={44} compact />
+        </div>
+        <ChevronIcon />
+      </div>
+    </Card>
   );
 }
 
@@ -133,6 +155,8 @@ export function WorkerDashboard() {
   const [catalog, setCatalog] = useState([]);
   const [addServiceOpen, setAddServiceOpen] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [earningsSummary, setEarningsSummary] = useState(null);
+  const [sparkline, setSparkline] = useState(null);
 
   useEffect(() => {
     workersApi
@@ -152,6 +176,11 @@ export function WorkerDashboard() {
       .getServiceCatalog()
       .then(({ services }) => setCatalog(services))
       .catch(() => setCatalog([]));
+    commissionLedgerApi.getMySummary().then(setEarningsSummary).catch(() => {});
+    commissionLedgerApi
+      .getMySparkline()
+      .then(({ sparkline }) => setSparkline(sparkline))
+      .catch(() => {});
   }, []);
 
   function handleServiceAdded(service) {
@@ -230,18 +259,13 @@ export function WorkerDashboard() {
             </Card>
           </div>
 
-          <Link to="/worker/earnings">
-            <motion.div
-              whileTap={{ scale: 0.98 }}
-              className="mt-3 flex w-full items-center gap-3 rounded-2xl bg-brand px-5 py-3.5 text-text-onBrand shadow-resting"
-            >
-              <WalletIcon />
-              <div>
-                <p className="font-semibold">Earnings</p>
-                <p className="text-sm opacity-90">See jobs, commission owed, and your balance</p>
-              </div>
-            </motion.div>
-          </Link>
+          {earningsSummary && sparkline && (
+            <EarningsCard
+              summary={earningsSummary}
+              sparkline={sparkline}
+              onClick={() => navigate('/worker/earnings')}
+            />
+          )}
 
           <p className="mt-6 mb-3 text-sm font-semibold uppercase tracking-wide text-text-muted">
             Active jobs
