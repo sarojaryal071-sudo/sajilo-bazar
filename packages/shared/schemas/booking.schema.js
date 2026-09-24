@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { BOOKING_TYPES, BOOKING_STATUSES, BOOKING_OFFER_STATUSES, RESPONSE_DEADLINE_HOURS } from './enums.js';
+import {
+  BOOKING_TYPES,
+  BOOKING_STATUSES,
+  BOOKING_OFFER_STATUSES,
+  RESPONSE_DEADLINE_HOURS,
+  PAYMENT_METHODS,
+} from './enums.js';
 
 // Defined now for contract stability across phases, implemented in the
 // Booking module (Phase 2-3 of the roadmap), not the Auth module.
@@ -47,6 +53,10 @@ export const BookingSchema = z.object({
     .nullable()
     .optional(),
   respondBy: z.string().datetime().nullable().optional(),
+  // Set at completion (see CompleteBookingInputSchema below) - defaults to
+  // 'cash' at the DB level for every booking, but only meaningful once
+  // completed (that's the only place it's surfaced in the UI).
+  paymentMethod: z.enum(PAYMENT_METHODS),
   createdAt: z.string().datetime().optional(),
   completedAt: z.string().datetime().nullable().optional(),
 });
@@ -87,6 +97,16 @@ export const BookingCreateInputSchema = z
 
 export const BookingCancelInputSchema = z.object({
   reason: z.string().max(300).nullable().optional(),
+});
+
+// The worker confirms the job's final price and payment method when
+// marking it complete. paymentMethod only accepts 'cash' for now - eSewa
+// is a disabled UI placeholder (business plan §6), not a real option yet,
+// so the server rejects it even though bookings.paymentMethod can
+// represent it once the gateway exists.
+export const CompleteBookingInputSchema = z.object({
+  finalPrice: z.number().positive(),
+  paymentMethod: z.literal('cash').default('cash'),
 });
 
 // An instant request has no chosen worker - lat/lng are required (not
