@@ -4,6 +4,7 @@ import { SocketProvider } from './context/SocketContext.jsx';
 import { ThemeProvider } from './context/ThemeContext.jsx';
 import { LanguageProvider } from './context/LanguageContext.jsx';
 import { ProtectedRoute } from './components/ProtectedRoute.jsx';
+import { ScrollToTop } from './components/ScrollToTop.jsx';
 import { IncomingRequestPopup } from './components/IncomingRequestPopup.jsx';
 import { AppShell } from './components/AppShell.jsx';
 import { AdminShell } from './components/AdminShell.jsx';
@@ -50,6 +51,7 @@ export default function App() {
       <LanguageProvider>
         <AuthProvider>
           <SocketProvider>
+            <ScrollToTop />
             <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/login" element={<Login />} />
