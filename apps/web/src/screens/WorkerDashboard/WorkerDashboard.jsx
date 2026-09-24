@@ -14,7 +14,7 @@ import * as workersApi from '../../api/workers.api.js';
 import * as bookingsApi from '../../api/bookings.api.js';
 import * as commissionLedgerApi from '../../api/commissionLedger.api.js';
 import * as trustScoreApi from '../../api/trustScore.api.js';
-import { getCurrentLocation } from '../../lib/geolocation.js';
+import { getCurrentLocation, getGeolocationPermissionState, getLocationBlockedMessage } from '../../lib/geolocation.js';
 
 const SERVICE_STATUS_TONE = { pending: 'warning', rejected: 'danger' };
 
@@ -164,6 +164,17 @@ function OnlineToggle({ isOnline, onToggle }) {
       if (isOnline) {
         await onToggle({ isOnline: false });
       } else {
+        // 'denied' means the browser will never show its own prompt again -
+        // asking anyway would just silently fail the same way every time,
+        // so short-circuit straight to actionable instructions instead.
+        // 'prompt' (or 'unknown', for browsers without the Permissions API)
+        // falls through to getCurrentLocation, which is what actually
+        // triggers the native permission popup.
+        const permissionState = await getGeolocationPermissionState();
+        if (permissionState === 'denied') {
+          setError(getLocationBlockedMessage());
+          return;
+        }
         const { latitude, longitude } = await getCurrentLocation();
         await onToggle({ isOnline: true, latitude, longitude });
       }

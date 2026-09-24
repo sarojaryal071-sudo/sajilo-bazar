@@ -8,7 +8,7 @@ This index is filled in incrementally - only files touched by a task get an entr
 here as part of that task. A file with no entry yet doesn't mean it's undocumented
 forever, just that no session has touched it since this index was introduced.
 
-_Last updated: 2026-09-24 — Trust score system + phone-number visibility scoping_
+_Last updated: 2026-09-24 — Fix online-toggle location-permission dead end (denied state)_
 
 ## apps/api
 | File | Purpose |
@@ -44,6 +44,8 @@ _Last updated: 2026-09-24 — Trust score system + phone-number visibility scopi
 ## apps/web
 | File | Purpose |
 |---|---|
+| `src/lib/geolocation.js` | `getCurrentLocation` now distinguishes `PERMISSION_DENIED` from other errors (position-unavailable/timeout get their own message rather than the misleading "allow it and try again" one); adds `getGeolocationPermissionState()` (wraps `navigator.permissions.query({name:'geolocation'})`, falls back to `'unknown'` where unsupported) and `getLocationBlockedMessage()` (platform-aware - iOS gets Settings-app instructions, everyone else gets site-settings instructions) |
+| `src/screens/WorkerDashboard/WorkerDashboard.jsx` | `OnlineToggle`'s `handleChange` checks the geolocation permission state before going online - `'denied'` short-circuits straight to `getLocationBlockedMessage()` (the browser won't re-prompt on its own); `'prompt'`/`'unknown'` still call `getCurrentLocation()`, which is what triggers the native permission popup |
 | `src/components/TrustMeter.jsx` | Worker's own full trust-score panel (WorkerDashboard) - meter, per-factor breakdown, actionable tips; shows a grace-period notice instead while `inGracePeriod` |
 | `src/components/TrustBadge.jsx` | Customer-facing simplified tier badge + 3-segment meter only - no raw number, breakdown, or dispute count. Used on WorkerDetail and WorkerCard (search results) |
 | `src/api/trustScore.api.js` | `getMyTrustScore()` - `GET /trust-score/me` |
