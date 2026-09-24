@@ -8,7 +8,7 @@ This index is filled in incrementally - only files touched by a task get an entr
 here as part of that task. A file with no entry yet doesn't mean it's undocumented
 forever, just that no session has touched it since this index was introduced.
 
-_Last updated: 2026-09-24 — Loading states: replace blank/black screens with a spinner or skeleton_
+_Last updated: 2026-09-24 — Public landing page at `/`_
 
 ## apps/api
 | File | Purpose |
@@ -58,10 +58,12 @@ _Last updated: 2026-09-24 — Loading states: replace blank/black screens with a
 ## apps/web
 | File | Purpose |
 |---|---|
+| `src/screens/Landing/Landing.jsx` | New public marketing page at `/` - one universal page (no persona-split content), replaces the old minimal `Welcome` screen at the same route (deleted, no longer referenced anywhere). Same auth-redirect logic as before: `loading` → `FullScreenSpinner`, logged-in user → their dashboard (unchanged). Sections: sticky header (wordmark, in-page anchor nav, Sign up/Log in), hero, "the idea", How it works (4 steps), Trust & Safety (4 points), About/status (no city, no pricing/commission - not public information), footer (Sign up/Log in again + a contact line). Sign up/Log in route to the existing `/signup`/`/login` screens - no new auth UI. Built entirely from existing shared components/tokens (`Card`, `Button`, the same `bg-brand` gradient and glow-blur treatment `AuthScreen.jsx` uses) - no new "marketing" visual language |
+| `src/App.jsx` | `/` now renders `Landing` instead of `Welcome` |
 | `src/components/Skeleton.jsx` | New shared loading primitives: `SkeletonBlock` (pulsing `bg-border` block - not `bg-surface-alt`, which is nearly indistinguishable from the page background and was invisible in practice), `Spinner`, `FullScreenSpinner` (full-viewport centered spinner, for spots with no known destination-screen shape to mimic) |
 | `src/components/ProtectedRoute.jsx` | `if (loading) return null` → `<FullScreenSpinner />` - this gate runs before every authenticated screen mounts, so it was the single biggest source of the blank-screen flash on cold load/refresh |
 | `src/components/AppShell.jsx` / `src/components/AdminShell.jsx` | Same auth-gate fix as `ProtectedRoute.jsx` (both have their own separate `loading` check) |
-| `src/screens/Welcome/Welcome.jsx` | Same fix - the very first screen's own auth check |
+| ~~`src/screens/Welcome/Welcome.jsx`~~ | Had the same auth-gate fix as the row above, but the file itself is since deleted - superseded by `src/screens/Landing/Landing.jsx` (see the newer entry above), which carries the same loading/redirect logic forward |
 | `src/screens/WorkerDetail/WorkerDetail.jsx`, `src/screens/BookingRequest/BookingRequest.jsx`, `src/screens/BookingDetail/BookingDetail.jsx`, `src/screens/Earnings/Earnings.jsx`, `src/screens/WorkerDashboard/WorkerDashboard.jsx` | `if (!data) return null` → a per-screen skeleton (`SkeletonBlock`s roughly matching that screen's real layout: back button + avatar/header row + a couple of content-card blocks) instead of a blank screen while the initial fetch is in flight |
 | `src/screens/WorkerAvailability/WorkerAvailability.jsx` | New screen: weekly availability blocks (day + start/end time, add/remove, replace-all save) and the optional "usually replies within Xh" field. Linked from WorkerDashboard's online toggle |
 | `src/api/workers.api.js` | `getAvailability`/`setAvailability`/`setTypicalResponseHours` |

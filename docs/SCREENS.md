@@ -6,7 +6,13 @@ Build in this order — don't jump ahead to later-phase screens.
 
 ## Phase 1 — Auth & Profiles
 
-- Welcome screen
+- Public Landing screen (`/`) — not part of the original phase numbering, added later as a
+  public marketing entry point. Replaces the old minimal Welcome screen at the same route:
+  unauthenticated visitors get a full page (header, hero, "how it works", trust & safety,
+  about, footer) with Sign up/Log in CTAs routing to the real signup/login screens below; a
+  logged-in visitor hitting `/` still redirects straight to their dashboard, same as before.
+  One universal page, no persona-split content, no business-model internals (pricing/
+  commission) - see `docs/PROJECT_INDEX.md` for the file.
 - Login
 - Signup (role selection: customer / worker)
 - Profile screen (view/edit own profile)
