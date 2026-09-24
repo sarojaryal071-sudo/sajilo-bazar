@@ -25,13 +25,17 @@ select {
 
 /* react-phone-number-input: blend its default styles with our tokens.
    The bordered/rounded look comes from the wrapper className in
-   PhoneInput.jsx - these rules just make the inner control borderless
-   so it reads as one field instead of two. */
+   PhoneInput.jsx - these rules make every inner control borderless and
+   shadowless (including the library's own default flag border, set via
+   its --PhoneInputCountryFlag-borderWidth variable) so the country
+   selector and number field sit inside the one outer box with no visible
+   seam, reading as a single field instead of two. */
 .sajilo-phone-input.PhoneInput {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   height: 3rem;
+  --PhoneInputCountryFlag-borderWidth: 0px;
 }
 
 .sajilo-phone-input .PhoneInputInput {
@@ -40,6 +44,7 @@ select {
   border: none;
   outline: none;
   background: transparent;
+  box-shadow: none;
   color: var(--color-text);
   font: inherit;
   height: 100%;
@@ -67,8 +72,13 @@ select {
    shouldn't get a full neumorphic shadow. !important is needed to beat
    Button.jsx's own shadow-resting/hover:shadow-raised utility classes,
    whose :hover variant otherwise wins on specificity regardless of the
-   stylesheet's source order. */
-.auth-card input:not([type='checkbox']):not([type='file']),
+   stylesheet's source order.
+   PhoneInputInput (the <input> nested inside .sajilo-phone-input) is
+   explicitly excluded here so it doesn't pick up its own copy of this
+   inset shadow on top of the one already applied to its .PhoneInput
+   wrapper above - that double shadow was rendering as a visible seam
+   between the country selector and the number field. */
+.auth-card input:not([type='checkbox']):not([type='file']):not(.PhoneInputInput),
 .auth-card textarea,
 .auth-card .sajilo-phone-input.PhoneInput {
   background: var(--color-surface-alt);
@@ -76,7 +86,7 @@ select {
   box-shadow: var(--shadow-neu-inset);
 }
 
-.auth-card input:not([type='checkbox']):not([type='file']):focus,
+.auth-card input:not([type='checkbox']):not([type='file']):not(.PhoneInputInput):focus,
 .auth-card textarea:focus,
 .auth-card .sajilo-phone-input.PhoneInput:focus-within {
   border-color: transparent;
