@@ -1,6 +1,7 @@
 import { Navigate, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useIsDesktop } from '../hooks/useIsDesktop.js';
+import { FullScreenSpinner } from './Skeleton.jsx';
 
 function DashboardIcon() {
   return (
@@ -179,7 +180,7 @@ export function AdminShell() {
   const { user, loading, logout } = useAuth();
   const isDesktop = useIsDesktop();
 
-  if (loading) return null;
+  if (loading) return <FullScreenSpinner />;
   if (!user) return <Navigate to="/login" replace />;
   if (user.role !== 'admin') return <Navigate to="/home" replace />;
   if (!isDesktop) return <DesktopOnlyMessage />;

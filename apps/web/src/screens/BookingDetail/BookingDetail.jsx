@@ -5,6 +5,7 @@ import { Screen } from '../../components/Screen.jsx';
 import { Card } from '../../components/Card.jsx';
 import { Avatar } from '../../components/Avatar.jsx';
 import { NoWorkerAvatar } from '../../components/NoWorkerAvatar.jsx';
+import { SkeletonBlock } from '../../components/Skeleton.jsx';
 import { Badge } from '../../components/Badge.jsx';
 import { Button } from '../../components/Button.jsx';
 import { ReviewModal } from '../../components/ReviewModal.jsx';
@@ -282,7 +283,22 @@ export function BookingDetail() {
     );
   }
 
-  if (!booking) return null;
+  if (!booking) {
+    return (
+      <Screen>
+        <SkeletonBlock className="h-4 w-12" />
+        <div className="mt-6 flex items-center gap-4">
+          <div className="flex-1 space-y-2">
+            <SkeletonBlock className="h-4 w-1/2" />
+            <SkeletonBlock className="h-3 w-1/3" />
+          </div>
+          <SkeletonBlock className="h-14 w-14 shrink-0 rounded-full" />
+        </div>
+        <SkeletonBlock className="mt-6 h-32 w-full rounded-2xl" />
+        <SkeletonBlock className="mt-4 h-12 w-full rounded-full" />
+      </Screen>
+    );
+  }
 
   const isWorker = user.role === 'worker';
   const otherName = isWorker ? booking.customerName : booking.workerName;

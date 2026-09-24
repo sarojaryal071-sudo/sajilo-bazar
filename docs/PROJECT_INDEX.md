@@ -8,7 +8,7 @@ This index is filled in incrementally - only files touched by a task get an entr
 here as part of that task. A file with no entry yet doesn't mean it's undocumented
 forever, just that no session has touched it since this index was introduced.
 
-_Last updated: 2026-09-24 — Payment step (Cash/eSewa) on job completion (business plan §6)_
+_Last updated: 2026-09-24 — Loading states: replace blank/black screens with a spinner or skeleton_
 
 ## apps/api
 | File | Purpose |
@@ -58,6 +58,11 @@ _Last updated: 2026-09-24 — Payment step (Cash/eSewa) on job completion (busin
 ## apps/web
 | File | Purpose |
 |---|---|
+| `src/components/Skeleton.jsx` | New shared loading primitives: `SkeletonBlock` (pulsing `bg-border` block - not `bg-surface-alt`, which is nearly indistinguishable from the page background and was invisible in practice), `Spinner`, `FullScreenSpinner` (full-viewport centered spinner, for spots with no known destination-screen shape to mimic) |
+| `src/components/ProtectedRoute.jsx` | `if (loading) return null` → `<FullScreenSpinner />` - this gate runs before every authenticated screen mounts, so it was the single biggest source of the blank-screen flash on cold load/refresh |
+| `src/components/AppShell.jsx` / `src/components/AdminShell.jsx` | Same auth-gate fix as `ProtectedRoute.jsx` (both have their own separate `loading` check) |
+| `src/screens/Welcome/Welcome.jsx` | Same fix - the very first screen's own auth check |
+| `src/screens/WorkerDetail/WorkerDetail.jsx`, `src/screens/BookingRequest/BookingRequest.jsx`, `src/screens/BookingDetail/BookingDetail.jsx`, `src/screens/Earnings/Earnings.jsx`, `src/screens/WorkerDashboard/WorkerDashboard.jsx` | `if (!data) return null` → a per-screen skeleton (`SkeletonBlock`s roughly matching that screen's real layout: back button + avatar/header row + a couple of content-card blocks) instead of a blank screen while the initial fetch is in flight |
 | `src/screens/WorkerAvailability/WorkerAvailability.jsx` | New screen: weekly availability blocks (day + start/end time, add/remove, replace-all save) and the optional "usually replies within Xh" field. Linked from WorkerDashboard's online toggle |
 | `src/api/workers.api.js` | `getAvailability`/`setAvailability`/`setTypicalResponseHours` |
 | `src/api/bookings.api.js` | `create()` takes optional `scheduledFor`/`responseDeadlineHours` - both omitted (not sent as null) for an urgent booking |

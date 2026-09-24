@@ -4,6 +4,7 @@ import { Screen } from '../../components/Screen.jsx';
 import { Card } from '../../components/Card.jsx';
 import { Button } from '../../components/Button.jsx';
 import { EarningsChart } from '../../components/EarningsChart.jsx';
+import { SkeletonBlock } from '../../components/Skeleton.jsx';
 import * as commissionLedgerApi from '../../api/commissionLedger.api.js';
 import * as workersApi from '../../api/workers.api.js';
 import { timeAgo } from '../../lib/timeAgo.js';
@@ -77,7 +78,23 @@ export function Earnings() {
     );
   }
 
-  if (!summary) return null;
+  if (!summary) {
+    return (
+      <Screen>
+        <button onClick={() => navigate(-1)} className="mb-4 self-start text-sm text-text-muted">
+          &larr; Back
+        </button>
+        <SkeletonBlock className="h-6 w-32" />
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <SkeletonBlock className="h-20 rounded-2xl" />
+          <SkeletonBlock className="h-20 rounded-2xl" />
+        </div>
+        <SkeletonBlock className="mt-4 h-40 w-full rounded-2xl" />
+        <SkeletonBlock className="mt-4 h-16 w-full rounded-2xl" />
+        <SkeletonBlock className="mt-3 h-16 w-full rounded-2xl" />
+      </Screen>
+    );
+  }
 
   return (
     <Screen>
