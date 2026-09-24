@@ -125,8 +125,9 @@ picking several things from the same worker creates one booking, not one per ser
 is kept as a denormalized sum of `booking_services.price` rather than dropped: computing it
 on every read would mean rewriting every existing consumer of `booking.price` (booking lists,
 detail screens, notification text) to join and sum instead. It's written once at booking
-creation (manual) or at claim time (instant, once a worker's prices are known) and never
-otherwise mutated, so staleness isn't a real risk.
+creation (manual) or at claim time (instant, once a worker's prices are known), then again
+once at completion - see `payment_method` below - when the worker confirms the job's actual
+final price, which may differ from the original estimate.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -146,6 +147,7 @@ otherwise mutated, so staleness isn't a real risk.
 | scheduled_for | timestamptz | nullable - the customer-picked future date/time for a scheduled booking (business plan §13); null for an urgent ("now") booking. Still `type = 'manual'` - see "Scheduled booking + worker availability" below |
 | response_deadline_hours | smallint | nullable - one of `1`\|`6`\|`24` (a preset, never freeform), null for an urgent booking |
 | respond_by | timestamptz | nullable - computed once at creation (`created_at + response_deadline_hours`) and stored; an unanswered `requested` scheduled booking past this auto-expires to `declined` |
+| payment_method | text | `cash` (default) \| `esewa` - chosen by the worker at completion (business plan §6); only meaningful once `status = 'completed'`. `esewa` is a disabled UI placeholder only - `CompleteBookingInputSchema` rejects it server-side until the gateway actually exists |
 | created_at / completed_at | timestamptz | |
 
 ## 6a. `booking_services`

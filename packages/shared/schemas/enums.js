@@ -36,6 +36,12 @@ export const BOOKING_OFFER_STATUSES = ['pending', 'accepted', 'expired', 'declin
 // freeform (business plan §13).
 export const RESPONSE_DEADLINE_HOURS = [1, 6, 24];
 
+// 'esewa' exists here so bookings.paymentMethod can represent it once
+// chosen, but CompleteBookingInputSchema only accepts 'cash' for now - it's
+// a visual placeholder (disabled, "Coming soon") until the gateway is
+// actually built (business plan §6).
+export const PAYMENT_METHODS = ['cash', 'esewa'];
+
 // Customer-facing trust tier only - the raw 0-100 score, its per-factor
 // breakdown, and any dispute count are worker-eyes-only (see trustScore
 // module). 'building_trust' also covers a worker still in the grace period.

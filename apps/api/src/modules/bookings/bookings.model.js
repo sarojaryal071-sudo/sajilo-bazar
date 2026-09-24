@@ -15,6 +15,7 @@ function toBooking(row) {
     customerId: row.customer_id,
     workerId: row.worker_id,
     price: row.price === null ? null : Number(row.price),
+    paymentMethod: row.payment_method,
     addressLabel: row.address_label,
     latitude: row.latitude,
     longitude: row.longitude,
@@ -349,14 +350,19 @@ export async function setInProgress(id) {
 }
 
 // Completing a booking also credits the worker's completed-jobs count, so
-// both writes happen in one transaction.
-export async function setCompleted(id) {
+// both writes happen in one transaction. finalPrice overwrites the
+// original estimate with what the worker actually confirms at completion -
+// commissionLedgerService.recordCompletion (called right after, from
+// bookings.service.js) reads it back off the freshly-updated booking, so
+// the commission is always computed against the confirmed price.
+export async function setCompleted(id, finalPrice, paymentMethod) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `UPDATE bookings SET status = 'completed', completed_at = now() WHERE id = $1 RETURNING worker_id`,
-      [id]
+      `UPDATE bookings SET status = 'completed', completed_at = now(), price = $2, payment_method = $3
+       WHERE id = $1 RETURNING worker_id`,
+      [id, finalPrice, paymentMethod]
     );
     if (rows[0]?.worker_id) {
       await client.query(

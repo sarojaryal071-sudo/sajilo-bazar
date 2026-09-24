@@ -217,12 +217,12 @@ export async function startBooking(bookingId, workerId) {
   return updated;
 }
 
-export async function completeBooking(bookingId, workerId) {
+export async function completeBooking(bookingId, workerId, { finalPrice, paymentMethod }) {
   const booking = await requireWorkerOwned(bookingId, workerId);
   if (booking.status !== 'in_progress') {
     throw new ApiError(400, 'Booking cannot be completed from its current status');
   }
-  const updated = await bookingsModel.setCompleted(bookingId);
+  const updated = await bookingsModel.setCompleted(bookingId, finalPrice, paymentMethod);
   await commissionLedgerService.recordCompletion(updated);
   await trustScoreService.recomputeAndStore(updated.workerId);
   await notify(updated.customerId, 'booking_status_changed', {

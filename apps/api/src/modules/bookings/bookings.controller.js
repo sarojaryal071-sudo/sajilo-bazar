@@ -3,6 +3,7 @@ import {
   BookingCancelInputSchema,
   InstantBookingCreateInputSchema,
   BookingDisputeInputSchema,
+  CompleteBookingInputSchema,
 } from '@sajilo-bazar/shared';
 import { ApiError } from '../../middleware/error.middleware.js';
 import * as bookingsService from './bookings.service.js';
@@ -94,10 +95,11 @@ export async function start(req, res, next) {
 
 export async function complete(req, res, next) {
   try {
-    const booking = await bookingsService.completeBooking(Number(req.params.id), req.user.id);
+    const input = CompleteBookingInputSchema.parse(req.body);
+    const booking = await bookingsService.completeBooking(Number(req.params.id), req.user.id, input);
     res.json({ booking });
   } catch (err) {
-    next(err);
+    next(err.issues ? new ApiError(400, 'Invalid completion data', err.issues) : err);
   }
 }
 

@@ -110,6 +110,67 @@ function CancelSection({ busy, onCancel }) {
   );
 }
 
+// Worker's "Mark complete" step - confirms the job's final price (prefilled
+// with the booking's current price, editable in case the actual job cost
+// differs from the original estimate) and payment method. Cash is the only
+// selectable option; eSewa is a disabled placeholder establishing the UI
+// seam for later (business plan §6) - the backend rejects anything but
+// 'cash' anyway (CompleteBookingInputSchema).
+function CompleteSection({ busy, defaultPrice, onComplete }) {
+  const [open, setOpen] = useState(false);
+  const [finalPrice, setFinalPrice] = useState(defaultPrice != null ? String(defaultPrice) : '');
+
+  if (!open) {
+    return (
+      <Button disabled={busy} onClick={() => setOpen(true)}>
+        Mark complete
+      </Button>
+    );
+  }
+
+  const priceValue = Number(finalPrice);
+  const priceValid = finalPrice.trim() !== '' && priceValue > 0;
+
+  return (
+    <Card className="flex flex-col gap-4">
+      <div>
+        <label className="text-sm text-text-muted" htmlFor="final-price">
+          Final price (Rs.)
+        </label>
+        <input
+          id="final-price"
+          type="number"
+          min="1"
+          step="1"
+          value={finalPrice}
+          onChange={(e) => setFinalPrice(e.target.value)}
+          className="mt-1 w-full rounded-md border border-border bg-surface px-4 py-3 text-text outline-none focus:border-brand-solid"
+        />
+      </div>
+      <div>
+        <p className="text-sm text-text-muted">Payment method</p>
+        <div className="mt-1 flex gap-2">
+          <div className="flex-1 rounded-md border-2 border-brand-solid bg-brand/10 px-3 py-2 text-sm font-medium">
+            Cash
+          </div>
+          <div className="flex flex-1 items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm text-text-muted opacity-60">
+            <span>eSewa</span>
+            <Badge tone="neutral">Coming soon</Badge>
+          </div>
+        </div>
+      </div>
+      <div className="flex gap-3">
+        <Button variant="secondary" className="flex-1" onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
+        <Button className="flex-1" disabled={busy || !priceValid} onClick={() => onComplete(priceValue)}>
+          Confirm complete
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
 // "Report a problem" - the missing self-service entry point into the
 // disputes table admin already has a full list/detail/resolve screen for
 // (Round C). Once filed for this session, it just confirms rather than
@@ -360,6 +421,14 @@ export function BookingDetail() {
             <span className="font-semibold">Rs. {booking.price}</span>
           </div>
         )}
+        {booking.status === 'completed' && (
+          <div className="mt-2 flex items-center justify-between border-t border-border pt-2 text-sm">
+            <span className="text-text-muted">Payment method</span>
+            <span className="font-medium">
+              {booking.paymentMethod === 'cash' ? 'Paid in cash' : 'Paid via eSewa'}
+            </span>
+          </div>
+        )}
       </Card>
 
       {review && (
@@ -403,9 +472,13 @@ export function BookingDetail() {
           </Button>
         )}
         {isWorker && booking.status === 'in_progress' && (
-          <Button disabled={busy} onClick={() => runAction(() => bookingsApi.complete(id))}>
-            Mark complete
-          </Button>
+          <CompleteSection
+            busy={busy}
+            defaultPrice={booking.price}
+            onComplete={(finalPrice) =>
+              runAction(() => bookingsApi.complete(id, { finalPrice, paymentMethod: 'cash' }))
+            }
+          />
         )}
         {!isWorker && ['requested', 'accepted'].includes(booking.status) && (
           <CancelSection busy={busy} onCancel={(reason) => runAction(() => bookingsApi.cancel(id, reason))} />

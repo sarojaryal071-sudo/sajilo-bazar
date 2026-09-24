@@ -8,11 +8,17 @@ This index is filled in incrementally - only files touched by a task get an entr
 here as part of that task. A file with no entry yet doesn't mean it's undocumented
 forever, just that no session has touched it since this index was introduced.
 
-_Last updated: 2026-09-24 — Scheduled booking against worker-set availability (business plan §13)_
+_Last updated: 2026-09-24 — Payment step (Cash/eSewa) on job completion (business plan §6)_
 
 ## apps/api
 | File | Purpose |
 |---|---|
+| `src/db/migrations/028_add_booking_payment_method.sql` | Adds `bookings.payment_method` (`cash` default \| `esewa`, CHECK-constrained) |
+| `src/modules/bookings/bookings.model.js` | `toBooking` gains `paymentMethod`; `setCompleted(id, finalPrice, paymentMethod)` now takes both and writes them in the same `UPDATE` that sets `status='completed'`/`completed_at` - overwrites the original estimate with the worker-confirmed final price |
+| `src/modules/bookings/bookings.service.js` | `completeBooking(bookingId, workerId, {finalPrice, paymentMethod})` passes both through to `setCompleted`; `commissionLedgerService.recordCompletion` (unchanged) reads the freshly-updated `booking.price`, so the ledger's `job_price` reflects the confirmed final price, not the original estimate |
+| `src/modules/bookings/bookings.controller.js` | `complete` now parses `CompleteBookingInputSchema` from the body |
+| `packages/shared/schemas/enums.js` | `PAYMENT_METHODS` (`['cash', 'esewa']`) |
+| `packages/shared/schemas/booking.schema.js` | `BookingSchema` gains `paymentMethod`; new `CompleteBookingInputSchema` (`finalPrice` positive, `paymentMethod` a literal `'cash'` - `esewa` is rejected server-side even though the enum/column can represent it, since the gateway doesn't exist yet) |
 | `src/db/migrations/026_scheduled_booking_and_availability.sql` | Adds `bookings.scheduled_for`/`.response_deadline_hours`/`.respond_by` (all null for an urgent booking); `worker_profiles.typical_response_hours` (self-reported) and `.online_overridden_at` (when the worker last manually toggled online/offline); new `worker_availability_blocks` table (weekly recurring, `day_of_week` 0-6 per JS `Date#getDay()`) |
 | `src/db/migrations/027_add_booking_request_expired_notification_type.sql` | Adds `booking_request_expired` to `notifications.type`'s CHECK constraint (same drop/re-add pattern as migration 013) |
 | `src/lib/availability.js` | Pure computation, no cron: `computeEffectiveOnline({blocks, manualIsOnline, overriddenAt, now})` - a manual override wins until `nextBoundaryAfter` the block it was set relative to; `isWithinBlock` |
@@ -83,6 +89,8 @@ _Last updated: 2026-09-24 — Scheduled booking against worker-set availability 
 | `src/components/NoWorkerAvatar.jsx` | New: muted person-icon avatar for the no-worker-ever-assigned case, distinct from `Avatar.jsx`'s brand-colored fallback which reads as "actively searching" |
 | `src/components/BookingListItem.jsx` | Shows "No worker found" + `NoWorkerAvatar` instead of "Finding a worker..." + brand avatar once the booking is terminal (`NO_WORKER_TERMINAL_STATUSES`) with no worker ever assigned; a terminal booking that did have a worker is unaffected |
 | `src/screens/BookingDetail/BookingDetail.jsx` | Same "No worker found" / `NoWorkerAvatar` fix applied to the detail header |
+| `src/screens/BookingDetail/BookingDetail.jsx` | New `CompleteSection` - the worker's "Mark complete" step now opens an inline form (final price input, prefilled/editable; Cash selected, eSewa disabled with a "Coming soon" badge) instead of completing immediately; the details card gains a "Payment method" row ("Paid in cash") once `status === 'completed'`, visible to both roles |
+| `src/api/bookings.api.js` | `complete(id, {finalPrice, paymentMethod})` now sends a body instead of a bare PATCH |
 
 ## packages/shared
 | File | Purpose |
