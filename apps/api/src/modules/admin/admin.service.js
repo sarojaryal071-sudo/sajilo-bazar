@@ -5,6 +5,7 @@ import * as bookingsModel from '../bookings/bookings.model.js';
 import * as chatModel from '../chat/chat.model.js';
 import * as commissionLedgerModel from '../commissionLedger/commissionLedger.model.js';
 import { notify } from '../notifications/notifications.service.js';
+import * as trustScoreService from '../trustScore/trustScore.service.js';
 
 export async function getDashboardStats() {
   return adminModel.getDashboardStats();
@@ -275,11 +276,29 @@ export async function createDispute({ bookingId, raisedByUserId, reason }) {
   return adminModel.createDispute({ bookingId, raisedByUserId, reason });
 }
 
-export async function resolveDispute(id, adminId, { status, resolutionNotes }) {
+// atFault only means anything for a 'resolved' outcome - a 'dismissed'
+// dispute has no fault finding, so it's forced to null here regardless of
+// what the client sent (see AdminDisputeResolveInputSchema). An at-fault-
+// worker finding feeds the rolling-30-day 3-strikes-style admin-review
+// escalation and the trust score's dispute deduction (trustScore module) -
+// both fire/recompute from the booking's worker, when there is one.
+export async function resolveDispute(id, adminId, { status, resolutionNotes, atFault }) {
   const dispute = await adminModel.findDisputeById(id);
   if (!dispute) throw new ApiError(404, 'Dispute not found');
   if (dispute.status !== 'open') throw new ApiError(400, 'This dispute has already been decided');
-  return adminModel.resolveDispute(id, { status, resolutionNotes, adminId });
+
+  const resolvedAtFault = status === 'resolved' ? atFault ?? null : null;
+  const resolved = await adminModel.resolveDispute(id, { status, resolutionNotes, atFault: resolvedAtFault, adminId });
+
+  if (resolvedAtFault === 'worker') {
+    const booking = await bookingsModel.findById(resolved.bookingId);
+    if (booking?.workerId) {
+      await trustScoreService.checkDisputeEscalation(booking.workerId);
+      await trustScoreService.recomputeAndStore(booking.workerId);
+    }
+  }
+
+  return resolved;
 }
 
 // ---- Support tickets (Round C) ----

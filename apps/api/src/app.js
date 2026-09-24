@@ -9,6 +9,7 @@ import { notificationsRoutes } from './modules/notifications/notifications.route
 import { commissionLedgerRoutes } from './modules/commissionLedger/commissionLedger.routes.js';
 import { announcementsRoutes } from './modules/announcements/announcements.routes.js';
 import { adminRoutes } from './modules/admin/admin.routes.js';
+import { trustScoreRoutes } from './modules/trustScore/trustScore.routes.js';
 import { notFoundHandler, errorHandler } from './middleware/error.middleware.js';
 
 export const app = express();
@@ -26,6 +27,7 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/commission-ledger', commissionLedgerRoutes);
 app.use('/api/announcements', announcementsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/trust-score', trustScoreRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

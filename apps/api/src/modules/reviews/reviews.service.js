@@ -2,6 +2,7 @@ import { ApiError } from '../../middleware/error.middleware.js';
 import { notify } from '../notifications/notifications.service.js';
 import * as bookingsModel from '../bookings/bookings.model.js';
 import * as reviewsModel from './reviews.model.js';
+import * as trustScoreService from '../trustScore/trustScore.service.js';
 
 export async function getReview(bookingId) {
   return reviewsModel.findByBookingId(bookingId);
@@ -22,6 +23,9 @@ export async function createReview(bookingId, customerId, { rating, comment }) {
     rating,
     comment,
   });
+
+  // A new review moves rating_avg, which is 40% of the trust score.
+  await trustScoreService.recomputeAndStore(booking.workerId);
 
   await notify(booking.workerId, 'review_received', {
     bookingId,

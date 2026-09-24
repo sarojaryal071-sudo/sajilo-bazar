@@ -32,6 +32,11 @@ export const BOOKING_STATUSES = [
 
 export const BOOKING_OFFER_STATUSES = ['pending', 'accepted', 'expired', 'declined'];
 
+// Customer-facing trust tier only - the raw 0-100 score, its per-factor
+// breakdown, and any dispute count are worker-eyes-only (see trustScore
+// module). 'building_trust' also covers a worker still in the grace period.
+export const TRUST_TIERS = ['building_trust', 'trusted', 'highly_trusted'];
+
 export const NOTIFICATION_TYPES = [
   'booking_requested',
   'booking_accepted',

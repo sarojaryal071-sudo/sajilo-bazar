@@ -1,23 +1,34 @@
 import { ApiError } from '../../middleware/error.middleware.js';
 import { uploadBuffer } from '../../lib/cloudinary.js';
 import * as workersModel from './workers.model.js';
+import { tierForStoredScore } from '../trustScore/trustScore.service.js';
+
+// The model returns the raw stored score internally (see workers.model.js
+// toSearchResult/toWorkerDetail) - this is the one place it turns into the
+// customer-facing tier and gets deleted, so the raw number/breakdown/
+// dispute count can never leak onto a public-facing response by accident.
+function withTrustTier(worker) {
+  const { trustScore, ...rest } = worker;
+  return { ...rest, trustTier: tierForStoredScore(trustScore) };
+}
 
 export async function getServiceCatalog() {
   return workersModel.listServiceCatalog();
 }
 
 export async function search({ category, serviceId, q }) {
-  return workersModel.searchWorkers({
+  const results = await workersModel.searchWorkers({
     category: category || null,
     serviceId: serviceId ? Number(serviceId) : null,
     q: q || null,
   });
+  return results.map(withTrustTier);
 }
 
 export async function getWorkerDetail(userId) {
   const detail = await workersModel.findApprovedWorkerDetail(userId);
   if (!detail) throw new ApiError(404, 'Worker not found');
-  return detail;
+  return withTrustTier(detail);
 }
 
 export async function getMyWorkerData(userId) {

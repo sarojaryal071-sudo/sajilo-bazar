@@ -40,8 +40,13 @@ export const AdminDisputeCreateInputSchema = z.object({
   reason: z.string().min(1).max(1000),
 });
 
+// atFault only means anything when status is 'resolved' - the service
+// layer forces it to null for 'dismissed' (a dismissed dispute has no
+// fault finding). 'worker' is what feeds the trust-score deduction and the
+// rolling-30-day admin-review escalation (see trustScore module).
 export const AdminDisputeResolveInputSchema = z.object({
   status: z.enum(['resolved', 'dismissed']),
+  atFault: z.enum(['worker', 'customer', 'none']).nullable().optional(),
   resolutionNotes: z.string().max(2000).nullable().optional(),
 });
 

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { VERIFICATION_STATUSES } from './enums.js';
+import { VERIFICATION_STATUSES, TRUST_TIERS } from './enums.js';
 
 // One row per worker in search results - their cheapest service matching
 // the search filters, not their full service list (that's on the detail
@@ -13,6 +13,7 @@ export const WorkerSearchResultSchema = z.object({
   ratingAvg: z.number().min(0).max(5),
   jobsCompletedCount: z.number().int().min(0),
   serviceAreaLabel: z.string().nullable().optional(),
+  trustTier: z.enum(TRUST_TIERS),
   matchedService: z.object({
     id: z.number().int().positive(),
     name: z.string(),
@@ -46,6 +47,7 @@ export const WorkerDetailSchema = z.object({
   ratingAvg: z.number().min(0).max(5),
   jobsCompletedCount: z.number().int().min(0),
   serviceAreaLabel: z.string().nullable().optional(),
+  trustTier: z.enum(TRUST_TIERS),
   services: z.array(WorkerDetailServiceSchema),
   // A real COUNT(*) from reviews (joined through bookings), not capped by
   // how many review rows are actually returned below.

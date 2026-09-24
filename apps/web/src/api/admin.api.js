@@ -114,8 +114,8 @@ export function createDispute({ bookingId, raisedByUserId, reason }) {
   return apiFetch('/admin/disputes', { method: 'POST', body: { bookingId, raisedByUserId, reason } });
 }
 
-export function resolveDispute(id, { status, resolutionNotes }) {
-  return apiFetch(`/admin/disputes/${id}/resolve`, { method: 'PATCH', body: { status, resolutionNotes } });
+export function resolveDispute(id, { status, atFault, resolutionNotes }) {
+  return apiFetch(`/admin/disputes/${id}/resolve`, { method: 'PATCH', body: { status, atFault, resolutionNotes } });
 }
 
 export function listSupportTickets({ status, priority, q } = {}) {

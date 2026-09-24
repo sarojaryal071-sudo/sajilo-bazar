@@ -6,6 +6,7 @@ import { Avatar } from '../../components/Avatar.jsx';
 import { Button } from '../../components/Button.jsx';
 import { ReviewsList } from '../../components/ReviewsList.jsx';
 import { VerifiedBadge } from '../../components/VerifiedBadge.jsx';
+import { TrustBadge } from '../../components/TrustBadge.jsx';
 import * as workersApi from '../../api/workers.api.js';
 
 function StarIcon() {
@@ -74,6 +75,7 @@ export function WorkerDetail() {
           {worker.serviceAreaLabel && (
             <p className="text-sm text-text-muted">{worker.serviceAreaLabel}</p>
           )}
+          <TrustBadge tier={worker.trustTier} className="mt-1" />
           <div className="mt-1 flex items-center gap-1 text-sm text-warning">
             <StarIcon />
             <span className="font-medium">{worker.ratingAvg.toFixed(1)}</span>
