@@ -17,14 +17,34 @@ export function AuthScreen({ children, className = '' }) {
       <div className="pointer-events-none absolute -right-24 top-1/3 h-80 w-80 rounded-full bg-brand-from opacity-20 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-32 left-1/4 h-96 w-96 rounded-full bg-brand-solid opacity-20 blur-3xl" />
 
-      <motion.main
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.2 }}
-        className={`auth-card relative z-10 flex w-full max-w-md flex-col rounded-3xl border border-glass-border bg-glass-surface p-8 shadow-neu-card backdrop-blur-xl ${className}`}
-      >
-        {children}
-      </motion.main>
+      <div className="relative z-10 flex w-full max-w-4xl items-center justify-center gap-12">
+        {/* Decorative only - hidden below lg so the mobile layout (the
+            primary target for this app) stays exactly the single centered
+            card it always was. Not preloaded and lazy-loaded like any other
+            below-the-fold image, since it's secondary to the form itself. */}
+        <div className="hidden lg:block lg:w-[38%]">
+          <div className="relative mx-auto aspect-[4/5] w-full max-w-sm overflow-hidden rounded-[2.5rem]">
+            <div className="absolute inset-0 bg-brand" />
+            <img
+              src="/images/auth-illustration-800.webp"
+              srcSet="/images/auth-illustration-400.webp 400w, /images/auth-illustration-800.webp 800w"
+              sizes="400px"
+              alt="A Sajilo Bazar worker on the way to a job"
+              loading="lazy"
+              className="auth-image-mask absolute inset-0 h-full w-full object-cover object-top"
+            />
+          </div>
+        </div>
+
+        <motion.main
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+          className={`auth-card relative flex w-full max-w-md flex-col rounded-3xl border border-glass-border bg-glass-surface p-8 shadow-neu-card backdrop-blur-xl ${className}`}
+        >
+          {children}
+        </motion.main>
+      </div>
     </div>
   );
 }

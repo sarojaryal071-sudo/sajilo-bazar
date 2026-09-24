@@ -13,7 +13,10 @@ Build in this order — don't jump ahead to later-phase screens.
   logged-in visitor hitting `/` still redirects straight to their dashboard, same as before.
   One universal page, no persona-split content, no business-model internals (pricing/
   commission) - see `docs/PROJECT_INDEX.md` for the file. Its footer links to the two
-  public legal pages below.
+  public legal pages below. The hero has a brand illustration below the headline - a
+  responsive `<picture>` (tighter vertical crop on mobile, full wide frame on desktop),
+  preloaded since it's above the fold, blended into the page's brand gradient with a
+  fading edge mask so there's never a blank box while it loads.
 - Legal pages (`/terms`, `/privacy`) — public, unauthenticated, plain long-form pages
   rendering the platform's actual Terms & Conditions and Privacy Policy (full text, not a
   marketing surface - simpler styling than the rest of Landing). Linked from the Landing
@@ -21,7 +24,9 @@ Build in this order — don't jump ahead to later-phase screens.
 - Login — phone+password form, plus "Continue with Google" (Google Identity Services;
   renders nothing if `VITE_GOOGLE_CLIENT_ID` isn't set - no real OAuth client configured in
   this environment yet), a "Keep me logged in" checkbox (longer-lived token instead of the
-  default expiry), and a "Forgot password?" link
+  default expiry), and a "Forgot password?" link. On wider screens (`lg:` and up), the
+  shared `AuthScreen` shell also shows a brand illustration beside the card; mobile - the
+  primary target - is unchanged, single centered card only
 - Signup (role selection: customer / worker) — same "Continue with Google" option once a
   role is picked. A brand-new Google sign-in (no matching account by google_id or verified
   email) is prompted for a required phone number (shared `GooglePhoneRoleForm` component,

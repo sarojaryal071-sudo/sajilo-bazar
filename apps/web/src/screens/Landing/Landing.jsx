@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Card } from '../../components/Card.jsx';
@@ -130,13 +131,37 @@ function LandingHeader() {
   );
 }
 
+// Preloaded eagerly since the hero image is above the fold - requested
+// immediately rather than after other page resources, matching whichever
+// crop the <picture> below will actually pick for this viewport width.
+function useHeroImagePreload() {
+  useEffect(() => {
+    const links = [
+      { href: '/images/hero-mobile.webp', media: '(max-width: 639px)' },
+      { href: '/images/hero-desktop.webp', media: '(min-width: 640px)' },
+    ].map(({ href, media }) => {
+      const link = document.createElement('link');
+      link.rel = 'preload';
+      link.as = 'image';
+      link.href = href;
+      link.media = media;
+      link.fetchPriority = 'high';
+      document.head.appendChild(link);
+      return link;
+    });
+    return () => links.forEach((link) => link.remove());
+  }, []);
+}
+
 function Hero() {
+  useHeroImagePreload();
+
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-brand-to opacity-20 blur-3xl" />
       <div className="pointer-events-none absolute -right-24 top-10 h-72 w-72 rounded-full bg-brand-from opacity-20 blur-3xl" />
 
-      <div className="relative mx-auto flex max-w-3xl flex-col items-center gap-6 px-5 py-20 text-center">
+      <div className="relative mx-auto flex max-w-3xl flex-col items-center gap-6 px-5 pt-20 text-center">
         <motion.h1
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -160,6 +185,24 @@ function Hero() {
             </Button>
           </a>
         </div>
+      </div>
+
+      {/* Explicit aspect-ratio (3:4 on mobile matching the cropped slice,
+          16:9 on desktop matching the full wide frame) reserves the space
+          up front so nothing shifts when the image loads. bg-brand fills
+          that space immediately with the same gradient the image itself
+          is painted on, so a slow load never shows a blank box. */}
+      <div className="relative mx-auto mt-12 aspect-[3/4] w-full max-w-5xl overflow-hidden sm:aspect-[16/9]">
+        <div className="absolute inset-0 bg-brand" />
+        <picture>
+          <source media="(min-width: 640px)" srcSet="/images/hero-desktop.webp" />
+          <img
+            src="/images/hero-mobile.webp"
+            alt="A Sajilo Bazar worker and customer looking at a booking together on a phone"
+            fetchpriority="high"
+            className="hero-image-mask absolute inset-0 h-full w-full object-cover object-bottom"
+          />
+        </picture>
       </div>
     </section>
   );
