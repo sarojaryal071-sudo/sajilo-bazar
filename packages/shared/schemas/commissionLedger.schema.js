@@ -8,6 +8,7 @@ export const CommissionLedgerEntrySchema = z.object({
   id: z.number().int().positive(),
   workerId: z.number().int().positive(),
   bookingId: z.number().int().positive(),
+  customerName: z.string().nullable().optional(),
   serviceNames: z.string(),
   jobPrice: z.number().positive(),
   commissionAmount: z.number().positive(),

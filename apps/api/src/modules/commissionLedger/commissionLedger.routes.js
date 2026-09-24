@@ -6,4 +6,7 @@ export const commissionLedgerRoutes = Router();
 
 commissionLedgerRoutes.use(requireAuth, requireRole('worker'));
 
-commissionLedgerRoutes.get('/me', commissionLedgerController.getMyLedger);
+commissionLedgerRoutes.get('/me/summary', commissionLedgerController.getMySummary);
+commissionLedgerRoutes.get('/me/sparkline', commissionLedgerController.getMySparkline);
+commissionLedgerRoutes.get('/me/series', commissionLedgerController.getMySeries);
+commissionLedgerRoutes.get('/me/history', commissionLedgerController.getMyHistory);
