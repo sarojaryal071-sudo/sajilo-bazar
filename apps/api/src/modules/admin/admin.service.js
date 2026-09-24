@@ -18,25 +18,46 @@ export async function getApprovalsQueue() {
   return [...documents, ...services].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 }
 
+const REJECTION_ESCALATION_THRESHOLD = 3;
+
 // Approving a document only flips the worker's overall verification_status
 // once every one of their documents has been approved - a worker who
 // uploaded two documents isn't bookable just because the first one cleared.
 // Rejecting is immediate: one rejected document means the application needs
 // to be redone, same as the existing reapply flow already assumes.
-export async function decideDocument(documentId, adminId, decision) {
+export async function decideDocument(documentId, adminId, decision, comment) {
   const doc = await adminModel.findDocumentById(documentId);
   if (!doc) throw new ApiError(404, 'Document not found');
   if (doc.status !== 'pending') throw new ApiError(400, 'This document has already been reviewed');
 
   const status = decision === 'approve' ? 'approved' : 'rejected';
-  const updated = await adminModel.decideDocument(documentId, { status, adminId });
+  const updated = await adminModel.decideDocument(documentId, { status, adminId, comment });
 
   if (status === 'rejected') {
     await adminModel.setWorkerVerificationStatus(doc.worker_id, 'rejected');
+
+    // 3-strikes: rather than leaving a repeatedly-rejected worker stuck
+    // re-applying into the void, the 3rd rejection auto-opens a support
+    // ticket so a human picks it up - doesn't block a 4th reapplication,
+    // just guarantees genuine cases get a path to a person. Fires exactly
+    // once (checked on the exact threshold), not on every rejection after.
+    const rejectedCount = await adminModel.countRejectedDocumentsForWorker(doc.worker_id);
+    if (rejectedCount === REJECTION_ESCALATION_THRESHOLD) {
+      await adminModel.createSupportTicket({
+        userId: doc.worker_id,
+        bookingId: null,
+        subject: 'Worker verification repeatedly rejected',
+        priority: 'high',
+        message:
+          `This worker's verification documents have been rejected ${REJECTION_ESCALATION_THRESHOLD} times. ` +
+          'Auto-opened for a human to review and help them get verified.',
+      });
+    }
   } else {
     const stillPending = await adminModel.countPendingDocumentsForWorker(doc.worker_id);
     if (stillPending === 0) {
       await adminModel.setWorkerVerificationStatus(doc.worker_id, 'approved');
+      await workersModel.assignHandle(doc.worker_id);
     }
   }
 

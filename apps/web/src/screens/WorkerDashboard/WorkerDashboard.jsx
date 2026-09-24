@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Screen } from '../../components/Screen.jsx';
 import { Card } from '../../components/Card.jsx';
 import { Badge } from '../../components/Badge.jsx';
+import { Button } from '../../components/Button.jsx';
 import { BookingListItem } from '../../components/BookingListItem.jsx';
 import { ReviewsList } from '../../components/ReviewsList.jsx';
 import { AddServiceModal } from '../../components/AddServiceModal.jsx';
@@ -76,6 +77,31 @@ function OnlineToggle({ isOnline, onToggle }) {
   );
 }
 
+// One-time post-approval moment - shown only when profile.welcomedAt is
+// still null (see workers.model.js assignHandle/ackWelcome), never again
+// after the worker dismisses it.
+function WelcomeOverlay({ handle, onDismiss }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-5">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-sm rounded-2xl bg-surface-raised p-6 text-center shadow-raised"
+      >
+        <p className="text-2xl">🎉</p>
+        <h2 className="mt-2 text-xl font-bold">You're verified!</h2>
+        <p className="mt-2 text-sm text-text-muted">
+          Welcome to Sajilo Bazar{handle ? `, ${handle}` : ''}. Customers can now find and book you -
+          go online below whenever you're ready to take jobs.
+        </p>
+        <Button onClick={onDismiss} className="mt-5 w-full">
+          Let's go
+        </Button>
+      </motion.div>
+    </div>
+  );
+}
+
 const STATUS_COPY = {
   pending: {
     tone: 'warning',
@@ -106,11 +132,17 @@ export function WorkerDashboard() {
   const [loading, setLoading] = useState(true);
   const [catalog, setCatalog] = useState([]);
   const [addServiceOpen, setAddServiceOpen] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
 
   useEffect(() => {
     workersApi
       .getMyWorkerData()
-      .then(setData)
+      .then((result) => {
+        setData(result);
+        if (result.profile.verificationStatus === 'approved' && !result.profile.welcomedAt) {
+          setShowWelcome(true);
+        }
+      })
       .finally(() => setLoading(false));
     bookingsApi
       .list()
@@ -124,6 +156,16 @@ export function WorkerDashboard() {
 
   function handleServiceAdded(service) {
     setData((prev) => ({ ...prev, services: [...prev.services, service] }));
+  }
+
+  async function handleWelcomeDismiss() {
+    setShowWelcome(false);
+    try {
+      const { profile } = await workersApi.ackWelcome();
+      setData((prev) => ({ ...prev, profile }));
+    } catch {
+      // Non-critical - worst case the welcome shows again next load.
+    }
   }
 
   if (loading) return null;
@@ -143,7 +185,12 @@ export function WorkerDashboard() {
 
   return (
     <Screen fillHeight={false}>
-      <h1 className="text-2xl font-bold">Dashboard</h1>
+      {showWelcome && <WelcomeOverlay handle={data.profile.handle} onDismiss={handleWelcomeDismiss} />}
+
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        {data.profile.handle && <span className="text-sm text-text-muted">{data.profile.handle}</span>}
+      </div>
 
       <motion.div
         initial={{ opacity: 0, y: 8 }}
@@ -156,6 +203,11 @@ export function WorkerDashboard() {
             <Badge tone={copy.tone}>{data.profile.verificationStatus}</Badge>
           </div>
           <p className="mt-2 text-sm text-text-muted">{copy.body}</p>
+          {data.profile.verificationStatus === 'rejected' && (
+            <Button onClick={() => navigate('/worker/apply')} className="mt-3 w-full">
+              Re-apply
+            </Button>
+          )}
         </Card>
       </motion.div>
 
@@ -254,12 +306,22 @@ export function WorkerDashboard() {
         <p className="font-semibold">Submitted documents</p>
         <div className="mt-3 flex flex-col gap-2">
           {data.documents.map((doc) => (
-            <div key={doc.id} className="flex items-center justify-between text-sm">
-              <span className="text-text-muted capitalize">{doc.docType}</span>
-              <Badge tone={STATUS_COPY[doc.status]?.tone ?? 'neutral'}>{doc.status}</Badge>
+            <div key={doc.id}>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-text-muted capitalize">{doc.docType}</span>
+                <Badge tone={STATUS_COPY[doc.status]?.tone ?? 'neutral'}>{doc.status}</Badge>
+              </div>
+              {doc.status === 'rejected' && doc.reviewComment && (
+                <p className="mt-0.5 text-xs text-text-muted">{doc.reviewComment}</p>
+              )}
             </div>
           ))}
         </div>
+        {data.profile.verificationStatus === 'rejected' && (
+          <Button onClick={() => navigate('/worker/apply')} variant="secondary" className="mt-3 w-full">
+            Re-apply with new documents
+          </Button>
+        )}
       </Card>
     </Screen>
   );

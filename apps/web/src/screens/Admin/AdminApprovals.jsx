@@ -8,13 +8,17 @@ import * as adminApi from '../../api/admin.api.js';
 function ApprovalRow({ item, onDecide }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [rejecting, setRejecting] = useState(false);
+  const [comment, setComment] = useState('');
 
   async function handleDecide(decision) {
     setError('');
     setBusy(true);
     try {
       if (item.kind === 'document') {
-        await (decision === 'approve' ? adminApi.approveDocument(item.id) : adminApi.rejectDocument(item.id));
+        await (decision === 'approve'
+          ? adminApi.approveDocument(item.id)
+          : adminApi.rejectDocument(item.id, comment.trim() || null));
       } else {
         await (decision === 'approve' ? adminApi.approveService(item.id) : adminApi.rejectService(item.id));
       }
@@ -48,14 +52,40 @@ function ApprovalRow({ item, onDecide }) {
         )}
         <p className="mt-1 text-xs text-text-muted">Submitted {timeAgo(item.createdAt)}</p>
         {error && <p className="mt-1 text-sm text-danger">{error}</p>}
+        {rejecting && (
+          <input
+            autoFocus
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="Reason for rejecting (shown to the worker)"
+            className="mt-2 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand-solid"
+          />
+        )}
       </div>
       <div className="flex shrink-0 gap-2">
-        <Button variant="secondary" disabled={busy} onClick={() => handleDecide('reject')}>
-          Reject
-        </Button>
-        <Button disabled={busy} onClick={() => handleDecide('approve')}>
-          Approve
-        </Button>
+        {rejecting ? (
+          <>
+            <Button variant="secondary" disabled={busy} onClick={() => setRejecting(false)}>
+              Cancel
+            </Button>
+            <Button disabled={busy} onClick={() => handleDecide('reject')}>
+              Confirm reject
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              variant="secondary"
+              disabled={busy}
+              onClick={() => (item.kind === 'document' ? setRejecting(true) : handleDecide('reject'))}
+            >
+              Reject
+            </Button>
+            <Button disabled={busy} onClick={() => handleDecide('approve')}>
+              Approve
+            </Button>
+          </>
+        )}
       </div>
     </Card>
   );

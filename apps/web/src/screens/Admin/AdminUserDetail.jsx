@@ -126,7 +126,12 @@ export function AdminUserDetail() {
       {worker && (
         <Card className="mt-4">
           <div className="flex items-center justify-between">
-            <p className="font-semibold">Worker profile</p>
+            <div>
+              <p className="font-semibold">Worker profile</p>
+              {worker.profile.handle && (
+                <p className="text-xs text-text-muted">{worker.profile.handle}</p>
+              )}
+            </div>
             <Badge tone={VERIFICATION_TONE[worker.profile.verificationStatus]}>
               {worker.profile.verificationStatus}
             </Badge>
@@ -166,11 +171,16 @@ export function AdminUserDetail() {
           </p>
           <div className="flex flex-col gap-1.5 text-sm">
             {worker.documents.map((doc) => (
-              <div key={doc.id} className="flex items-center justify-between">
-                <a href={doc.fileUrl} target="_blank" rel="noreferrer" className="capitalize text-brand-solid underline">
-                  {doc.docType}
-                </a>
-                <Badge tone={DOC_STATUS_TONE[doc.status]}>{doc.status}</Badge>
+              <div key={doc.id}>
+                <div className="flex items-center justify-between">
+                  <a href={doc.fileUrl} target="_blank" rel="noreferrer" className="capitalize text-brand-solid underline">
+                    {doc.docType}
+                  </a>
+                  <Badge tone={DOC_STATUS_TONE[doc.status]}>{doc.status}</Badge>
+                </div>
+                {doc.status === 'rejected' && doc.reviewComment && (
+                  <p className="mt-0.5 text-xs text-text-muted">{doc.reviewComment}</p>
+                )}
               </div>
             ))}
           </div>

@@ -1,21 +1,29 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { Screen } from '../../components/Screen.jsx';
 import { Card } from '../../components/Card.jsx';
 import * as commissionLedgerApi from '../../api/commissionLedger.api.js';
+import * as workersApi from '../../api/workers.api.js';
 import { timeAgo } from '../../lib/timeAgo.js';
 
 export function Earnings() {
   const navigate = useNavigate();
   const [ledger, setLedger] = useState(null);
   const [error, setError] = useState('');
+  const [approved, setApproved] = useState(null);
 
   useEffect(() => {
+    workersApi
+      .getMyWorkerData()
+      .then(({ profile }) => setApproved(profile.verificationStatus === 'approved'))
+      .catch(() => setApproved(false));
     commissionLedgerApi
       .getMyLedger()
       .then(setLedger)
       .catch((err) => setError(err.message));
   }, []);
+
+  if (approved === false) return <Navigate to="/worker/dashboard" replace />;
 
   if (error) {
     return (

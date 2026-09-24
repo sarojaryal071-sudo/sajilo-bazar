@@ -9,6 +9,7 @@ export const VerificationDocumentSchema = z.object({
   status: z.enum(DOCUMENT_STATUSES).default('pending'),
   reviewedBy: z.number().int().positive().nullable().optional(),
   reviewedAt: z.string().datetime().nullable().optional(),
+  reviewComment: z.string().max(500).nullable().optional(), // admin's reason, set on reject
   createdAt: z.string().datetime().optional(),
 });
 

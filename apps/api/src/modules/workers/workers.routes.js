@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { requireAuth, requireRole } from '../../middleware/auth.middleware.js';
+import { requireAuth, requireRole, requireApprovedWorker } from '../../middleware/auth.middleware.js';
 import * as workersController from './workers.controller.js';
 
 const upload = multer({
@@ -13,8 +13,9 @@ export const workersRoutes = Router();
 workersRoutes.get('/catalog/services', workersController.getServiceCatalog);
 workersRoutes.get('/search', workersController.search);
 workersRoutes.get('/me', requireAuth, requireRole('worker'), workersController.getMe);
-workersRoutes.post('/me/services', requireAuth, requireRole('worker'), workersController.addService);
-workersRoutes.patch('/me/online', requireAuth, requireRole('worker'), workersController.setOnline);
+workersRoutes.patch('/me/welcome', requireAuth, requireRole('worker'), workersController.ackWelcome);
+workersRoutes.post('/me/services', requireAuth, requireApprovedWorker, workersController.addService);
+workersRoutes.patch('/me/online', requireAuth, requireApprovedWorker, workersController.setOnline);
 workersRoutes.post(
   '/apply',
   requireAuth,

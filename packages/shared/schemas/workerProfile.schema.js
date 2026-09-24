@@ -11,6 +11,10 @@ export const WorkerProfileSchema = z.object({
   latitude: z.number().nullable().optional(),
   longitude: z.number().nullable().optional(),
   serviceAreaLabel: z.string().max(120).nullable().optional(), // e.g. "Baneshwor, Kathmandu"
+  // Auto-generated once first approved (e.g. "PL042") - null before then.
+  handle: z.string().max(10).nullable().optional(),
+  // Null until the one-time post-approval welcome moment has been shown.
+  welcomedAt: z.string().datetime().nullable().optional(),
 });
 
 // Going online captures the worker's current coordinates (from the

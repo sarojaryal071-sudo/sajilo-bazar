@@ -16,6 +16,12 @@ export const AdminBookingFlagInputSchema = z.object({
   reason: z.string().max(300).nullable().optional(),
 });
 
+// Admin Approvals screen - the reason shown back to the worker when a
+// verification document is rejected.
+export const AdminDocumentRejectInputSchema = z.object({
+  comment: z.string().max(500).nullable().optional(),
+});
+
 // Admin Categories/Services screen (Round B). Same shape for create and
 // edit - editing a service's category re-groups it in the catalog.
 export const AdminServiceInputSchema = z.object({

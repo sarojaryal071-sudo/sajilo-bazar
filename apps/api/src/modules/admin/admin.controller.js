@@ -10,6 +10,7 @@ import {
   AdminSupportTicketStatusInputSchema,
   AdminAnnouncementInputSchema,
   AdminPolicyInputSchema,
+  AdminDocumentRejectInputSchema,
 } from '@sajilo-bazar/shared';
 import { ApiError } from '../../middleware/error.middleware.js';
 import * as adminService from './admin.service.js';
@@ -49,10 +50,11 @@ export async function approveDocument(req, res, next) {
 
 export async function rejectDocument(req, res, next) {
   try {
-    const document = await adminService.decideDocument(parseId(req), req.user.id, 'reject');
+    const { comment } = AdminDocumentRejectInputSchema.parse(req.body ?? {});
+    const document = await adminService.decideDocument(parseId(req), req.user.id, 'reject', comment);
     res.json({ document });
   } catch (err) {
-    next(err);
+    next(err.issues ? new ApiError(400, 'Invalid rejection', err.issues) : err);
   }
 }
 

@@ -11,6 +11,8 @@ function toProfile(row) {
     latitude: row.latitude,
     longitude: row.longitude,
     serviceAreaLabel: row.service_area_label,
+    handle: row.handle,
+    welcomedAt: row.welcomed_at,
   };
 }
 
@@ -36,6 +38,7 @@ function toDocument(row) {
     status: row.status,
     reviewedBy: row.reviewed_by,
     reviewedAt: row.reviewed_at,
+    reviewComment: row.review_comment,
     createdAt: row.created_at,
   };
 }
@@ -66,6 +69,61 @@ export async function setVerificationStatus(userId, status) {
     'UPDATE worker_profiles SET verification_status = $1, updated_at = now() WHERE user_id = $2',
     [status, userId]
   );
+}
+
+// The worker's earliest-added service decides their "profession" for
+// handle purposes - most workers apply with services in a single category,
+// and this is stable even if they add unrelated categories later.
+async function findFirstServiceCategory(workerId) {
+  const { rows } = await pool.query(
+    `SELECT s.category FROM worker_services ws
+     JOIN services s ON s.id = ws.service_id
+     WHERE ws.worker_id = $1
+     ORDER BY ws.id ASC
+     LIMIT 1`,
+    [workerId]
+  );
+  return rows[0]?.category ?? null;
+}
+
+// Auto-generated short handle ("PL042") assigned once, the first time a
+// worker is approved - idempotent (a worker who is rejected and later
+// re-approved keeps their original handle). The prefix is just the
+// category's first two letters uppercased, so it works for any category
+// without a hardcoded map; the number is how many workers already hold
+// that prefix, so it reads as "the Nth approved <profession>".
+export async function assignHandle(workerId) {
+  const { rows: existing } = await pool.query(
+    'SELECT handle FROM worker_profiles WHERE user_id = $1',
+    [workerId]
+  );
+  if (existing[0]?.handle) return existing[0].handle;
+
+  const category = await findFirstServiceCategory(workerId);
+  const prefix = (category || 'WK').slice(0, 2).toUpperCase();
+
+  const { rows: countRows } = await pool.query(
+    'SELECT COUNT(*)::int AS count FROM worker_profiles WHERE handle LIKE $1',
+    [`${prefix}%`]
+  );
+  const handle = `${prefix}${String(countRows[0].count + 1).padStart(3, '0')}`;
+
+  const { rows } = await pool.query(
+    'UPDATE worker_profiles SET handle = $2 WHERE user_id = $1 AND handle IS NULL RETURNING handle',
+    [workerId, handle]
+  );
+  return rows[0]?.handle ?? (await findProfile(workerId))?.handle ?? null;
+}
+
+// One-time post-approval welcome - idempotent, only ever sets welcomed_at
+// once (later calls are a no-op since the WHERE clause no longer matches).
+export async function ackWelcome(userId) {
+  const { rows } = await pool.query(
+    'UPDATE worker_profiles SET welcomed_at = now() WHERE user_id = $1 AND welcomed_at IS NULL RETURNING *',
+    [userId]
+  );
+  if (rows[0]) return toProfile(rows[0]);
+  return findProfile(userId);
 }
 
 // Going online records wherever the worker's browser says they are right
@@ -186,6 +244,7 @@ function toSearchResult(row) {
   return {
     userId: row.user_id,
     fullName: row.full_name,
+    handle: row.handle,
     profileImageUrl: row.profile_image_url,
     verificationStatus: row.verification_status,
     ratingAvg: Number(row.rating_avg),
@@ -211,7 +270,7 @@ export async function searchWorkers({ category, serviceId, q }) {
   const { rows } = await pool.query(
     `SELECT * FROM (
        SELECT DISTINCT ON (u.id)
-         u.id AS user_id, u.full_name, u.profile_image_url, wp.verification_status,
+         u.id AS user_id, u.full_name, wp.handle, u.profile_image_url, wp.verification_status,
          wp.rating_avg, wp.jobs_completed_count, wp.service_area_label,
          ws.service_id, s.name AS service_name, s.category, ws.price
        FROM users u
@@ -274,6 +333,7 @@ function toWorkerDetail(profileRow, serviceRows, { reviewsCount, reviews }) {
   return {
     userId: profileRow.user_id,
     fullName: profileRow.full_name,
+    handle: profileRow.handle,
     profileImageUrl: profileRow.profile_image_url,
     verificationStatus: profileRow.verification_status,
     bio: profileRow.bio,
@@ -295,7 +355,7 @@ function toWorkerDetail(profileRow, serviceRows, { reviewsCount, reviews }) {
 // a customer can't view an unverified worker's profile by guessing an id.
 export async function findApprovedWorkerDetail(userId) {
   const { rows } = await pool.query(
-    `SELECT u.id AS user_id, u.full_name, u.profile_image_url, wp.verification_status,
+    `SELECT u.id AS user_id, u.full_name, wp.handle, u.profile_image_url, wp.verification_status,
             wp.bio, wp.rating_avg, wp.jobs_completed_count, wp.service_area_label
      FROM users u
      JOIN worker_profiles wp ON wp.user_id = u.id

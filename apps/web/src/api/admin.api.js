@@ -12,8 +12,8 @@ export function approveDocument(id) {
   return apiFetch(`/admin/approvals/documents/${id}/approve`, { method: 'PATCH' });
 }
 
-export function rejectDocument(id) {
-  return apiFetch(`/admin/approvals/documents/${id}/reject`, { method: 'PATCH' });
+export function rejectDocument(id, comment) {
+  return apiFetch(`/admin/approvals/documents/${id}/reject`, { method: 'PATCH', body: { comment } });
 }
 
 export function approveService(id) {

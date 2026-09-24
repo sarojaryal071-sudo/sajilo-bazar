@@ -21,6 +21,7 @@ export const BookingSchema = z.object({
   status: z.enum(BOOKING_STATUSES),
   customerId: z.number().int().positive(),
   workerId: z.number().int().positive().nullable(), // null until an instant request is accepted
+  workerHandle: z.string().max(10).nullable().optional(), // e.g. "PL042", null pre-approval
   services: z.array(BookingServiceSchema).min(1),
   price: z.number().positive().nullable(), // denormalized sum of services[].price - null until every service is priced
   addressLabel: z.string().max(200),

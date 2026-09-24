@@ -7,6 +7,7 @@ import { workersRoutes } from './modules/workers/workers.routes.js';
 import { bookingsRoutes } from './modules/bookings/bookings.routes.js';
 import { notificationsRoutes } from './modules/notifications/notifications.routes.js';
 import { commissionLedgerRoutes } from './modules/commissionLedger/commissionLedger.routes.js';
+import { announcementsRoutes } from './modules/announcements/announcements.routes.js';
 import { adminRoutes } from './modules/admin/admin.routes.js';
 import { notFoundHandler, errorHandler } from './middleware/error.middleware.js';
 
@@ -23,6 +24,7 @@ app.use('/api/workers', workersRoutes);
 app.use('/api/bookings', bookingsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/commission-ledger', commissionLedgerRoutes);
+app.use('/api/announcements', announcementsRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.use(notFoundHandler);

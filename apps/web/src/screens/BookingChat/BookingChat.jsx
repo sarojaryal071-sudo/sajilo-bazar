@@ -121,6 +121,7 @@ export function BookingChat() {
 
   const otherName = booking && (user.role === 'worker' ? booking.customerName : booking.workerName);
   const otherImage = booking && (user.role === 'worker' ? booking.customerImageUrl : booking.workerImageUrl);
+  const otherHandle = booking && user.role !== 'worker' ? booking.workerHandle : null;
 
   return (
     <div className="flex h-dvh flex-col bg-surface-alt">
@@ -134,7 +135,10 @@ export function BookingChat() {
             <BackIcon />
           </button>
           {otherName && <Avatar name={otherName} imageUrl={otherImage} size={36} />}
-          <h1 className="truncate text-lg font-bold">{otherName || 'Chat'}</h1>
+          <div className="min-w-0">
+            <h1 className="truncate text-lg font-bold">{otherName || 'Chat'}</h1>
+            {otherHandle && <p className="truncate text-xs text-text-muted">{otherHandle}</p>}
+          </div>
         </div>
       </header>
 

@@ -61,6 +61,15 @@ export async function setOnline(req, res, next) {
   }
 }
 
+export async function ackWelcome(req, res, next) {
+  try {
+    const profile = await workersService.ackWelcome(req.user.id);
+    res.json({ profile });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function apply(req, res, next) {
   try {
     // multipart form: non-file fields arrive as strings, services as a JSON string.
