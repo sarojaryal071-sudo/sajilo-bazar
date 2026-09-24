@@ -116,9 +116,17 @@ export async function countRejectedDocumentsForWorker(workerId) {
   return rows[0].count;
 }
 
+// approved_at is stamped every time status flips to 'approved' (including a
+// re-approval after a rejected reapply) - the trust-score grace period
+// restarts along with it, which matches "newly (re)joined" the same way a
+// first approval would.
 export async function setWorkerVerificationStatus(workerId, status) {
   await pool.query(
-    'UPDATE worker_profiles SET verification_status = $1, updated_at = now() WHERE user_id = $2',
+    `UPDATE worker_profiles
+     SET verification_status = $1,
+         approved_at = CASE WHEN $1 = 'approved' THEN now() ELSE approved_at END,
+         updated_at = now()
+     WHERE user_id = $2`,
     [status, workerId]
   );
 }
@@ -397,6 +405,7 @@ function toDisputeSummary(row) {
     raisedByName: row.raised_by_name,
     reason: row.reason,
     status: row.status,
+    atFault: row.at_fault,
     createdAt: row.created_at,
     resolvedAt: row.resolved_at,
   };
@@ -450,14 +459,38 @@ export async function createDispute({ bookingId, raisedByUserId, reason }) {
   return findDisputeById(rows[0].id);
 }
 
-export async function resolveDispute(id, { status, resolutionNotes, adminId }) {
+export async function resolveDispute(id, { status, resolutionNotes, atFault, adminId }) {
   await pool.query(
     `UPDATE disputes
-     SET status = $2, resolution_notes = $3, resolved_by = $4, resolved_at = now()
+     SET status = $2, resolution_notes = $3, resolved_by = $4, resolved_at = now(), at_fault = $5
      WHERE id = $1`,
-    [id, status, resolutionNotes ?? null, adminId]
+    [id, status, resolutionNotes ?? null, adminId, atFault ?? null]
   );
   return findDisputeById(id);
+}
+
+// All-time count of disputes an admin resolved at-fault: worker - the basis
+// for the trust score's dispute-free-record deduction (§1 of the trust
+// score spec), distinct from the rolling-30-day count below used for the
+// 3-strikes-style admin-review escalation (§3).
+export async function countAtFaultDisputesForWorker(workerId) {
+  const { rows } = await pool.query(
+    `SELECT COUNT(*)::int AS count FROM disputes d
+     JOIN bookings b ON b.id = d.booking_id
+     WHERE b.worker_id = $1 AND d.at_fault = 'worker'`,
+    [workerId]
+  );
+  return rows[0].count;
+}
+
+export async function countAtFaultDisputesForWorkerRolling30(workerId) {
+  const { rows } = await pool.query(
+    `SELECT COUNT(*)::int AS count FROM disputes d
+     JOIN bookings b ON b.id = d.booking_id
+     WHERE b.worker_id = $1 AND d.at_fault = 'worker' AND d.resolved_at >= now() - INTERVAL '30 days'`,
+    [workerId]
+  );
+  return rows[0].count;
 }
 
 // ---- Support tickets (Round C) ----

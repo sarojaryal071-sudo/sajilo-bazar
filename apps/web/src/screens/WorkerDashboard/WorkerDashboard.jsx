@@ -9,9 +9,11 @@ import { BookingListItem } from '../../components/BookingListItem.jsx';
 import { ReviewsList } from '../../components/ReviewsList.jsx';
 import { AddServiceModal } from '../../components/AddServiceModal.jsx';
 import { EarningsChart } from '../../components/EarningsChart.jsx';
+import { TrustMeter } from '../../components/TrustMeter.jsx';
 import * as workersApi from '../../api/workers.api.js';
 import * as bookingsApi from '../../api/bookings.api.js';
 import * as commissionLedgerApi from '../../api/commissionLedger.api.js';
+import * as trustScoreApi from '../../api/trustScore.api.js';
 import { getCurrentLocation } from '../../lib/geolocation.js';
 
 const SERVICE_STATUS_TONE = { pending: 'warning', rejected: 'danger' };
@@ -259,6 +261,7 @@ export function WorkerDashboard() {
   const [showWelcome, setShowWelcome] = useState(false);
   const [earningsSummary, setEarningsSummary] = useState(null);
   const [sparkline, setSparkline] = useState(null);
+  const [trustScore, setTrustScore] = useState(null);
 
   useEffect(() => {
     workersApi
@@ -282,6 +285,10 @@ export function WorkerDashboard() {
     commissionLedgerApi
       .getMySparkline()
       .then(({ sparkline }) => setSparkline(sparkline))
+      .catch(() => {});
+    trustScoreApi
+      .getMyTrustScore()
+      .then(({ trustScore }) => setTrustScore(trustScore))
       .catch(() => {});
   }, []);
 
@@ -379,6 +386,8 @@ export function WorkerDashboard() {
               onClick={() => navigate('/worker/earnings')}
             />
           )}
+
+          <TrustMeter trustScore={trustScore} />
 
           <p className="mt-6 mb-3 text-sm font-semibold uppercase tracking-wide text-text-muted">
             Active jobs

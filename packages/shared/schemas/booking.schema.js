@@ -22,6 +22,11 @@ export const BookingSchema = z.object({
   customerId: z.number().int().positive(),
   workerId: z.number().int().positive().nullable(), // null until an instant request is accepted
   workerHandle: z.string().max(10).nullable().optional(), // e.g. "PL042", null pre-approval
+  // Only present once the worker has accepted (status accepted/in_progress) -
+  // hidden again once completed. Never sent for any other status, and never
+  // exposed anywhere outside a booking's own detail response (search/worker
+  // detail never select it at all). See workers phone-scoping spec.
+  workerPhone: z.string().nullable().optional(),
   services: z.array(BookingServiceSchema).min(1),
   price: z.number().positive().nullable(), // denormalized sum of services[].price - null until every service is priced
   addressLabel: z.string().max(200),

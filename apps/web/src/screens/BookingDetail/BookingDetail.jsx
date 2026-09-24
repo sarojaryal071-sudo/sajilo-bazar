@@ -290,7 +290,15 @@ export function BookingDetail() {
       )}
 
       <Card className="mt-6">
-        <div className="flex items-center justify-between gap-4 text-sm">
+        {!isWorker && booking.workerPhone && (
+          <div className="flex items-center justify-between gap-4 border-b border-border pb-3 text-sm">
+            <span className="shrink-0 text-text-muted">Worker's phone</span>
+            <a href={`tel:${booking.workerPhone}`} className="text-right font-medium text-brand-solid">
+              {booking.workerPhone}
+            </a>
+          </div>
+        )}
+        <div className="flex items-center justify-between gap-4 pt-3 text-sm first:pt-0">
           <span className="shrink-0 text-text-muted">Address</span>
           <span className="text-right font-medium">{booking.addressLabel}</span>
         </div>

@@ -39,6 +39,8 @@ One row per user with `role = worker`.
 | verification_status | text | `pending` \| `approved` \| `rejected`, default `pending` |
 | rating_avg | numeric | denormalized, updated on new review |
 | jobs_completed_count | int | denormalized |
+| approved_at | timestamptz | nullable - stamped every time `verification_status` flips to `approved` (including a re-approval), not just the first time. Trust score's grace period (see below) is measured from here. No prior mechanism for this existed anywhere in the codebase - migration 025 backfills it from `updated_at` for workers already approved beforehand |
+| trust_score | numeric | nullable - the stored raw 0-100 trust score (see "Trust score" below); null while the worker is within the 30-day grace period after `approved_at` or otherwise not yet scoreable |
 
 ## 3. `services`
 
@@ -137,6 +139,7 @@ otherwise mutated, so staleness isn't a real risk.
 | lat / lng | numeric | |
 | cancelled_by | fk → users | nullable |
 | cancel_reason | text | nullable |
+| initiated_by | text | nullable — `worker` \| `customer`, set on cancellation. Null for a booking cancelled by an admin override (`adminCancelBooking`) or for any row predating migration 025. Only a `worker` value feeds the rolling-30-job cancellation rate/escalation and the trust score's reliability component - a `customer` value is logged and tied to the worker but doesn't affect either (see "Trust score" below) |
 | flagged | boolean | default false — lightweight admin moderation marker (Phase 6), not a full dispute record |
 | flag_reason | text | nullable |
 | created_at / completed_at | timestamptz | |
@@ -241,13 +244,115 @@ skips anything already backfilled.
 | credit_balance_after | numeric | worker's running balance after this entry; negative = owed to the platform |
 | created_at | timestamptz | |
 
+## 12. `disputes`
+
+Built in the admin panel's Round C (Phase 6), predating this file's last full pass - documented
+properly here now since the trust-score task extends it. A customer/worker can self-report via
+a booking's own detail screen (`bookings.service.js` `createDispute`) or an admin can log one on
+a party's behalf; either way it lands in this one table. Self-service filing has a hard cutoff -
+only within 24 hours of the booking's `completed_at` (enforced on the endpoint itself) - the
+admin-logged path has no such cutoff, since an admin may need to log an older case.
+
+`at_fault` is only meaningful once `status = 'resolved'` (a `dismissed` dispute has no fault
+finding, so the service layer forces it to null regardless of what's sent). Only an at-fault
+`worker` finding feeds anything downstream: 3 of them within a rolling 30 days trigger the same
+support-ticket escalation pattern documented below, and every at-fault `worker` dispute
+(all-time) deducts from the trust score's dispute-free-record component (see "Trust score"
+below).
+
+| Column | Type | Notes |
+|---|---|---|
+| id | serial pk | |
+| booking_id | fk → bookings | |
+| raised_by | fk → users | |
+| reason | text | |
+| status | text | `open` \| `resolved` \| `dismissed`, default `open` |
+| at_fault | text | nullable - `worker` \| `customer` \| `none`, set (or forced null) on resolution - see above |
+| resolution_notes | text | nullable |
+| resolved_by | fk → users | nullable |
+| resolved_at | timestamptz | nullable |
+| created_at | timestamptz | |
+
+## 13. `support_tickets` / `support_ticket_messages`
+
+Also built in Round C, documented here for the same reason as `disputes` above. The admin
+review queue every escalation in this codebase auto-opens into (worker-verification rejections,
+and now the trust score's cancellation-rate and dispute-count escalations) - never an automatic
+suspension, always a ticket a human picks up.
+
+| Column (`support_tickets`) | Type | Notes |
+|---|---|---|
+| id | serial pk | |
+| user_id | fk → users | |
+| booking_id | fk → bookings | nullable |
+| subject | text | |
+| priority | text | `low` \| `normal` \| `high`, default `normal` |
+| status | text | `open` \| `in_progress` \| `resolved` \| `closed`, default `open` |
+| created_at / updated_at | timestamptz | |
+
+`support_ticket_messages` is a simple threaded reply log (`ticket_id`, `sender_id`, `message`,
+`created_at`) - the ticket's opening message is inserted the same way as any reply.
+
+## Trust score
+
+Worker-facing 0-100 score (`worker_profiles.trust_score`), computed and persisted by
+`apps/api/src/modules/trustScore/trustScore.service.js`. The four weights below are locked by
+the business plan; everything else here (the grace period length, the internal curves, the
+escalation thresholds) is this task's own judgment call, not a business-plan number - see the
+module's comments for the reasoning behind each.
+
+- **Rating (40%)** - `worker_profiles.rating_avg` normalized to 0-100.
+- **Reliability (30%)** - `1 - cancellationRate`, where `cancellationRate` reuses the same
+  rolling-30-job worker-cancellation-rate computation described under `bookings.initiated_by`
+  above (a worker with fewer than 10 qualifying jobs simply isn't penalized yet, rather than
+  gated to zero).
+- **Tenure (15%)** - scales with months since `approved_at`, capped at 12 months.
+- **Dispute-free record (15%)** - starts at 100, -20 per all-time at-fault-`worker` dispute.
+
+A worker within 30 days of `approved_at` (or with no `approved_at` at all) is in the grace
+period - no prior "Newly Joined"/featured-placement grace-period mechanism existed anywhere in
+the codebase to reuse (searched thoroughly), so this is new; 30 days was picked to stay
+consistent with the other rolling-30 windows the same spec already uses (the cancellation rate
+and dispute count above). `trust_score` stays null for the whole grace period.
+
+Recomputed and re-persisted at the points that can actually move it: a booking completing, a
+worker-initiated cancellation, an at-fault-`worker` dispute resolution, and a new review (moves
+`rating_avg`) - plus once more, live, whenever the worker's own panel (`GET /trust-score/me`)
+is fetched, so they never see a stale number.
+
+**Surfaces:**
+- Worker's own panel (`GET /trust-score/me`, `TrustScoreSchema`) - the full score, the
+  per-factor breakdown, and a short actionable tip for whichever factor is weakest.
+- Customer-facing (`trustTier` on `WorkerSearchResultSchema`/`WorkerDetailSchema`) - one of
+  `building_trust` \| `trusted` \| `highly_trusted` only. Never the raw number, the breakdown,
+  or a dispute count - `workers.service.js`'s `withTrustTier` is the one place the raw stored
+  score turns into this tier and gets deleted before the response leaves the module.
+
+Not built in this task (explicitly separate scope, per the task spec): wiring `trust_score`
+into search/Home ranking order. The column is stored precisely so that later task can `ORDER BY`
+it without recomputing per request.
+
+## Phone-number visibility scoping
+
+A worker's raw phone number (`users.phone`) was never actually selected by the search or
+worker-detail queries to begin with (confirmed by reading `workers.model.js` before this task) -
+so "remove it from the public profile and search/browse" required no change there. What this
+task added is the one place it *is* now exposed: `bookings.workerPhone`
+(`BookingSchema`) - present only while a booking's `status` is `accepted` or `in_progress`
+(i.e. the worker has accepted and the job hasn't been marked completed yet), null at every other
+status. It's part of the same booking shape returned by both the detail endpoint and a user's
+own booking list, which is safe since both are already scoped to bookings the requesting user
+is a party to (never a stranger's booking, never a public/search response).
+
 ---
 
 ## Deferred — add only when the phase that needs them starts (Phase 6+)
 
 Do not build these until `PROJECT_BRIEF.md`'s build order reaches them:
 
-- `support_tickets`, `support_attachments`, `disputes`, `dispute_evidences` — Phase 6
+- `support_attachments`, `dispute_evidences` — `disputes`/`support_tickets` themselves are
+  already built (§12-13 above); these two attachment tables aren't - a dispute currently reuses
+  its booking's own `chat_messages` transcript as evidence instead (business plan §7)
 - `audit_logs` — once there's staff other than the founder making changes worth auditing
 - Full double-entry accounting (`accounts`, `accounting_entries`, `account_mapping_rules`,
   `expenses`, `vendors`, `cost_centers`, etc.) — only if `commission_ledger` genuinely stops

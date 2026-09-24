@@ -24,6 +24,7 @@ export function AdminDisputeDetail() {
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState('');
   const [resolveStatus, setResolveStatus] = useState('resolved');
+  const [atFault, setAtFault] = useState('worker');
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -41,7 +42,11 @@ export function AdminDisputeDetail() {
     setBusy(true);
     setError('');
     try {
-      await adminApi.resolveDispute(id, { status: resolveStatus, resolutionNotes: resolutionNotes.trim() || null });
+      await adminApi.resolveDispute(id, {
+        status: resolveStatus,
+        atFault: resolveStatus === 'resolved' ? atFault : null,
+        resolutionNotes: resolutionNotes.trim() || null,
+      });
       load();
     } catch (err) {
       setError(err.message);
@@ -130,6 +135,7 @@ export function AdminDisputeDetail() {
             <p className="text-text-muted">
               Marked {dispute.status} on {formatDateTime(dispute.resolvedAt)}
             </p>
+            {dispute.atFault && <p className="text-text-muted">At fault: {dispute.atFault}</p>}
             {dispute.resolutionNotes && <p>{dispute.resolutionNotes}</p>}
           </div>
         ) : (
@@ -142,6 +148,17 @@ export function AdminDisputeDetail() {
               <option value="resolved">Resolved</option>
               <option value="dismissed">Dismissed</option>
             </select>
+            {resolveStatus === 'resolved' && (
+              <select
+                value={atFault}
+                onChange={(e) => setAtFault(e.target.value)}
+                className="w-48 rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand-solid"
+              >
+                <option value="worker">At fault: worker</option>
+                <option value="customer">At fault: customer</option>
+                <option value="none">At fault: neither</option>
+              </select>
+            )}
             <textarea
               rows={3}
               value={resolutionNotes}

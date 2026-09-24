@@ -4,6 +4,12 @@ import { notify } from '../notifications/notifications.service.js';
 import * as commissionLedgerService from '../commissionLedger/commissionLedger.service.js';
 import * as bookingsModel from './bookings.model.js';
 import * as adminModel from '../admin/admin.model.js';
+import * as trustScoreService from '../trustScore/trustScore.service.js';
+
+// Hard cutoff (Part 3 of the trust-score spec) - a dispute can only be
+// filed within this many hours of the booking's completion, enforced here
+// on the endpoint itself rather than as a UI-only hint.
+const DISPUTE_FILING_WINDOW_HOURS = 24;
 
 // City-scale default - no fallback tiers (e.g. widening the radius when
 // nobody's nearby) for this first pass; a customer with no match just sees
@@ -169,6 +175,7 @@ export async function completeBooking(bookingId, workerId) {
   }
   const updated = await bookingsModel.setCompleted(bookingId);
   await commissionLedgerService.recordCompletion(updated);
+  await trustScoreService.recomputeAndStore(updated.workerId);
   await notify(updated.customerId, 'booking_status_changed', {
     bookingId: updated.id,
     status: 'completed',
@@ -185,7 +192,17 @@ export async function cancelBooking(bookingId, userId, reason) {
   if (!['requested', 'accepted'].includes(booking.status)) {
     throw new ApiError(400, 'Booking can only be cancelled while requested or accepted');
   }
-  const updated = await bookingsModel.setCancelled(bookingId, userId, reason);
+  const initiatedBy = userId === booking.workerId ? 'worker' : 'customer';
+  const updated = await bookingsModel.setCancelled(bookingId, userId, reason, initiatedBy);
+
+  // Only a worker-initiated cancellation feeds the rolling cancellation
+  // rate/escalation and the trust score's reliability component - a
+  // customer-initiated one is logged and tied to the worker (initiatedBy
+  // above) but "doesn't affect anything yet" per the business plan.
+  if (initiatedBy === 'worker' && updated.workerId) {
+    await trustScoreService.checkCancellationEscalation(updated.workerId);
+    await trustScoreService.recomputeAndStore(updated.workerId);
+  }
 
   // Notify whichever side didn't do the cancelling - the other party
   // always exists here (customerId is required, and a manual/claimed
@@ -213,5 +230,18 @@ export async function createDispute(bookingId, userId, reason) {
   const booking = await bookingsModel.findById(bookingId);
   if (!booking) throw new ApiError(404, 'Booking not found');
   assertParticipant(booking, userId);
+
+  // Hard cutoff (Part 3): a dispute can only be filed within 24 hours of
+  // the booking's completion, enforced here on the endpoint itself, not
+  // just a UI hint. A booking that isn't completed yet has no completedAt
+  // to measure from, so it can't be disputed through this flow either.
+  if (!booking.completedAt) {
+    throw new ApiError(400, 'You can only report a problem once the booking is completed');
+  }
+  const hoursSinceCompletion = (Date.now() - new Date(booking.completedAt).getTime()) / (1000 * 60 * 60);
+  if (hoursSinceCompletion > DISPUTE_FILING_WINDOW_HOURS) {
+    throw new ApiError(400, `Reports must be filed within ${DISPUTE_FILING_WINDOW_HOURS} hours of completion`);
+  }
+
   return adminModel.createDispute({ bookingId, raisedByUserId: userId, reason });
 }

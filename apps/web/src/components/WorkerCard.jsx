@@ -1,6 +1,7 @@
 import { Card } from './Card.jsx';
 import { Avatar } from './Avatar.jsx';
 import { VerifiedBadge } from './VerifiedBadge.jsx';
+import { TrustBadge } from './TrustBadge.jsx';
 
 function StarIcon() {
   return (
@@ -25,6 +26,7 @@ export function WorkerCard({ worker, onClick }) {
         {worker.serviceAreaLabel && (
           <p className="truncate text-xs text-text-muted">{worker.serviceAreaLabel}</p>
         )}
+        <TrustBadge tier={worker.trustTier} className="mt-1" />
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1">
         <p className="font-semibold">Rs. {worker.matchedService.price}</p>

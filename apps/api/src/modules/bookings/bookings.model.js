@@ -1,5 +1,12 @@
 import { pool } from '../../db/pool.js';
 
+// The worker's phone is only ever present in this one shape - included
+// only while the booking is in an active, worker-accepted state (accepted
+// or in_progress), and gone again the moment it's completed. Search and
+// worker-detail (workers.model.js) never select it at all. See the
+// phone-scoping spec.
+const PHONE_VISIBLE_STATUSES = ['accepted', 'in_progress'];
+
 function toBooking(row) {
   return {
     id: row.id,
@@ -13,6 +20,7 @@ function toBooking(row) {
     longitude: row.longitude,
     cancelledBy: row.cancelled_by,
     cancelReason: row.cancel_reason,
+    initiatedBy: row.initiated_by,
     flagged: row.flagged,
     flagReason: row.flag_reason,
     createdAt: row.created_at,
@@ -22,6 +30,7 @@ function toBooking(row) {
     workerName: row.worker_name,
     workerImageUrl: row.worker_image_url,
     workerHandle: row.worker_handle,
+    workerPhone: row.worker_id && PHONE_VISIBLE_STATUSES.includes(row.status) ? row.worker_phone : null,
     services: [],
   };
 }
@@ -29,7 +38,8 @@ function toBooking(row) {
 const SELECT_BOOKING = `
   SELECT b.*,
     cu.full_name AS customer_name, cu.profile_image_url AS customer_image_url,
-    wu.full_name AS worker_name, wu.profile_image_url AS worker_image_url, wp.handle AS worker_handle
+    wu.full_name AS worker_name, wu.profile_image_url AS worker_image_url, wu.phone AS worker_phone,
+    wp.handle AS worker_handle
   FROM bookings b
   JOIN users cu ON cu.id = b.customer_id
   LEFT JOIN users wu ON wu.id = b.worker_id
@@ -337,10 +347,13 @@ export async function setCompleted(id) {
   return findById(id);
 }
 
-export async function setCancelled(id, cancelledBy, reason) {
+// initiatedBy is null for an admin override (adminCancelBooking) - neither
+// party's own action, and outside the worker/customer CHECK constraint's
+// concern.
+export async function setCancelled(id, cancelledBy, reason, initiatedBy = null) {
   await pool.query(
-    `UPDATE bookings SET status = 'cancelled', cancelled_by = $2, cancel_reason = $3 WHERE id = $1`,
-    [id, cancelledBy, reason ?? null]
+    `UPDATE bookings SET status = 'cancelled', cancelled_by = $2, cancel_reason = $3, initiated_by = $4 WHERE id = $1`,
+    [id, cancelledBy, reason ?? null, initiatedBy]
   );
   return findById(id);
 }

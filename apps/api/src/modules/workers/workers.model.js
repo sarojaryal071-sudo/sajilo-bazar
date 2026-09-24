@@ -265,6 +265,12 @@ function toSearchResult(row) {
     ratingAvg: Number(row.rating_avg),
     jobsCompletedCount: row.jobs_completed_count,
     serviceAreaLabel: row.service_area_label,
+    // Raw score, not the tier - workers.service.js maps this to trustTier
+    // and strips it before the response ever reaches a customer. Never
+    // selects the worker's phone here or anywhere else public-facing (see
+    // the phone-scoping spec) - only the booking detail endpoint, once
+    // accepted, ever includes it.
+    trustScore: row.trust_score === null ? null : Number(row.trust_score),
     matchedService: {
       id: row.service_id,
       name: row.service_name,
@@ -286,7 +292,7 @@ export async function searchWorkers({ category, serviceId, q }) {
     `SELECT * FROM (
        SELECT DISTINCT ON (u.id)
          u.id AS user_id, u.full_name, wp.handle, u.profile_image_url, wp.verification_status,
-         wp.rating_avg, wp.jobs_completed_count, wp.service_area_label,
+         wp.rating_avg, wp.jobs_completed_count, wp.service_area_label, wp.trust_score,
          ws.service_id, s.name AS service_name, s.category, ws.price
        FROM users u
        JOIN worker_profiles wp ON wp.user_id = u.id
@@ -355,6 +361,9 @@ function toWorkerDetail(profileRow, serviceRows, { reviewsCount, reviews }) {
     ratingAvg: Number(profileRow.rating_avg),
     jobsCompletedCount: profileRow.jobs_completed_count,
     serviceAreaLabel: profileRow.service_area_label,
+    // Raw score - see toSearchResult above, same reasoning (stripped down
+    // to trustTier by workers.service.js before this reaches a customer).
+    trustScore: profileRow.trust_score === null ? null : Number(profileRow.trust_score),
     services: serviceRows.map((row) => ({
       id: row.service_id,
       name: row.service_name,
@@ -371,7 +380,7 @@ function toWorkerDetail(profileRow, serviceRows, { reviewsCount, reviews }) {
 export async function findApprovedWorkerDetail(userId) {
   const { rows } = await pool.query(
     `SELECT u.id AS user_id, u.full_name, wp.handle, u.profile_image_url, wp.verification_status,
-            wp.bio, wp.rating_avg, wp.jobs_completed_count, wp.service_area_label
+            wp.bio, wp.rating_avg, wp.jobs_completed_count, wp.service_area_label, wp.trust_score
      FROM users u
      JOIN worker_profiles wp ON wp.user_id = u.id
      WHERE u.id = $1 AND wp.verification_status = 'approved'`,
