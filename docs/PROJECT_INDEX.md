@@ -79,6 +79,10 @@ _Last updated: 2026-09-24 — Scheduled booking against worker-set availability 
 | `src/components/EarningsChart.jsx` | Zero-dependency inline-SVG bar chart, shared by the Dashboard sparkline (`compact`) and the full Earnings range chart |
 | `src/screens/WorkerDashboard/WorkerDashboard.jsx` | Worker home screen; includes the compact `EarningsCard` (7-day sparkline, this week's total + jobs count) that links to `/worker/earnings` |
 | `src/screens/Earnings/Earnings.jsx` | Full Earnings screen: summary stat row, 7D/30D/All range chart, paginated ("Load more") transaction history with customer/amount/commission/running balance, empty state |
+| `src/lib/bookingStatus.js` | Adds `NO_WORKER_TERMINAL_STATUSES` (`['cancelled', 'declined']`) - a terminal status with no worker ever assigned (an unclaimed instant request, or a scheduled request that auto-expired) |
+| `src/components/NoWorkerAvatar.jsx` | New: muted person-icon avatar for the no-worker-ever-assigned case, distinct from `Avatar.jsx`'s brand-colored fallback which reads as "actively searching" |
+| `src/components/BookingListItem.jsx` | Shows "No worker found" + `NoWorkerAvatar` instead of "Finding a worker..." + brand avatar once the booking is terminal (`NO_WORKER_TERMINAL_STATUSES`) with no worker ever assigned; a terminal booking that did have a worker is unaffected |
+| `src/screens/BookingDetail/BookingDetail.jsx` | Same "No worker found" / `NoWorkerAvatar` fix applied to the detail header |
 
 ## packages/shared
 | File | Purpose |

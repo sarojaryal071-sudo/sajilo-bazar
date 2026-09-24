@@ -4,13 +4,14 @@ import { motion } from 'framer-motion';
 import { Screen } from '../../components/Screen.jsx';
 import { Card } from '../../components/Card.jsx';
 import { Avatar } from '../../components/Avatar.jsx';
+import { NoWorkerAvatar } from '../../components/NoWorkerAvatar.jsx';
 import { Badge } from '../../components/Badge.jsx';
 import { Button } from '../../components/Button.jsx';
 import { ReviewModal } from '../../components/ReviewModal.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useSocket } from '../../context/SocketContext.jsx';
 import * as bookingsApi from '../../api/bookings.api.js';
-import { BOOKING_STATUS_LABEL, BOOKING_STATUS_TONE } from '../../lib/bookingStatus.js';
+import { BOOKING_STATUS_LABEL, BOOKING_STATUS_TONE, NO_WORKER_TERMINAL_STATUSES } from '../../lib/bookingStatus.js';
 
 const STEPS = ['requested', 'accepted', 'in_progress', 'completed'];
 const WAITING_POLL_MS = 4000;
@@ -226,6 +227,12 @@ export function BookingDetail() {
   const otherName = isWorker ? booking.customerName : booking.workerName;
   const otherImage = isWorker ? booking.customerImageUrl : booking.workerImageUrl;
   const isTerminalNonCompleted = booking.status === 'cancelled' || booking.status === 'declined';
+  // An unclaimed instant request that was cancelled (or a scheduled
+  // request that expired unanswered) has no worker and never will -
+  // isInstantWaiting below already stops being true once the status turns
+  // terminal, so without this otherName would just render blank.
+  const neverMatched = !otherName && NO_WORKER_TERMINAL_STATUSES.includes(booking.status);
+  const headerName = neverMatched ? 'No worker found' : otherName;
 
   async function runAction(action) {
     setActionError('');
@@ -268,13 +275,18 @@ export function BookingDetail() {
       <div className="flex items-center gap-4">
         <div className="min-w-0 flex-1">
           <p className="font-semibold">
-            {isInstantWaiting ? booking.services.map((s) => s.name).join(', ') : otherName}
+            {isInstantWaiting ? booking.services.map((s) => s.name).join(', ') : headerName}
           </p>
           <p className="truncate text-sm text-text-muted">
             {isInstantWaiting ? 'Instant request' : booking.services.map((s) => s.name).join(', ')}
           </p>
         </div>
-        {!isInstantWaiting && <Avatar name={otherName} imageUrl={otherImage} size={56} />}
+        {!isInstantWaiting &&
+          (neverMatched ? (
+            <NoWorkerAvatar size={56} />
+          ) : (
+            <Avatar name={otherName} imageUrl={otherImage} size={56} />
+          ))}
         <Badge tone={BOOKING_STATUS_TONE[booking.status]}>{BOOKING_STATUS_LABEL[booking.status]}</Badge>
       </div>
 
