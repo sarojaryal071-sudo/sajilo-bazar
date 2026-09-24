@@ -10,6 +10,7 @@ import { ReviewsList } from '../../components/ReviewsList.jsx';
 import { AddServiceModal } from '../../components/AddServiceModal.jsx';
 import { EarningsChart } from '../../components/EarningsChart.jsx';
 import { TrustMeter } from '../../components/TrustMeter.jsx';
+import { SkeletonBlock } from '../../components/Skeleton.jsx';
 import * as workersApi from '../../api/workers.api.js';
 import * as bookingsApi from '../../api/bookings.api.js';
 import * as commissionLedgerApi from '../../api/commissionLedger.api.js';
@@ -328,8 +329,24 @@ export function WorkerDashboard() {
     }
   }
 
-  if (loading) return null;
-  if (!data) return null;
+  if (loading || !data) {
+    return (
+      <Screen fillHeight={false}>
+        <div className="flex items-center justify-between">
+          <SkeletonBlock className="h-6 w-40" />
+          <SkeletonBlock className="h-8 w-14 rounded-full" />
+        </div>
+        <div className="mt-4 grid grid-cols-3 gap-3">
+          <SkeletonBlock className="h-16 rounded-2xl" />
+          <SkeletonBlock className="h-16 rounded-2xl" />
+          <SkeletonBlock className="h-16 rounded-2xl" />
+        </div>
+        <SkeletonBlock className="mt-4 h-28 w-full rounded-2xl" />
+        <SkeletonBlock className="mt-3 h-20 w-full rounded-2xl" />
+        <SkeletonBlock className="mt-3 h-20 w-full rounded-2xl" />
+      </Screen>
+    );
+  }
   if (data.profile.verificationStatus === 'unsubmitted') {
     return <Navigate to="/worker/apply" replace />;
   }

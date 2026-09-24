@@ -4,6 +4,7 @@ import { Screen } from '../../components/Screen.jsx';
 import { Card } from '../../components/Card.jsx';
 import { Avatar } from '../../components/Avatar.jsx';
 import { Button } from '../../components/Button.jsx';
+import { SkeletonBlock } from '../../components/Skeleton.jsx';
 import { ReviewsList } from '../../components/ReviewsList.jsx';
 import { VerifiedBadge } from '../../components/VerifiedBadge.jsx';
 import { TrustBadge } from '../../components/TrustBadge.jsx';
@@ -48,7 +49,24 @@ export function WorkerDetail() {
     );
   }
 
-  if (!worker) return null;
+  if (!worker) {
+    return (
+      <Screen>
+        <SkeletonBlock className="h-4 w-12" />
+        <div className="mt-6 flex items-center gap-4">
+          <SkeletonBlock className="h-16 w-16 shrink-0 rounded-full" />
+          <div className="flex-1 space-y-2">
+            <SkeletonBlock className="h-5 w-2/3" />
+            <SkeletonBlock className="h-3 w-1/3" />
+          </div>
+        </div>
+        <SkeletonBlock className="mt-6 h-4 w-full" />
+        <SkeletonBlock className="mt-2 h-4 w-5/6" />
+        <SkeletonBlock className="mt-6 h-24 w-full rounded-2xl" />
+        <SkeletonBlock className="mt-3 h-24 w-full rounded-2xl" />
+      </Screen>
+    );
+  }
 
   const selectedTotal = worker.services
     .filter((s) => selectedIds.includes(s.id))

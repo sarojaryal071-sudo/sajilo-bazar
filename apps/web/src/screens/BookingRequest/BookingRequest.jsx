@@ -5,6 +5,7 @@ import { Card } from '../../components/Card.jsx';
 import { Avatar } from '../../components/Avatar.jsx';
 import { Input } from '../../components/Input.jsx';
 import { Button } from '../../components/Button.jsx';
+import { SkeletonBlock } from '../../components/Skeleton.jsx';
 import * as workersApi from '../../api/workers.api.js';
 import * as bookingsApi from '../../api/bookings.api.js';
 
@@ -57,7 +58,22 @@ export function BookingRequest() {
     );
   }
 
-  if (!worker) return null;
+  if (!worker) {
+    return (
+      <Screen>
+        <SkeletonBlock className="h-4 w-12" />
+        <div className="mt-6 flex items-center gap-4">
+          <SkeletonBlock className="h-12 w-12 shrink-0 rounded-full" />
+          <div className="flex-1 space-y-2">
+            <SkeletonBlock className="h-4 w-1/2" />
+            <SkeletonBlock className="h-3 w-1/3" />
+          </div>
+        </div>
+        <SkeletonBlock className="mt-6 h-24 w-full rounded-2xl" />
+        <SkeletonBlock className="mt-3 h-12 w-full rounded-md" />
+      </Screen>
+    );
+  }
 
   const services = selectedIds
     .map((id) => worker.services.find((s) => s.id === id))

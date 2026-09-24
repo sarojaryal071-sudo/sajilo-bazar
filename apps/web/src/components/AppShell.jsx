@@ -3,6 +3,7 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { BottomNav } from './BottomNav.jsx';
 import { HamburgerMenu } from './HamburgerMenu.jsx';
+import { FullScreenSpinner } from './Skeleton.jsx';
 
 // Layout for the main tabbed area - auth gate plus a persistent bottom nav,
 // with a different tab set per role (customer: Home/Bookings, worker:
@@ -23,7 +24,7 @@ export function AppShell() {
   const { user, loading } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  if (loading) return null;
+  if (loading) return <FullScreenSpinner />;
   if (!user) return <Navigate to="/login" replace />;
 
   return (

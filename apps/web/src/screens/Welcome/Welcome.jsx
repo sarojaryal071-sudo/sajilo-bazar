@@ -2,12 +2,13 @@ import { Link, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { AuthScreen } from '../../components/AuthScreen.jsx';
 import { Button } from '../../components/Button.jsx';
+import { FullScreenSpinner } from '../../components/Skeleton.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 
 export function Welcome() {
   const { user, loading } = useAuth();
 
-  if (loading) return null;
+  if (loading) return <FullScreenSpinner />;
   if (user) return <Navigate to={user.role === 'worker' ? '/worker/dashboard' : '/home'} replace />;
 
   return (
