@@ -8,7 +8,7 @@ This index is filled in incrementally - only files touched by a task get an entr
 here as part of that task. A file with no entry yet doesn't mean it's undocumented
 forever, just that no session has touched it since this index was introduced.
 
-_Last updated: 2026-09-24 — Fix online-toggle location-permission dead end (denied state)_
+_Last updated: 2026-09-24 — Fix disputes only filable after completion, not on active bookings_
 
 ## apps/api
 | File | Purpose |
@@ -20,7 +20,7 @@ _Last updated: 2026-09-24 — Fix online-toggle location-permission dead end (de
 | `src/modules/admin/admin.model.js` | `setWorkerVerificationStatus` now stamps `approved_at` on every approval; `resolveDispute` takes `atFault`; `countAtFaultDisputesForWorker`/`countAtFaultDisputesForWorkerRolling30` |
 | `src/modules/admin/admin.service.js` | `resolveDispute` forces `atFault` to null for a dismissed outcome, otherwise wires it through and triggers the dispute escalation check + trust recompute when at-fault: worker |
 | `src/modules/bookings/bookings.model.js` | `toBooking`/`SELECT_BOOKING` add `initiatedBy` and a conditional `workerPhone` (only while status is `accepted`/`in_progress` - null otherwise, and never selected at all by search/worker-detail); `setCancelled` takes `initiatedBy` |
-| `src/modules/bookings/bookings.service.js` | `cancelBooking` records `initiatedBy` and only triggers the cancellation-escalation check + trust recompute for worker-initiated cancellations; `createDispute` enforces the 24-hour-post-completion filing cutoff server-side (booking must be completed, and within window); `completeBooking` recomputes trust score |
+| `src/modules/bookings/bookings.service.js` | `cancelBooking` records `initiatedBy` and only triggers the cancellation-escalation check + trust recompute for worker-initiated cancellations; `createDispute` is filable on `accepted`/`in_progress`/`completed` bookings (not `requested`/`cancelled`/`declined`) - the 24-hour filing cutoff only applies once `completedAt` is set, so an active booking has no deadline at all (a worker who never shows up, or a mid-job safety issue, needs to be reportable immediately); `completeBooking` recomputes trust score |
 | `src/modules/reviews/reviews.service.js` | `createReview` recomputes the worker's trust score after a new review moves `rating_avg` |
 | `src/modules/workers/workers.model.js` | `searchWorkers`/`findApprovedWorkerDetail` now also select the raw `trust_score` internally (never the phone) - `workers.service.js` maps it to `trustTier` and strips the raw number before the response leaves the module |
 | `src/modules/workers/workers.service.js` | `withTrustTier` - the one place the raw stored score turns into the customer-facing tier and gets deleted |

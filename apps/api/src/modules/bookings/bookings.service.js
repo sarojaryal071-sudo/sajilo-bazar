@@ -226,21 +226,30 @@ export async function cancelBooking(bookingId, userId, reason) {
 // row shape an admin would create on a party's behalf. Data access is
 // reused from adminModel directly rather than adminService, matching how
 // admin.service.js itself only ever reaches into other modules' *.model.js.
+// A booking is reportable once a worker is actually involved - accepted,
+// in_progress, or completed. Not 'requested' (no worker to report yet) and
+// not 'cancelled'/'declined' (nothing ongoing to report against).
+const DISPUTABLE_STATUSES = ['accepted', 'in_progress', 'completed'];
+
 export async function createDispute(bookingId, userId, reason) {
   const booking = await bookingsModel.findById(bookingId);
   if (!booking) throw new ApiError(404, 'Booking not found');
   assertParticipant(booking, userId);
 
-  // Hard cutoff (Part 3): a dispute can only be filed within 24 hours of
-  // the booking's completion, enforced here on the endpoint itself, not
-  // just a UI hint. A booking that isn't completed yet has no completedAt
-  // to measure from, so it can't be disputed through this flow either.
-  if (!booking.completedAt) {
-    throw new ApiError(400, 'You can only report a problem once the booking is completed');
+  if (!DISPUTABLE_STATUSES.includes(booking.status)) {
+    throw new ApiError(400, 'This booking cannot be reported at its current status');
   }
-  const hoursSinceCompletion = (Date.now() - new Date(booking.completedAt).getTime()) / (1000 * 60 * 60);
-  if (hoursSinceCompletion > DISPUTE_FILING_WINDOW_HOURS) {
-    throw new ApiError(400, `Reports must be filed within ${DISPUTE_FILING_WINDOW_HOURS} hours of completion`);
+
+  // Hard cutoff (Part 3): only applies once the booking has completed - an
+  // active booking (accepted/in_progress) has no filing deadline at all,
+  // since it needs to be reportable immediately (a worker who never shows
+  // up, or a mid-job safety issue), not gated behind a completion that may
+  // never happen if the worker ghosts.
+  if (booking.completedAt) {
+    const hoursSinceCompletion = (Date.now() - new Date(booking.completedAt).getTime()) / (1000 * 60 * 60);
+    if (hoursSinceCompletion > DISPUTE_FILING_WINDOW_HOURS) {
+      throw new ApiError(400, `Reports must be filed within ${DISPUTE_FILING_WINDOW_HOURS} hours of completion`);
+    }
   }
 
   return adminModel.createDispute({ bookingId, raisedByUserId: userId, reason });
