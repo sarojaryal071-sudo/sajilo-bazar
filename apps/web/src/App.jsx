@@ -11,6 +11,7 @@ import { Landing } from './screens/Landing/Landing.jsx';
 import { Terms } from './screens/Legal/Terms.jsx';
 import { Privacy } from './screens/Legal/Privacy.jsx';
 import { Login } from './screens/Auth/Login.jsx';
+import { ForgotPassword } from './screens/Auth/ForgotPassword.jsx';
 import { Signup } from './screens/Auth/Signup.jsx';
 import { Home } from './screens/Home/Home.jsx';
 import { Bookings } from './screens/Bookings/Bookings.jsx';
@@ -52,6 +53,7 @@ export default function App() {
             <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/privacy" element={<Privacy />} />

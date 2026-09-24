@@ -18,8 +18,10 @@ Core identity for customers, workers, and admins.
 | role | text | `customer` \| `worker` \| `admin` |
 | full_name | text | |
 | phone | text | unique, primary login identifier |
+| phone_verified | boolean | default `false` - no SMS/OTP flow exists yet (deferred), so this is `false` for every account today regardless of how it signed up; exists as the flag a later OTP round flips |
 | email | text | unique, nullable |
-| password_hash | text | |
+| password_hash | text | nullable - null for a Google-only account that's never set a password (it can still gain one via "Forgot password") |
+| google_id | text | unique, nullable - the Google ID token's `sub` claim, set only for an account created or linked via "Continue with Google" |
 | moderation_status | text | `active` \| `suspended`, default `active` |
 | settings | jsonb | user preferences — replaces the old separate `user_settings` table |
 | admin_notes | text | nullable — free-text, editable by any admin from the Users detail screen (Phase 6) |

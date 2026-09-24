@@ -7,6 +7,7 @@ function toUser(row) {
     role: row.role,
     fullName: row.full_name,
     phone: row.phone,
+    phoneVerified: row.phone_verified,
     email: row.email,
     profileImageUrl: row.profile_image_url,
     moderationStatus: row.moderation_status,

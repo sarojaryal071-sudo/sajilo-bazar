@@ -19,6 +19,11 @@ export const UserSchema = z.object({
   role: z.enum(USER_ROLES),
   fullName: z.string().min(2).max(120),
   phone: phoneSchema,
+  // True once a real SMS/OTP flow verifies it - that flow doesn't exist yet
+  // (deferred), so this is false for every account today, Google-signup or
+  // phone+password alike. Exists now purely as the flag a later OTP round
+  // flips, not as a claim anything is currently verified.
+  phoneVerified: z.boolean().default(false),
   email: z.string().email().nullable().optional(),
   profileImageUrl: z.string().url().nullable().optional(),
   moderationStatus: z.enum(MODERATION_STATUSES).default('active'),
@@ -36,11 +41,48 @@ export const SignupInputSchema = z.object({
 export const LoginInputSchema = z.object({
   phone: phoneSchema,
   password: z.string().min(1),
+  // "Keep me logged in" - a longer-lived token instead of the default
+  // expiry. See auth.service.js issueToken.
+  keepLoggedIn: z.boolean().optional().default(false),
 });
 
 export const AuthResponseSchema = z.object({
   token: z.string(),
   user: UserSchema,
+});
+
+// Sent by the frontend after Google Identity Services returns a signed ID
+// token - the backend verifies it server-side (google-auth-library) rather
+// than trusting anything about the user's identity from the client.
+export const GoogleAuthInputSchema = z.object({
+  idToken: z.string().min(1),
+});
+
+// Returned instead of a normal AuthResponse when a Google sign-in belongs
+// to no existing account: pendingToken is a short-lived, server-signed JWT
+// (see auth.service.js) carrying the verified Google identity, so the
+// phone/role collected next can't be forged by the client - only the
+// Google-verified sub/email travel forward, not anything the client
+// supplies about who they are.
+export const GoogleAuthPendingSchema = z.object({
+  needsPhone: z.literal(true),
+  pendingToken: z.string(),
+  fullName: z.string(),
+  email: z.string().email().nullable(),
+});
+
+export const GoogleCompleteSignupInputSchema = z.object({
+  pendingToken: z.string().min(1),
+  phone: phoneSchema,
+  role: z.enum(['customer', 'worker']),
+});
+
+// "Forgot password" (business-accepted, no OTP/email verification for this
+// testing phase - see docs/PROJECT_INDEX.md). confirmPassword is checked
+// client-side only; the server only ever needs the final value.
+export const ForgotPasswordInputSchema = z.object({
+  phone: phoneSchema,
+  newPassword: z.string().min(8).max(72),
 });
 
 export const ProfileUpdateInputSchema = z.object({

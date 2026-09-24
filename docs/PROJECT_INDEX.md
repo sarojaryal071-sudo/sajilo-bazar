@@ -8,11 +8,18 @@ This index is filled in incrementally - only files touched by a task get an entr
 here as part of that task. A file with no entry yet doesn't mean it's undocumented
 forever, just that no session has touched it since this index was introduced.
 
-_Last updated: 2026-09-24 — Landing footer overhaul + /terms and /privacy pages_
+_Last updated: 2026-09-24 — Google sign-in, "Keep me logged in", "Forgot password"_
 
 ## apps/api
 | File | Purpose |
 |---|---|
+| `src/db/migrations/029_add_google_auth_and_keep_logged_in_support.sql` | Adds `users.google_id` (unique, nullable), `users.phone_verified` (default `false` - no SMS/OTP exists yet, same unverified status for every account regardless of how it signed up); drops the `NOT NULL` on `users.password_hash` (a Google-only account has none until it sets one via "Forgot password") |
+| `src/modules/auth/auth.model.js` | `toUser` gains `phoneVerified`; `createUser` takes optional `googleId` (mutually optional with `passwordHash`); new `findByGoogleId`, `findByEmail` (Google-linking lookup only, never a login credential), `linkGoogleId`, `updatePasswordByPhone` (forgot-password reset) |
+| `src/modules/auth/auth.service.js` | `issueToken(user, {keepLoggedIn})` picks `JWT_EXPIRES_IN_KEEP_LOGGED_IN` (default 30d) vs `JWT_EXPIRES_IN` (default 7d); `login` takes `keepLoggedIn`; new `googleAuth({idToken})` (verifies server-side via `google-auth-library`, logs in an existing `google_id` match or a verified-email match to an existing phone+password account - linking it - or returns `{needsPhone: true, pendingToken}` for a genuinely new sign-in, never creating a user row yet); `completeGoogleSignup({pendingToken, phone, role})` (verifies the short-lived pending JWT's `type` claim, then creates the account); `forgotPassword({phone, newPassword})` (deliberately open for this testing phase - see docs/SCREENS.md - resets and logs in) |
+| `src/modules/auth/auth.controller.js` / `auth.routes.js` | `POST /auth/google`, `POST /auth/google/complete`, `POST /auth/forgot-password` |
+| `src/modules/users/users.model.js` | `toUser` gains `phoneVerified` (the same field auth.model.js's own `toUser` gained - this is `GET /users/me`'s serializer, a separate function) |
+| `packages/shared/schemas/user.schema.js` | `UserSchema` gains `phoneVerified`; `LoginInputSchema` gains `keepLoggedIn`; new `GoogleAuthInputSchema`, `GoogleAuthPendingSchema`, `GoogleCompleteSignupInputSchema`, `ForgotPasswordInputSchema` |
+| `apps/api/.env.example` | `JWT_EXPIRES_IN_KEEP_LOGGED_IN`, `GOOGLE_CLIENT_ID` (a free-tier Google Cloud OAuth client - none configured in this environment; `/auth/google` returns 503 "not configured" until it is) |
 | `src/db/migrations/028_add_booking_payment_method.sql` | Adds `bookings.payment_method` (`cash` default \| `esewa`, CHECK-constrained) |
 | `src/modules/bookings/bookings.model.js` | `toBooking` gains `paymentMethod`; `setCompleted(id, finalPrice, paymentMethod)` now takes both and writes them in the same `UPDATE` that sets `status='completed'`/`completed_at` - overwrites the original estimate with the worker-confirmed final price |
 | `src/modules/bookings/bookings.service.js` | `completeBooking(bookingId, workerId, {finalPrice, paymentMethod})` passes both through to `setCompleted`; `commissionLedgerService.recordCompletion` (unchanged) reads the freshly-updated `booking.price`, so the ledger's `job_price` reflects the confirmed final price, not the original estimate |
@@ -58,6 +65,15 @@ _Last updated: 2026-09-24 — Landing footer overhaul + /terms and /privacy page
 ## apps/web
 | File | Purpose |
 |---|---|
+| `src/components/GoogleSignInButton.jsx` | New: renders Google's own button via Google Identity Services (script loaded once, cached at module scope) - no npm dependency. Renders nothing (not even a disabled placeholder) when `VITE_GOOGLE_CLIENT_ID` isn't set |
+| `src/components/GooglePhoneRoleForm.jsx` | New: shared "almost done" step shown after a `needsPhone: true` Google sign-in - phone number + role picker (same two options as Signup's role-select step), calls `completeGoogleSignup`. Used by both Login and Signup |
+| `src/context/AuthContext.jsx` | `login` passes through `keepLoggedIn`; new `googleAuth(idToken)` (sets token/user immediately for an existing/linked account, or returns `{needsPhone, pendingToken, ...}` untouched for a new sign-in), `completeGoogleSignup`, `forgotPassword` (also logs in immediately) |
+| `src/api/auth.api.js` | `login` unchanged in shape (body now may include `keepLoggedIn`); new `google(idToken)`, `completeGoogleSignup`, `forgotPassword` |
+| `src/screens/Auth/Login.jsx` | Adds `GoogleSignInButton` (above an "or" divider), a "Keep me logged in" checkbox, a "Forgot password?" link next to the password field; renders `GooglePhoneRoleForm` in place of the normal form when a Google sign-in comes back `needsPhone: true` |
+| `src/screens/Auth/Signup.jsx` | Same `GoogleSignInButton`/`GooglePhoneRoleForm` addition, shown once a role is picked (the existing two-step flow is otherwise unchanged) |
+| `src/screens/Auth/ForgotPassword.jsx` | New public screen (`/forgot-password`) - phone + new password + confirm, no OTP/email/admin verification (deliberate, business-accepted for this testing phase - see docs/SCREENS.md). Auto-logs in after a successful reset |
+| `src/App.jsx` | New public `/forgot-password` route alongside `/login`/`/signup` |
+| `apps/web/.env.example` | `VITE_GOOGLE_CLIENT_ID` (same Client ID as the API's `GOOGLE_CLIENT_ID`) |
 | `src/components/Wordmark.jsx` | New: extracted from `Landing.jsx` (was a private component there) - the "SB" mark + "Sajilo Bazar" text, now also reused by `LegalPage.jsx` |
 | `src/screens/Legal/legalContent.js` | Verbatim content (not paraphrased) for `/terms` and `/privacy`, as `{ title, subtitle, effectiveDate, sections: [{ heading, blocks: [{type:'p'|'ul', ...}] }], docNote }` - includes the source documents' own placeholder brackets (e.g. contact email "to be added") and draft-status footer note |
 | `src/screens/Legal/LegalPage.jsx` | Shared plain long-form layout for `/terms`/`/privacy` - simpler than the rest of Landing (no gradient hero/icon cards) since it's a legal document, not a marketing surface. Small header (Wordmark + "Back to home"), readable max-w-2xl column, standard heading hierarchy |

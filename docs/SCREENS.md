@@ -18,8 +18,21 @@ Build in this order — don't jump ahead to later-phase screens.
   rendering the platform's actual Terms & Conditions and Privacy Policy (full text, not a
   marketing surface - simpler styling than the rest of Landing). Linked from the Landing
   footer.
-- Login
-- Signup (role selection: customer / worker)
+- Login — phone+password form, plus "Continue with Google" (Google Identity Services;
+  renders nothing if `VITE_GOOGLE_CLIENT_ID` isn't set - no real OAuth client configured in
+  this environment yet), a "Keep me logged in" checkbox (longer-lived token instead of the
+  default expiry), and a "Forgot password?" link
+- Signup (role selection: customer / worker) — same "Continue with Google" option once a
+  role is picked. A brand-new Google sign-in (no matching account by google_id or verified
+  email) is prompted for a required phone number (shared `GooglePhoneRoleForm` component,
+  used by both Login and Signup) before the account is actually created - phone is the
+  platform's core identifier (trust score, booking, phone-privacy scoping). No SMS/OTP
+  verification of it yet (deferred to a later round - `phone_verified` stays `false`,
+  same as a phone+password signup)
+- Forgot password (`/forgot-password`) — phone number + new password + confirm, no OTP/
+  email/admin verification of ownership. Deliberately open for this testing/pre-launch
+  phase (business-accepted, documented decision) - resets the password and logs the user
+  in immediately. Also how a Google-only account (no password yet) gains its first one
 - Profile screen (view/edit own profile)
 - Worker: "Apply as worker" flow (skills, services, pricing, document upload)
 - Worker: verification pending / status screen

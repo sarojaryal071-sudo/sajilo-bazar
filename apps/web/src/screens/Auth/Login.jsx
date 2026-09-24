@@ -5,16 +5,20 @@ import { AuthScreen } from '../../components/AuthScreen.jsx';
 import { Button } from '../../components/Button.jsx';
 import { PhoneInput } from '../../components/PhoneInput.jsx';
 import { PasswordInput } from '../../components/PasswordInput.jsx';
+import { GoogleSignInButton } from '../../components/GoogleSignInButton.jsx';
+import { GooglePhoneRoleForm } from '../../components/GooglePhoneRoleForm.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { resolvePostAuthPath } from '../../lib/postAuthRedirect.js';
 
 export function Login() {
-  const { login } = useAuth();
+  const { login, googleAuth } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ phone: '', password: '' });
+  const [form, setForm] = useState({ phone: '', password: '', keepLoggedIn: false });
   const [phoneError, setPhoneError] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [googlePending, setGooglePending] = useState(null);
+  const [googleError, setGoogleError] = useState('');
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -37,6 +41,37 @@ export function Login() {
     }
   }
 
+  async function handleGoogleCredential(idToken) {
+    setGoogleError('');
+    try {
+      const result = await googleAuth(idToken);
+      if (result.needsPhone) {
+        setGooglePending(result);
+        return;
+      }
+      navigate(await resolvePostAuthPath(result.user));
+    } catch (err) {
+      setGoogleError(err.message);
+    }
+  }
+
+  async function handleGoogleSignupComplete(user) {
+    navigate(await resolvePostAuthPath(user));
+  }
+
+  if (googlePending) {
+    return (
+      <AuthScreen>
+        <GooglePhoneRoleForm
+          pendingToken={googlePending.pendingToken}
+          fullName={googlePending.fullName}
+          onComplete={handleGoogleSignupComplete}
+          onCancel={() => setGooglePending(null)}
+        />
+      </AuthScreen>
+    );
+  }
+
   return (
     <AuthScreen>
       <div className="text-center">
@@ -44,7 +79,18 @@ export function Login() {
         <p className="mt-1 text-text-muted">Log in to continue.</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">
+      <div className="mt-6 flex flex-col gap-3">
+        <GoogleSignInButton onCredential={handleGoogleCredential} text="signin_with" />
+        {googleError && <p className="text-center text-sm text-danger">{googleError}</p>}
+      </div>
+
+      <div className="my-6 flex items-center gap-3 text-xs font-medium uppercase tracking-wide text-text-muted">
+        <span className="h-px flex-1 bg-border" />
+        or
+        <span className="h-px flex-1 bg-border" />
+      </div>
+
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <PhoneInput
           label="Phone number"
           name="phone"
@@ -55,14 +101,28 @@ export function Login() {
             if (phoneError) setPhoneError('');
           }}
         />
-        <PasswordInput
-          label="Password"
-          name="password"
-          autoComplete="current-password"
-          required
-          value={form.password}
-          onChange={(e) => setForm({ ...form, password: e.target.value })}
-        />
+        <div>
+          <PasswordInput
+            label="Password"
+            name="password"
+            autoComplete="current-password"
+            required
+            value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+          />
+          <Link to="/forgot-password" className="mt-1.5 inline-block text-sm font-medium text-brand-solid">
+            Forgot password?
+          </Link>
+        </div>
+        <label className="flex items-center gap-2 text-sm text-text-muted">
+          <input
+            type="checkbox"
+            checked={form.keepLoggedIn}
+            onChange={(e) => setForm({ ...form, keepLoggedIn: e.target.checked })}
+            className="h-4 w-4 accent-brand-solid"
+          />
+          Keep me logged in
+        </label>
         {error && <p className="text-sm text-danger">{error}</p>}
         <Button type="submit" disabled={submitting} className="auth-btn mt-2 w-full">
           {submitting ? 'Logging in...' : 'Log in'}
