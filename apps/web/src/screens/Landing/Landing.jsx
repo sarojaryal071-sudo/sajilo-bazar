@@ -153,25 +153,50 @@ function useHeroImagePreload() {
   }, []);
 }
 
+// Radial wash centered on the text block (the section is flex-centered, so
+// that's also the section's own center): strongest right behind the
+// headline/CTAs for legibility, fading to fully transparent toward the
+// image's edges so the photo still reads as texture/mood out there. Same
+// three brand tokens as bg-brand, just as explicit rgba stops since a CSS
+// gradient can't reference --color-brand-solid's hex through color-mix()
+// reliably across browsers yet.
+const HERO_OVERLAY = {
+  background:
+    'radial-gradient(ellipse 70% 60% at center, rgba(15,118,110,0.82) 0%, rgba(13,148,136,0.6) 35%, rgba(16,185,129,0.25) 65%, rgba(16,185,129,0) 100%)',
+};
+
 function Hero() {
   useHeroImagePreload();
 
   return (
-    <section className="relative overflow-hidden">
-      <div className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-brand-to opacity-20 blur-3xl" />
-      <div className="pointer-events-none absolute -right-24 top-10 h-72 w-72 rounded-full bg-brand-from opacity-20 blur-3xl" />
+    <section className="relative isolate flex min-h-[80vh] items-center overflow-hidden sm:min-h-[85vh]">
+      {/* Full-bleed background - fills the entire hero section edge to
+          edge, no contained box/radius/shadow. A tighter cropped-in slice
+          on mobile, the full wide 16:9 frame on desktop (see
+          useHeroImagePreload above, which preloads whichever one a given
+          viewport will actually use). */}
+      <picture>
+        <source media="(min-width: 640px)" srcSet="/images/hero-desktop.webp" />
+        <img
+          src="/images/hero-mobile.webp"
+          alt="A Sajilo Bazar worker and customer looking at a booking together on a phone"
+          fetchpriority="high"
+          className="absolute inset-0 h-full w-full object-cover object-[50%_35%] sm:object-center"
+        />
+      </picture>
+      <div className="pointer-events-none absolute inset-0" style={HERO_OVERLAY} />
 
-      <div className="relative mx-auto flex max-w-3xl flex-col items-center gap-6 px-5 pt-20 text-center">
+      <div className="relative z-10 mx-auto flex max-w-3xl flex-col items-center gap-6 px-5 py-20 text-center">
         <motion.h1
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          className="text-4xl font-extrabold tracking-tight sm:text-5xl"
+          className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl"
         >
           Sajilo Bazar connects people who need work done with people who do
           it.
         </motion.h1>
-        <p className="max-w-xl text-lg text-text-muted">
+        <p className="max-w-xl text-lg text-white/90">
           Post a job or list your skills — matching, tracking, and payment all
           happen right in the app.
         </p>
@@ -185,24 +210,6 @@ function Hero() {
             </Button>
           </a>
         </div>
-      </div>
-
-      {/* Explicit aspect-ratio (3:4 on mobile matching the cropped slice,
-          16:9 on desktop matching the full wide frame) reserves the space
-          up front so nothing shifts when the image loads. bg-brand fills
-          that space immediately with the same gradient the image itself
-          is painted on, so a slow load never shows a blank box. */}
-      <div className="relative mx-auto mt-12 aspect-[3/4] w-full max-w-5xl overflow-hidden sm:aspect-[16/9]">
-        <div className="absolute inset-0 bg-brand" />
-        <picture>
-          <source media="(min-width: 640px)" srcSet="/images/hero-desktop.webp" />
-          <img
-            src="/images/hero-mobile.webp"
-            alt="A Sajilo Bazar worker and customer looking at a booking together on a phone"
-            fetchpriority="high"
-            className="hero-image-mask absolute inset-0 h-full w-full object-cover object-bottom"
-          />
-        </picture>
       </div>
     </section>
   );
