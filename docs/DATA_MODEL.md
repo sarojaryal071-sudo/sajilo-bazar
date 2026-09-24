@@ -44,12 +44,20 @@ One row per user with `role = worker`.
 
 Catalog of service types (replaces `professions` + `profession_services`).
 
+`high_risk` is admin-editable data (toggled per service from the Categories/Services
+admin screen), not hardcoded by category - it gates whether a worker adding this service
+from outside their verified category(ies) must submit a supporting document (see
+`worker_services` below). Seeded `true` only for `electrical` at migration time - the
+catalog's plumbing services aren't gas-related, so blanket-flagging all of plumbing would
+misrepresent the actual work; admin can flip it per service at any time.
+
 | Column | Type | Notes |
 |---|---|---|
 | id | serial pk | |
 | category | text | e.g. `plumbing`, `electrical`, `cleaning` |
 | name | text | e.g. "Pipe leak repair" |
 | description | text | nullable |
+| high_risk | boolean | default false |
 
 ## 4. `worker_services`
 
@@ -60,10 +68,13 @@ A worker can add more services after signup beyond what they registered with, bu
 picking from the existing `services` catalog - never free-text. Adding one in the same
 category as an already-approved service goes live immediately (`approval_status = approved`);
 a different category needs admin review (`pending`) before it's bookable or visible to
-customers, since it's outside what verification originally vetted. Mirrors
-`verification_documents`' approve/reject pattern rather than inventing a new one. The
-admin review screen for the pending queue is Phase 6 work - for now a pending row just stays
-correctly hidden from search/booking.
+customers, since it's outside what verification originally vetted - if that category is
+`high_risk`, a supporting document is also required up front (see `verification_documents`
+below). Mirrors `verification_documents`' approve/reject pattern rather than inventing a new
+one, including the same rejection-reason/retry experience (`review_comment`). Retrying a
+rejected service re-submits through the same `(worker_id, service_id)` row (upsert), which
+resets `approval_status`/`reviewed_by`/`reviewed_at`/`review_comment` - it isn't a new
+request, just a fresh attempt at the same one.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -75,21 +86,32 @@ correctly hidden from search/booking.
 | approval_status | text | `pending` \| `approved` \| `rejected`, default `approved` |
 | reviewed_by | fk → users | nullable, admin who reviewed |
 | reviewed_at | timestamptz | nullable |
+| review_comment | text | nullable - admin's reason, set on reject |
 
 ## 5. `verification_documents`
 
 Replaces `worker_verifications` + `verification_documents` + `verification_reviews` +
 `worker_documents` — status lives on the document row itself.
 
+`worker_service_id` is set only when this document is supporting evidence for a specific
+high-risk cross-category service request (`docType = 'service_evidence'`) rather than the
+worker's original identity verification - nullable, and every other document (the
+worker-apply flow's documents) leaves it null. A document tied to a service request is
+surfaced in the admin Approvals queue alongside that service request rather than as a
+separate item, and its status/reviewer are set together with the service's when an admin
+decides it (see `admin.model.js` `decideWorkerService`).
+
 | Column | Type | Notes |
 |---|---|---|
 | id | serial pk | |
 | worker_id | fk → worker_profiles | |
-| doc_type | text | e.g. `id_card`, `certificate` |
+| doc_type | text | e.g. `id_card`, `certificate`, `service_evidence` |
 | file_url | text | Cloudinary URL |
 | status | text | `pending` \| `approved` \| `rejected` |
 | reviewed_by | fk → users | nullable, admin who reviewed |
 | reviewed_at | timestamptz | nullable |
+| review_comment | text | nullable - admin's reason, set on reject |
+| worker_service_id | fk → worker_services | nullable - see above |
 
 ## 6. `bookings`
 

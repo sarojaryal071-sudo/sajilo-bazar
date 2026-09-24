@@ -38,7 +38,12 @@ function toPendingService(row) {
     workerName: row.worker_name,
     serviceName: row.service_name,
     category: row.category,
+    highRisk: row.high_risk,
     price: Number(row.price),
+    // The supporting document submitted alongside this specific request,
+    // when the category is high-risk - null for a low-risk cross-category
+    // add, which needs no document (see workers.service.js addService).
+    documentUrl: row.document_url,
     createdAt: row.created_at,
   };
 }
@@ -47,12 +52,15 @@ function toPendingService(row) {
 // verification) and Phase 5 (cross-category service additions) - combined
 // here into one chronological list since they're both "things an admin
 // needs to say yes/no to", even though they update different tables.
+// Documents tied to a specific service request (worker_service_id set)
+// are excluded here - they're surfaced alongside that request via
+// listPendingServices' documentUrl instead, so they don't show up twice.
 export async function listPendingDocuments() {
   const { rows } = await pool.query(
     `SELECT vd.*, u.full_name AS worker_name
      FROM verification_documents vd
      JOIN users u ON u.id = vd.worker_id
-     WHERE vd.status = 'pending'
+     WHERE vd.status = 'pending' AND vd.worker_service_id IS NULL
      ORDER BY vd.created_at ASC`
   );
   return rows.map(toPendingDocument);
@@ -60,7 +68,9 @@ export async function listPendingDocuments() {
 
 export async function listPendingServices() {
   const { rows } = await pool.query(
-    `SELECT ws.*, s.name AS service_name, s.category, u.full_name AS worker_name
+    `SELECT ws.*, s.name AS service_name, s.category, s.high_risk, u.full_name AS worker_name,
+            (SELECT vd.file_url FROM verification_documents vd
+             WHERE vd.worker_service_id = ws.id ORDER BY vd.created_at DESC LIMIT 1) AS document_url
      FROM worker_services ws
      JOIN services s ON s.id = ws.service_id
      JOIN users u ON u.id = ws.worker_id
@@ -118,14 +128,24 @@ export async function findWorkerServiceById(id) {
   return rows[0] || null;
 }
 
-export async function decideWorkerService(id, { status, adminId }) {
+export async function decideWorkerService(id, { status, adminId, comment }) {
   const { rows } = await pool.query(
     `UPDATE worker_services
-     SET approval_status = $2, reviewed_by = $3, reviewed_at = now()
+     SET approval_status = $2, reviewed_by = $3, reviewed_at = now(), review_comment = $4
      WHERE id = $1 AND approval_status = 'pending'
      RETURNING *`,
-    [id, status, adminId]
+    [id, status, adminId, comment ?? null]
   );
+  if (rows[0]) {
+    // Mirrors the service's outcome onto its linked supporting document (if
+    // any), so that document doesn't linger "pending" forever in isolation -
+    // the service decision is the one action that resolves both.
+    await pool.query(
+      `UPDATE verification_documents SET status = $2, reviewed_by = $3, reviewed_at = now()
+       WHERE worker_service_id = $1`,
+      [id, status, adminId]
+    );
+  }
   return rows[0] || null;
 }
 
@@ -302,6 +322,7 @@ function toServiceAdmin(row) {
     name: row.name,
     description: row.description,
     isActive: row.is_active,
+    highRisk: row.high_risk,
     createdAt: row.created_at,
   };
 }
@@ -352,6 +373,14 @@ export async function setServiceActive(id, isActive) {
   const { rows } = await pool.query(
     'UPDATE services SET is_active = $2 WHERE id = $1 RETURNING *',
     [id, isActive]
+  );
+  return rows[0] ? toServiceAdmin(rows[0]) : null;
+}
+
+export async function setServiceHighRisk(id, highRisk) {
+  const { rows } = await pool.query(
+    'UPDATE services SET high_risk = $2 WHERE id = $1 RETURNING *',
+    [id, highRisk]
   );
   return rows[0] ? toServiceAdmin(rows[0]) : null;
 }

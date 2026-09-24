@@ -34,9 +34,16 @@ export function ackWelcome() {
 // Adding a service beyond what was registered at signup - serviceId picked
 // from the catalog only, never free-text. Same category as an already
 // approved service goes live immediately; a different category comes back
-// pending until admin review.
-export function addService({ serviceId, price }) {
-  return apiFetch('/workers/me/services', { method: 'POST', body: { serviceId, price } });
+// pending until admin review. document is only required (and only used)
+// when the picked service's category is high-risk and outside the
+// worker's verified category(ies) - see AddServiceModal.jsx. Always
+// multipart since the document rides along optionally.
+export function addService({ serviceId, price, document }) {
+  const formData = new FormData();
+  formData.append('serviceId', serviceId);
+  formData.append('price', price);
+  if (document) formData.append('document', document);
+  return apiFetch('/workers/me/services', { method: 'POST', body: formData, isFormData: true });
 }
 
 // services: [{ serviceId, price }], documents: { citizenship: File, certificate?: File }, bio: string

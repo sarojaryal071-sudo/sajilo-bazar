@@ -32,15 +32,20 @@ export const WorkerServiceSchema = z.object({
   serviceId: z.number().int().positive(),
   serviceName: z.string().optional(), // denormalized for display, joined from services
   category: z.string().optional(), // denormalized for display, joined from services
+  highRisk: z.boolean().optional(), // denormalized for display, joined from services
   price: z.number().positive(),
   isActive: z.boolean().default(true),
   approvalStatus: z.enum(SERVICE_APPROVAL_STATUSES).default('approved'),
+  reviewComment: z.string().max(500).nullable().optional(), // admin's reason, set on reject
 });
 
 // A worker adding a service beyond what they registered with at signup -
 // picked from the existing catalog by id only, never free-text name or
 // description. Same-category-as-approved goes live immediately; a
-// different category needs admin review (see workers.service.js).
+// different category needs admin review (see workers.service.js). The
+// request is always multipart (not pure JSON) since a high-risk
+// cross-category add also carries an optional supporting document file -
+// this schema validates the non-file fields alongside it.
 export const WorkerAddServiceInputSchema = z.object({
   serviceId: z.number().int().positive(),
   price: z.number().positive(),

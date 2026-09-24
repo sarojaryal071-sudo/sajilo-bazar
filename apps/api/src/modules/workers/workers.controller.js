@@ -43,8 +43,13 @@ export async function getMe(req, res, next) {
 
 export async function addService(req, res, next) {
   try {
-    const input = WorkerAddServiceInputSchema.parse(req.body);
-    const service = await workersService.addService(req.user.id, input);
+    // multipart form (an optional supporting document rides alongside) -
+    // non-file fields arrive as strings, same pattern as apply().
+    const input = WorkerAddServiceInputSchema.parse({
+      serviceId: Number(req.body.serviceId),
+      price: Number(req.body.price),
+    });
+    const service = await workersService.addService(req.user.id, input, req.file);
     res.status(201).json({ service });
   } catch (err) {
     next(err.issues ? new ApiError(400, 'Invalid service data', err.issues) : err);

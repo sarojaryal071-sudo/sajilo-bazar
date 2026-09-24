@@ -69,10 +69,11 @@ export async function approveWorkerService(req, res, next) {
 
 export async function rejectWorkerService(req, res, next) {
   try {
-    const service = await adminService.decideWorkerService(parseId(req), req.user.id, 'reject');
+    const { comment } = AdminDocumentRejectInputSchema.parse(req.body ?? {});
+    const service = await adminService.decideWorkerService(parseId(req), req.user.id, 'reject', comment);
     res.json({ service });
   } catch (err) {
-    next(err);
+    next(err.issues ? new ApiError(400, 'Invalid rejection', err.issues) : err);
   }
 }
 
@@ -209,6 +210,24 @@ export async function activateService(req, res, next) {
 export async function deactivateService(req, res, next) {
   try {
     const service = await adminService.setServiceActive(parseId(req), false);
+    res.json({ service });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function markServiceHighRisk(req, res, next) {
+  try {
+    const service = await adminService.setServiceHighRisk(parseId(req), true);
+    res.json({ service });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function unmarkServiceHighRisk(req, res, next) {
+  try {
+    const service = await adminService.setServiceHighRisk(parseId(req), false);
     res.json({ service });
   } catch (err) {
     next(err);

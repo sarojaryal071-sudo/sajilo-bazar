@@ -20,8 +20,8 @@ export function approveService(id) {
   return apiFetch(`/admin/approvals/services/${id}/approve`, { method: 'PATCH' });
 }
 
-export function rejectService(id) {
-  return apiFetch(`/admin/approvals/services/${id}/reject`, { method: 'PATCH' });
+export function rejectService(id, comment) {
+  return apiFetch(`/admin/approvals/services/${id}/reject`, { method: 'PATCH', body: { comment } });
 }
 
 export function listUsers({ role, status, q } = {}) {
@@ -89,6 +89,14 @@ export function activateService(id) {
 
 export function deactivateService(id) {
   return apiFetch(`/admin/services/${id}/deactivate`, { method: 'PATCH' });
+}
+
+export function markServiceHighRisk(id) {
+  return apiFetch(`/admin/services/${id}/mark-high-risk`, { method: 'PATCH' });
+}
+
+export function unmarkServiceHighRisk(id) {
+  return apiFetch(`/admin/services/${id}/unmark-high-risk`, { method: 'PATCH' });
 }
 
 export function listDisputes({ status } = {}) {

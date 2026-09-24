@@ -35,15 +35,41 @@ export async function getMyWorkerData(userId) {
 // registered with at signup, but only by id from the existing catalog -
 // never free-text. Same category as something already approved goes live
 // immediately; a different category needs admin review (Phase 6's queue)
-// before it's bookable or visible to customers.
-export async function addService(workerId, { serviceId, price }) {
+// before it's bookable or visible to customers. If that other category is
+// high_risk, a supporting document is required up front - reuses the same
+// Cloudinary upload path and verification_documents table the worker-apply
+// flow already uses, just linked to this specific service request rather
+// than the original identity verification.
+export async function addService(workerId, { serviceId, price }, file) {
   const service = await workersModel.findServiceById(serviceId);
   if (!service) throw new ApiError(404, 'Service not found');
 
   const approvedCategories = await workersModel.findApprovedCategories(workerId);
-  const approvalStatus = approvedCategories.includes(service.category) ? 'approved' : 'pending';
+  const isOwnCategory = approvedCategories.includes(service.category);
+  const approvalStatus = isOwnCategory ? 'approved' : 'pending';
+  const needsDocument = !isOwnCategory && service.highRisk;
 
-  return workersModel.addWorkerService(workerId, { serviceId, price, approvalStatus });
+  if (needsDocument && !file) {
+    throw new ApiError(400, 'A supporting document is required to add a service from a high-risk category');
+  }
+
+  if (!needsDocument) {
+    return workersModel.addWorkerService(workerId, { serviceId, price, approvalStatus });
+  }
+
+  const fileUrl = (await uploadBuffer(file.buffer, { folder: `sajilo-bazar/verification/${workerId}` }))
+    .secure_url;
+
+  return workersModel.withTransaction(async (client) => {
+    const created = await workersModel.addWorkerService(workerId, { serviceId, price, approvalStatus }, client);
+    await workersModel.insertDocument(client, {
+      workerId,
+      docType: 'service_evidence',
+      fileUrl,
+      workerServiceId: created.id,
+    });
+    return created;
+  });
 }
 
 export async function setOnline(userId, { isOnline, latitude, longitude }) {

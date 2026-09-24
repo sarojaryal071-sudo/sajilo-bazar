@@ -64,7 +64,7 @@ export async function decideDocument(documentId, adminId, decision, comment) {
   return updated;
 }
 
-export async function decideWorkerService(serviceId, adminId, decision) {
+export async function decideWorkerService(serviceId, adminId, decision, comment) {
   const service = await adminModel.findWorkerServiceById(serviceId);
   if (!service) throw new ApiError(404, 'Service not found');
   if (service.approval_status !== 'pending') {
@@ -72,7 +72,7 @@ export async function decideWorkerService(serviceId, adminId, decision) {
   }
 
   const status = decision === 'approve' ? 'approved' : 'rejected';
-  return adminModel.decideWorkerService(serviceId, { status, adminId });
+  return adminModel.decideWorkerService(serviceId, { status, adminId, comment });
 }
 
 // ---- Users (Round A) ----
@@ -232,6 +232,12 @@ export async function setServiceActive(id, isActive) {
   const service = await adminModel.findServiceAdminById(id);
   if (!service) throw new ApiError(404, 'Service not found');
   return adminModel.setServiceActive(id, isActive);
+}
+
+export async function setServiceHighRisk(id, highRisk) {
+  const service = await adminModel.findServiceAdminById(id);
+  if (!service) throw new ApiError(404, 'Service not found');
+  return adminModel.setServiceHighRisk(id, highRisk);
 }
 
 // ---- Disputes (Round C) ----

@@ -65,7 +65,7 @@ export function AdminCategories() {
   function load() {
     adminApi
       .getCategoriesOverview()
-      .then(setCategories)
+      .then(({ categories }) => setCategories(categories))
       .catch((err) => setError(err.message));
   }
 
@@ -107,6 +107,26 @@ export function AdminCategories() {
         await adminApi.deactivateService(service.id);
       } else {
         await adminApi.activateService(service.id);
+      }
+      load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  // Whether a worker adding this service from outside their verified
+  // category needs to submit a supporting document (see AddServiceModal) -
+  // admin data, not hardcoded by category.
+  async function handleToggleHighRisk(service) {
+    setBusyId(service.id);
+    setError('');
+    try {
+      if (service.highRisk) {
+        await adminApi.unmarkServiceHighRisk(service.id);
+      } else {
+        await adminApi.markServiceHighRisk(service.id);
       }
       load();
     } catch (err) {
@@ -182,7 +202,8 @@ export function AdminCategories() {
                         <p className="text-xs text-text-muted">{service.description}</p>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      {service.highRisk && <Badge tone="danger">High risk</Badge>}
                       <Badge tone={service.isActive ? 'success' : 'neutral'}>
                         {service.isActive ? 'Active' : 'Inactive'}
                       </Badge>
@@ -193,6 +214,14 @@ export function AdminCategories() {
                         className="px-3 py-1.5 text-xs"
                       >
                         Edit
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        disabled={busyId === service.id}
+                        onClick={() => handleToggleHighRisk(service)}
+                        className="px-3 py-1.5 text-xs"
+                      >
+                        {service.highRisk ? 'Unmark high risk' : 'Mark high risk'}
                       </Button>
                       <Button
                         variant="secondary"

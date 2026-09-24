@@ -24,6 +24,108 @@ function ChevronIcon() {
   );
 }
 
+// A rejected service (from the cross-category review flow) shows the
+// admin's reason and lets the worker resubmit right there, same
+// reason-shown/can-retry pattern verification documents already use.
+// Resubmitting reuses POST /workers/me/services - it's idempotent on
+// (worker_id, service_id), so this just re-adds the same service, which
+// resets its approval state server-side (see workers.model.js addWorkerService).
+function ServiceRow({ service, onRetried }) {
+  const [retrying, setRetrying] = useState(false);
+  const [price, setPrice] = useState(String(service.price));
+  const [document, setDocument] = useState(null);
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleRetry(e) {
+    e.preventDefault();
+    setError('');
+    const priceNum = Number(price);
+    if (!priceNum || priceNum <= 0) return setError('Enter a valid price.');
+    if (service.highRisk && !document) return setError('A supporting document is required.');
+
+    setSubmitting(true);
+    try {
+      const { service: updated } = await workersApi.addService({
+        serviceId: service.serviceId,
+        price: priceNum,
+        document,
+      });
+      onRetried(updated);
+      setRetrying(false);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <span className="min-w-0 truncate text-text-muted">{service.serviceName}</span>
+        <div className="flex shrink-0 items-center gap-2">
+          {SERVICE_STATUS_TONE[service.approvalStatus] && (
+            <Badge tone={SERVICE_STATUS_TONE[service.approvalStatus]}>{service.approvalStatus}</Badge>
+          )}
+          <span className="font-medium">Rs. {service.price}</span>
+        </div>
+      </div>
+      {service.approvalStatus === 'rejected' && (
+        <>
+          {service.reviewComment && <p className="mt-0.5 text-xs text-text-muted">{service.reviewComment}</p>}
+          {!retrying ? (
+            <button
+              type="button"
+              onClick={() => setRetrying(true)}
+              className="mt-1 text-xs font-medium text-brand-solid"
+            >
+              Retry
+            </button>
+          ) : (
+            <form onSubmit={handleRetry} className="mt-2 flex flex-col gap-2 rounded-xl bg-surface-alt p-3">
+              <input
+                type="number"
+                min="1"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="Price (Rs.)"
+                className="rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand-solid"
+              />
+              {service.highRisk && (
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs font-medium text-text-muted">Supporting document (required)</span>
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    onChange={(e) => setDocument(e.target.files?.[0] ?? null)}
+                    className="text-xs"
+                  />
+                </label>
+              )}
+              {error && <p className="text-xs text-danger">{error}</p>}
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={submitting}
+                  onClick={() => setRetrying(false)}
+                  className="flex-1 px-3 py-1.5 text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={submitting} className="flex-1 px-3 py-1.5 text-xs">
+                  {submitting ? 'Resubmitting...' : 'Resubmit'}
+                </Button>
+              </div>
+            </form>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // Compact snapshot on the Dashboard - a 7-day sparkline plus this week's
 // total and jobs-completed count, tapping through to the full Earnings
 // screen (see docs/SCREENS.md Phase 5). Deliberately small: it sits
@@ -183,8 +285,19 @@ export function WorkerDashboard() {
       .catch(() => {});
   }, []);
 
-  function handleServiceAdded(service) {
-    setData((prev) => ({ ...prev, services: [...prev.services, service] }));
+  // Upserts by id rather than always appending - a retry on a rejected
+  // service returns the same row (updated), not a new one (see
+  // workers.model.js addWorkerService's ON CONFLICT).
+  function handleServiceUpdated(service) {
+    setData((prev) => {
+      const exists = prev.services.some((s) => s.id === service.id);
+      return {
+        ...prev,
+        services: exists
+          ? prev.services.map((s) => (s.id === service.id ? service : s))
+          : [...prev.services, service],
+      };
+    });
   }
 
   async function handleWelcomeDismiss() {
@@ -294,17 +407,9 @@ export function WorkerDashboard() {
             + Add service
           </button>
         </div>
-        <div className="mt-3 flex flex-col gap-2">
+        <div className="mt-3 flex flex-col gap-3">
           {data.services.map((service) => (
-            <div key={service.id} className="flex items-center justify-between gap-3 text-sm">
-              <span className="min-w-0 truncate text-text-muted">{service.serviceName}</span>
-              <div className="flex shrink-0 items-center gap-2">
-                {SERVICE_STATUS_TONE[service.approvalStatus] && (
-                  <Badge tone={SERVICE_STATUS_TONE[service.approvalStatus]}>{service.approvalStatus}</Badge>
-                )}
-                <span className="font-medium">Rs. {service.price}</span>
-              </div>
-            </div>
+            <ServiceRow key={service.id} service={service} onRetried={handleServiceUpdated} />
           ))}
         </div>
       </Card>
@@ -314,7 +419,10 @@ export function WorkerDashboard() {
         onClose={() => setAddServiceOpen(false)}
         catalog={catalog}
         existingServiceIds={data.services.map((s) => s.serviceId)}
-        onAdded={handleServiceAdded}
+        approvedCategories={[
+          ...new Set(data.services.filter((s) => s.approvalStatus === 'approved').map((s) => s.category)),
+        ]}
+        onAdded={handleServiceUpdated}
       />
 
       {data.profile.verificationStatus === 'approved' && (
