@@ -6,4 +6,8 @@ export const ServiceSchema = z.object({
   category: z.string().min(2).max(60), // e.g. "Plumbing"
   iconKey: z.string().max(60).nullable().optional(), // maps to a local icon asset, not a URL
   isActive: z.boolean().optional(), // admin catalog view only (Round B)
+  // Admin-set, not hardcoded by category - gates whether a worker adding
+  // this service outside their verified category must submit a
+  // supporting document (see workerProfile.schema.js WorkerAddServiceInputSchema).
+  highRisk: z.boolean().optional(),
 });

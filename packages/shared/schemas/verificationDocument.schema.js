@@ -10,6 +10,10 @@ export const VerificationDocumentSchema = z.object({
   reviewedBy: z.number().int().positive().nullable().optional(),
   reviewedAt: z.string().datetime().nullable().optional(),
   reviewComment: z.string().max(500).nullable().optional(), // admin's reason, set on reject
+  // Set when this document is supporting evidence for a specific
+  // high-risk cross-category service request rather than the original
+  // worker-apply identity verification - see workerProfile.schema.js.
+  workerServiceId: z.number().int().positive().nullable().optional(),
   createdAt: z.string().datetime().optional(),
 });
 

@@ -14,7 +14,13 @@ workersRoutes.get('/catalog/services', workersController.getServiceCatalog);
 workersRoutes.get('/search', workersController.search);
 workersRoutes.get('/me', requireAuth, requireRole('worker'), workersController.getMe);
 workersRoutes.patch('/me/welcome', requireAuth, requireRole('worker'), workersController.ackWelcome);
-workersRoutes.post('/me/services', requireAuth, requireApprovedWorker, workersController.addService);
+workersRoutes.post(
+  '/me/services',
+  requireAuth,
+  requireApprovedWorker,
+  upload.single('document'),
+  workersController.addService
+);
 workersRoutes.patch('/me/online', requireAuth, requireApprovedWorker, workersController.setOnline);
 workersRoutes.post(
   '/apply',

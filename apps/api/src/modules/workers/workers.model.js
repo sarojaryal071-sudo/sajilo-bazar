@@ -23,9 +23,11 @@ function toWorkerService(row) {
     serviceId: row.service_id,
     serviceName: row.service_name,
     category: row.category,
+    highRisk: row.high_risk,
     price: Number(row.price),
     isActive: row.is_active,
     approvalStatus: row.approval_status,
+    reviewComment: row.review_comment,
   };
 }
 
@@ -39,6 +41,7 @@ function toDocument(row) {
     reviewedBy: row.reviewed_by,
     reviewedAt: row.reviewed_at,
     reviewComment: row.review_comment,
+    workerServiceId: row.worker_service_id,
     createdAt: row.created_at,
   };
 }
@@ -49,6 +52,7 @@ function toService(row) {
     category: row.category,
     name: row.name,
     description: row.description,
+    highRisk: row.high_risk,
   };
 }
 
@@ -167,7 +171,7 @@ export async function replaceWorkerServices(client, workerId, services) {
 // down to approved.
 export async function listWorkerServices(workerId) {
   const { rows } = await pool.query(
-    `SELECT ws.*, s.name AS service_name, s.category
+    `SELECT ws.*, s.name AS service_name, s.category, s.high_risk
      FROM worker_services ws
      JOIN services s ON s.id = ws.service_id
      WHERE ws.worker_id = $1 AND ws.is_active = true`,
@@ -193,17 +197,23 @@ export async function findApprovedCategories(workerId) {
 // Adding a service is idempotent on (worker_id, service_id) - re-adding one
 // already on the worker's list just updates its price rather than erroring,
 // matching how replaceWorkerServices already treats the apply-time set.
-export async function addWorkerService(workerId, { serviceId, price, approvalStatus }) {
-  const { rows } = await pool.query(
+// Re-adding a previously-rejected service (the "retry" flow) also resets
+// approval_status/reviewed_by/reviewed_at/review_comment, since a retry
+// submission is a fresh request, not a continuation of the rejected one.
+// Accepts an optional client so it can participate in the transaction
+// addService() uses when a supporting document is uploaded alongside it.
+export async function addWorkerService(workerId, { serviceId, price, approvalStatus }, client = pool) {
+  const { rows } = await client.query(
     `INSERT INTO worker_services (worker_id, service_id, price, approval_status)
      VALUES ($1, $2, $3, $4)
      ON CONFLICT (worker_id, service_id)
-     DO UPDATE SET price = EXCLUDED.price, is_active = true
+     DO UPDATE SET price = EXCLUDED.price, is_active = true, approval_status = EXCLUDED.approval_status,
+                   reviewed_by = NULL, reviewed_at = NULL, review_comment = NULL
      RETURNING *`,
     [workerId, serviceId, price, approvalStatus]
   );
-  const { rows: joined } = await pool.query(
-    `SELECT ws.*, s.name AS service_name, s.category
+  const { rows: joined } = await client.query(
+    `SELECT ws.*, s.name AS service_name, s.category, s.high_risk
      FROM worker_services ws
      JOIN services s ON s.id = ws.service_id
      WHERE ws.id = $1`,
@@ -223,18 +233,23 @@ export async function findServiceById(serviceId) {
   return rows[0] ? toService(rows[0]) : null;
 }
 
-export async function insertDocument(client, { workerId, docType, fileUrl }) {
+export async function insertDocument(client, { workerId, docType, fileUrl, workerServiceId = null }) {
   const { rows } = await client.query(
-    `INSERT INTO verification_documents (worker_id, doc_type, file_url)
-     VALUES ($1, $2, $3) RETURNING *`,
-    [workerId, docType, fileUrl]
+    `INSERT INTO verification_documents (worker_id, doc_type, file_url, worker_service_id)
+     VALUES ($1, $2, $3, $4) RETURNING *`,
+    [workerId, docType, fileUrl, workerServiceId]
   );
   return toDocument(rows[0]);
 }
 
+// Identity-verification documents only (worker-apply flow) - a document
+// submitted as evidence for a specific cross-category service request is
+// excluded here and shown on that service's own row instead (see
+// WorkerDashboard.jsx), so this stays a clean history of the original
+// verification, not mixed with per-service evidence.
 export async function listDocuments(workerId) {
   const { rows } = await pool.query(
-    'SELECT * FROM verification_documents WHERE worker_id = $1 ORDER BY created_at DESC',
+    'SELECT * FROM verification_documents WHERE worker_id = $1 AND worker_service_id IS NULL ORDER BY created_at DESC',
     [workerId]
   );
   return rows.map(toDocument);

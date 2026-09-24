@@ -33,6 +33,8 @@ adminRoutes.post('/services', adminController.createService);
 adminRoutes.patch('/services/:id', adminController.updateService);
 adminRoutes.patch('/services/:id/activate', adminController.activateService);
 adminRoutes.patch('/services/:id/deactivate', adminController.deactivateService);
+adminRoutes.patch('/services/:id/mark-high-risk', adminController.markServiceHighRisk);
+adminRoutes.patch('/services/:id/unmark-high-risk', adminController.unmarkServiceHighRisk);
 
 adminRoutes.get('/disputes', adminController.listDisputes);
 adminRoutes.get('/disputes/:id', adminController.getDisputeDetail);

@@ -20,7 +20,9 @@ function ApprovalRow({ item, onDecide }) {
           ? adminApi.approveDocument(item.id)
           : adminApi.rejectDocument(item.id, comment.trim() || null));
       } else {
-        await (decision === 'approve' ? adminApi.approveService(item.id) : adminApi.rejectService(item.id));
+        await (decision === 'approve'
+          ? adminApi.approveService(item.id)
+          : adminApi.rejectService(item.id, comment.trim() || null));
       }
       onDecide(item);
     } catch (err) {
@@ -48,6 +50,21 @@ function ApprovalRow({ item, onDecide }) {
         ) : (
           <p className="mt-1 text-sm text-text-muted">
             {item.serviceName} ({item.category}) &middot; Rs. {item.price}
+            {item.highRisk && (
+              <>
+                {' '}
+                &middot; <span className="text-danger">High risk</span>
+              </>
+            )}
+            {item.documentUrl && (
+              <>
+                {' '}
+                &middot;{' '}
+                <a href={item.documentUrl} target="_blank" rel="noreferrer" className="text-brand-solid underline">
+                  View supporting document
+                </a>
+              </>
+            )}
           </p>
         )}
         <p className="mt-1 text-xs text-text-muted">Submitted {timeAgo(item.createdAt)}</p>
@@ -74,11 +91,7 @@ function ApprovalRow({ item, onDecide }) {
           </>
         ) : (
           <>
-            <Button
-              variant="secondary"
-              disabled={busy}
-              onClick={() => (item.kind === 'document' ? setRejecting(true) : handleDecide('reject'))}
-            >
+            <Button variant="secondary" disabled={busy} onClick={() => setRejecting(true)}>
               Reject
             </Button>
             <Button disabled={busy} onClick={() => handleDecide('approve')}>
