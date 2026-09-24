@@ -31,16 +31,17 @@ One row per user with `role = worker`.
 
 | Column | Type | Notes |
 |---|---|---|
-| id | serial pk | |
-| user_id | fk → users | unique |
+| user_id | integer pk | fk → users - the row's own primary key (there is no separate `id` column, unlike most other tables here) |
 | bio | text | nullable |
-| is_online | boolean | default false — drives instant-request matching |
+| is_online | boolean | default false — drives instant-request matching. See "Scheduled booking + worker availability" below - with availability blocks set, this is kept in sync with the worker's schedule rather than being purely manual |
 | current_lat / current_lng | numeric | nullable — last known location |
 | verification_status | text | `pending` \| `approved` \| `rejected`, default `pending` |
 | rating_avg | numeric | denormalized, updated on new review |
 | jobs_completed_count | int | denormalized |
 | approved_at | timestamptz | nullable - stamped every time `verification_status` flips to `approved` (including a re-approval), not just the first time. Trust score's grace period (see below) is measured from here. No prior mechanism for this existed anywhere in the codebase - migration 025 backfills it from `updated_at` for workers already approved beforehand |
 | trust_score | numeric | nullable - the stored raw 0-100 trust score (see "Trust score" below); null while the worker is within the 30-day grace period after `approved_at` or otherwise not yet scoreable |
+| typical_response_hours | smallint | nullable - self-reported only ("usually replies within Xh" on the profile), not computed/derived |
+| online_overridden_at | timestamptz | nullable - when the worker last manually toggled `is_online` via the explicit toggle (as opposed to the schedule auto-setting it). See "Scheduled booking + worker availability" below |
 
 ## 3. `services`
 
@@ -133,7 +134,7 @@ otherwise mutated, so staleness isn't a real risk.
 | type | text | `manual` \| `instant` |
 | customer_id | fk → users | |
 | worker_id | fk → users | nullable until assigned (instant flow) |
-| status | text | `requested` \| `accepted` \| `in_progress` \| `completed` \| `cancelled` |
+| status | text | `requested` \| `accepted` \| `in_progress` \| `completed` \| `cancelled` \| `declined` |
 | price | numeric | nullable; denormalized sum of this booking's `booking_services.price` (see above) |
 | address | text | |
 | lat / lng | numeric | |
@@ -142,6 +143,9 @@ otherwise mutated, so staleness isn't a real risk.
 | initiated_by | text | nullable — `worker` \| `customer`, set on cancellation. Null for a booking cancelled by an admin override (`adminCancelBooking`) or for any row predating migration 025. Only a `worker` value feeds the rolling-30-job cancellation rate/escalation and the trust score's reliability component - a `customer` value is logged and tied to the worker but doesn't affect either (see "Trust score" below) |
 | flagged | boolean | default false — lightweight admin moderation marker (Phase 6), not a full dispute record |
 | flag_reason | text | nullable |
+| scheduled_for | timestamptz | nullable - the customer-picked future date/time for a scheduled booking (business plan §13); null for an urgent ("now") booking. Still `type = 'manual'` - see "Scheduled booking + worker availability" below |
+| response_deadline_hours | smallint | nullable - one of `1`\|`6`\|`24` (a preset, never freeform), null for an urgent booking |
+| respond_by | timestamptz | nullable - computed once at creation (`created_at + response_deadline_hours`) and stored; an unanswered `requested` scheduled booking past this auto-expires to `declined` |
 | created_at / completed_at | timestamptz | |
 
 ## 6a. `booking_services`
@@ -173,6 +177,19 @@ Tracks the broadcast/instant-request fan-out — who was notified, who accepted.
 | notified_at | timestamptz | |
 | responded_at | timestamptz | nullable |
 | response | text | nullable — `accepted` \| `declined` \| `expired` |
+
+## 7a. `worker_availability_blocks`
+
+A worker's weekly recurring availability, set from `apps/web/src/screens/WorkerAvailability/
+WorkerAvailability.jsx` (business plan §13). See "Scheduled booking + worker availability"
+below for how this drives `worker_profiles.is_online`.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | serial pk | |
+| worker_id | fk → worker_profiles(user_id) | `ON DELETE CASCADE` |
+| day_of_week | smallint | `0`-`6`, following JS `Date#getDay()` (`0` = Sunday) |
+| start_time / end_time | time | `end_time` must be after `start_time` (CHECK) |
 
 ## 8. `chat_messages`
 
@@ -336,6 +353,45 @@ is fetched, so they never see a stale number.
 Not built in this task (explicitly separate scope, per the task spec): wiring `trust_score`
 into search/Home ranking order. The column is stored precisely so that later task can `ORDER BY`
 it without recomputing per request.
+
+## Scheduled booking + worker availability
+
+Business plan §13. A scheduled booking is still `type = 'manual'` (direct-to-a-specific-worker,
+same as an urgent "now" booking, not the broadcast/instant flow) - `scheduled_for`/
+`response_deadline_hours`/`respond_by` on `bookings` are the only new surface, and both booking
+modes are available from the same worker-profile entry point
+(`apps/web/src/screens/BookingRequest/BookingRequest.jsx`'s Now/Schedule toggle). Once accepted,
+a scheduled booking follows the exact same lifecycle as any other manual booking - no new
+statuses.
+
+**Auto-expiry** - an unanswered scheduled request past `respond_by` (while still `requested`)
+auto-expires. No new status: it reuses `declined`, with `cancel_reason` set to an explanatory
+note, and the customer gets a `booking_request_expired` notification. This reuses the codebase's
+existing computed-on-read idiom (`admin.model.js` `toContentItem`'s `isLive`, computed fresh on
+every read from `content_items.expires_at`) but makes it a durable write - a booking's status has
+to be consistent for other consumers (the worker's own accept/decline, notifications), not just a
+display computation. `bookings.model.js` `expireOverdueScheduledRequests()` is a single indexed
+`UPDATE ... WHERE status = 'requested' AND respond_by < now()`, called from
+`bookings.service.js` `sweepExpiredScheduledRequests()` at the top of every booking list/detail
+read and before accept/decline - there's no cron/scheduler anywhere in this codebase (a plain
+request-driven Express app), so nothing runs this on a timer; it just runs whenever a booking is
+next touched, which is enough since nothing needs to observe the exact moment it expires.
+
+**Worker availability** (`worker_availability_blocks`) - the same no-cron reasoning applies to
+`worker_profiles.is_online`: with blocks set, effective online status is computed by
+`apps/api/src/lib/availability.js` `computeEffectiveOnline` (pure, no DB access) rather than
+flipped by a timer. A manual toggle (`PATCH /workers/me/online`, which is what actually stamps
+`online_overridden_at`) takes precedence over the schedule until the next block boundary after
+that timestamp - `nextBoundaryAfter` finds it by scanning an 8-day window. With no blocks set at
+all, a worker stays in today's pure-manual-toggle mode, unchanged.
+
+This is only synced at real touchpoints, not continuously: `workers.service.js`
+`syncEffectiveOnline` runs on every worker dashboard load (`GET /workers/me`) and right after
+`setAvailability` saves a new schedule, so a worker always sees their own current status.
+`syncAllWorkersWithAvailability` (every worker who has at least one block) runs once, eagerly,
+right before instant-request matching (`bookings.service.js` `createInstantBooking`) - the one
+place effective online status genuinely has to be correct at the moment it's read, not just
+eventually consistent.
 
 ## Phone-number visibility scoping
 

@@ -15,6 +15,8 @@ export const WorkerProfileSchema = z.object({
   handle: z.string().max(10).nullable().optional(),
   // Null until the one-time post-approval welcome moment has been shown.
   welcomedAt: z.string().datetime().nullable().optional(),
+  // Self-reported only ("usually replies within Xh"), not computed/derived - optional.
+  typicalResponseHours: z.number().int().min(1).max(72).nullable().optional(),
 });
 
 // Going online captures the worker's current coordinates (from the

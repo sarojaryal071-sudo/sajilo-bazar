@@ -1,4 +1,10 @@
-import { WorkerApplyInputSchema, WorkerOnlineInputSchema, WorkerAddServiceInputSchema } from '@sajilo-bazar/shared';
+import {
+  WorkerApplyInputSchema,
+  WorkerOnlineInputSchema,
+  WorkerAddServiceInputSchema,
+  AvailabilityReplaceInputSchema,
+  TypicalResponseHoursInputSchema,
+} from '@sajilo-bazar/shared';
 import { ApiError } from '../../middleware/error.middleware.js';
 import * as workersService from './workers.service.js';
 
@@ -63,6 +69,35 @@ export async function setOnline(req, res, next) {
     res.json({ profile });
   } catch (err) {
     next(err.issues ? new ApiError(400, 'Invalid online status', err.issues) : err);
+  }
+}
+
+export async function getAvailability(req, res, next) {
+  try {
+    const blocks = await workersService.getAvailability(req.user.id);
+    res.json({ blocks });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function setAvailability(req, res, next) {
+  try {
+    const { blocks } = AvailabilityReplaceInputSchema.parse(req.body);
+    const saved = await workersService.setAvailability(req.user.id, blocks);
+    res.json({ blocks: saved });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid availability data', err.issues) : err);
+  }
+}
+
+export async function setTypicalResponseHours(req, res, next) {
+  try {
+    const { hours } = TypicalResponseHoursInputSchema.parse(req.body);
+    const profile = await workersService.setTypicalResponseHours(req.user.id, hours);
+    res.json({ profile });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid response time', err.issues) : err);
   }
 }
 

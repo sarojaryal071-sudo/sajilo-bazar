@@ -16,3 +16,4 @@ export * from './schemas/commissionLedger.schema.js';
 export * from './schemas/admin.schema.js';
 export * from './schemas/supportTicket.schema.js';
 export * from './schemas/trustScore.schema.js';
+export * from './schemas/availability.schema.js';

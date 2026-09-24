@@ -22,6 +22,14 @@ workersRoutes.post(
   workersController.addService
 );
 workersRoutes.patch('/me/online', requireAuth, requireApprovedWorker, workersController.setOnline);
+workersRoutes.get('/me/availability', requireAuth, requireApprovedWorker, workersController.getAvailability);
+workersRoutes.put('/me/availability', requireAuth, requireApprovedWorker, workersController.setAvailability);
+workersRoutes.patch(
+  '/me/response-time',
+  requireAuth,
+  requireApprovedWorker,
+  workersController.setTypicalResponseHours
+);
 workersRoutes.post(
   '/apply',
   requireAuth,

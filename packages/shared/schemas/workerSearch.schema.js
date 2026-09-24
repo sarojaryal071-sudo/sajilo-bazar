@@ -14,6 +14,7 @@ export const WorkerSearchResultSchema = z.object({
   jobsCompletedCount: z.number().int().min(0),
   serviceAreaLabel: z.string().nullable().optional(),
   trustTier: z.enum(TRUST_TIERS),
+  typicalResponseHours: z.number().int().min(1).max(72).nullable().optional(),
   matchedService: z.object({
     id: z.number().int().positive(),
     name: z.string(),
@@ -48,6 +49,7 @@ export const WorkerDetailSchema = z.object({
   jobsCompletedCount: z.number().int().min(0),
   serviceAreaLabel: z.string().nullable().optional(),
   trustTier: z.enum(TRUST_TIERS),
+  typicalResponseHours: z.number().int().min(1).max(72).nullable().optional(),
   services: z.array(WorkerDetailServiceSchema),
   // A real COUNT(*) from reviews (joined through bookings), not capped by
   // how many review rows are actually returned below.

@@ -17,6 +17,7 @@ import { WorkerDetail } from './screens/WorkerDetail/WorkerDetail.jsx';
 import { WorkerApply } from './screens/WorkerApply/WorkerApply.jsx';
 import { WorkerDashboard } from './screens/WorkerDashboard/WorkerDashboard.jsx';
 import { WorkerJobs } from './screens/WorkerJobs/WorkerJobs.jsx';
+import { WorkerAvailability } from './screens/WorkerAvailability/WorkerAvailability.jsx';
 import { BookingRequest } from './screens/BookingRequest/BookingRequest.jsx';
 import { BookingDetail } from './screens/BookingDetail/BookingDetail.jsx';
 import { BookingChat } from './screens/BookingChat/BookingChat.jsx';
@@ -143,6 +144,14 @@ export default function App() {
             element={
               <ProtectedRoute role="worker">
                 <Earnings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/worker/availability"
+            element={
+              <ProtectedRoute role="worker">
+                <WorkerAvailability />
               </ProtectedRoute>
             }
           />

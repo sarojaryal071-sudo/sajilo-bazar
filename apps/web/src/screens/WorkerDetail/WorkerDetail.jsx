@@ -76,6 +76,11 @@ export function WorkerDetail() {
             <p className="text-sm text-text-muted">{worker.serviceAreaLabel}</p>
           )}
           <TrustBadge tier={worker.trustTier} className="mt-1" />
+          {worker.typicalResponseHours && (
+            <p className="mt-1 text-xs text-text-muted">
+              Usually replies within {worker.typicalResponseHours}h
+            </p>
+          )}
           <div className="mt-1 flex items-center gap-1 text-sm text-warning">
             <StarIcon />
             <span className="font-medium">{worker.ratingAvg.toFixed(1)}</span>

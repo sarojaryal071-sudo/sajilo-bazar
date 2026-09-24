@@ -5,6 +5,7 @@ import * as commissionLedgerService from '../commissionLedger/commissionLedger.s
 import * as bookingsModel from './bookings.model.js';
 import * as adminModel from '../admin/admin.model.js';
 import * as trustScoreService from '../trustScore/trustScore.service.js';
+import * as workersService from '../workers/workers.service.js';
 
 // Hard cutoff (Part 3 of the trust-score spec) - a dispute can only be
 // filed within this many hours of the booking's completion, enforced here
@@ -33,11 +34,43 @@ function serviceNames(booking) {
   return booking.services.map((s) => s.name).join(', ');
 }
 
-export async function createBooking(customerId, { workerId, serviceIds, addressLabel, latitude, longitude }) {
+// A single indexed sweep for any scheduled request whose response deadline
+// has passed while still 'requested' - see bookings.model.js
+// expireOverdueScheduledRequests for why this is a durable write rather
+// than a display-only computation. Called at every read/mutation
+// touchpoint below rather than on a timer, since nothing in this codebase
+// runs on one (see apps/api/src/lib/availability.js for the same
+// no-cron reasoning applied to worker online status).
+async function sweepExpiredScheduledRequests() {
+  const expired = await bookingsModel.expireOverdueScheduledRequests();
+  for (const booking of expired) {
+    await notify(booking.customerId, 'booking_request_expired', { bookingId: booking.id });
+  }
+}
+
+// scheduledFor/responseDeadlineHours are both undefined for an urgent
+// ("now") booking - unchanged from before. When scheduling, respondBy
+// (computed at insert time) must land at or before scheduledFor - a
+// response window that closes after the job was supposed to happen makes
+// no sense, so this is checked against the server's own clock here (the
+// shared schema's future-check on scheduledFor already ran against the
+// client's clock).
+export async function createBooking(
+  customerId,
+  { workerId, serviceIds, addressLabel, latitude, longitude, scheduledFor, responseDeadlineHours }
+) {
   const available = await bookingsModel.findActiveWorkerServices(workerId, serviceIds);
   if (available.length !== serviceIds.length) {
     throw new ApiError(404, 'This worker does not offer one or more of the selected services');
   }
+
+  if (scheduledFor) {
+    const respondBy = new Date(Date.now() + responseDeadlineHours * 60 * 60 * 1000);
+    if (respondBy > new Date(scheduledFor)) {
+      throw new ApiError(400, 'Choose a shorter response deadline or a later date/time');
+    }
+  }
+
   const booking = await bookingsModel.create({
     customerId,
     workerId,
@@ -45,12 +78,15 @@ export async function createBooking(customerId, { workerId, serviceIds, addressL
     addressLabel,
     latitude,
     longitude,
+    scheduledFor: scheduledFor ?? null,
+    responseDeadlineHours: responseDeadlineHours ?? null,
   });
 
   await notify(workerId, 'booking_requested', {
     bookingId: booking.id,
     serviceName: serviceNames(booking),
     customerName: booking.customerName,
+    scheduledFor: booking.scheduledFor,
   });
 
   return booking;
@@ -63,6 +99,15 @@ export async function createBooking(customerId, { workerId, serviceIds, addressL
 // they poll/open the app either way.
 export async function createInstantBooking(customerId, { serviceIds, addressLabel, latitude, longitude }) {
   const booking = await bookingsModel.createInstant({ customerId, serviceIds, addressLabel, latitude, longitude });
+
+  // Resync every scheduled worker's effective online status against their
+  // availability blocks right before matching, so a worker whose block
+  // just started (or ended) is matched correctly even if nothing else has
+  // touched their profile recently - see workers.service.js
+  // syncAllWorkersWithAvailability for why this is the one place that
+  // needs to run eagerly rather than lazily.
+  await workersService.syncAllWorkersWithAvailability();
+
   const workerIds = await bookingsModel.findNearbyOnlineWorkers(serviceIds, latitude, longitude, DEFAULT_RADIUS_KM);
   const offers = await bookingsModel.createOffers(booking.id, workerIds);
 
@@ -119,10 +164,12 @@ export async function declineInstantOffer(bookingId, workerId) {
 }
 
 export async function listBookings(userId, role, status) {
+  await sweepExpiredScheduledRequests();
   return bookingsModel.listForUser(userId, role, status || null);
 }
 
 export async function getBooking(bookingId, userId) {
+  await sweepExpiredScheduledRequests();
   const booking = await bookingsModel.findById(bookingId);
   if (!booking) throw new ApiError(404, 'Booking not found');
   assertParticipant(booking, userId);
@@ -130,6 +177,7 @@ export async function getBooking(bookingId, userId) {
 }
 
 export async function acceptBooking(bookingId, workerId) {
+  await sweepExpiredScheduledRequests();
   const booking = await requireWorkerOwned(bookingId, workerId);
   if (booking.status !== 'requested') {
     throw new ApiError(400, 'Booking cannot be accepted from its current status');
@@ -143,6 +191,7 @@ export async function acceptBooking(bookingId, workerId) {
 }
 
 export async function declineBooking(bookingId, workerId) {
+  await sweepExpiredScheduledRequests();
   const booking = await requireWorkerOwned(bookingId, workerId);
   if (booking.status !== 'requested') {
     throw new ApiError(400, 'Booking cannot be declined from its current status');

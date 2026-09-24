@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { BOOKING_TYPES, BOOKING_STATUSES, BOOKING_OFFER_STATUSES } from './enums.js';
+import { BOOKING_TYPES, BOOKING_STATUSES, BOOKING_OFFER_STATUSES, RESPONSE_DEADLINE_HOURS } from './enums.js';
 
 // Defined now for contract stability across phases, implemented in the
 // Booking module (Phase 2-3 of the roadmap), not the Auth module.
@@ -34,6 +34,19 @@ export const BookingSchema = z.object({
   longitude: z.number().nullable().optional(),
   cancelledBy: z.number().int().positive().nullable().optional(),
   cancelReason: z.string().max(300).nullable().optional(),
+  // Scheduled booking only (business plan §13) - both null for an urgent
+  // ("now") booking. scheduledFor is the customer-picked future date/time;
+  // respondBy is when the worker's response window closes (createdAt +
+  // responseDeadlineHours), after which an unanswered 'requested' booking
+  // auto-expires to 'declined' (see bookings.service.js).
+  scheduledFor: z.string().datetime().nullable().optional(),
+  responseDeadlineHours: z
+    .number()
+    .int()
+    .refine((h) => RESPONSE_DEADLINE_HOURS.includes(h))
+    .nullable()
+    .optional(),
+  respondBy: z.string().datetime().nullable().optional(),
   createdAt: z.string().datetime().optional(),
   completedAt: z.string().datetime().nullable().optional(),
 });
@@ -43,13 +56,34 @@ export const BookingSchema = z.object({
 // (Phase 2). Prices aren't submitted by the client: the backend looks up
 // the worker's current price for each serviceId so it can't be tampered
 // with.
-export const BookingCreateInputSchema = z.object({
-  workerId: z.number().int().positive(),
-  serviceIds: z.array(z.number().int().positive()).min(1),
-  addressLabel: z.string().min(3).max(200),
-  latitude: z.number().nullable().optional(),
-  longitude: z.number().nullable().optional(),
-});
+// scheduledFor/responseDeadlineHours are both optional but must be given
+// together - present, this is a scheduled request against a future
+// date/time with a response deadline (business plan §13); absent, it's an
+// urgent "now" booking, unchanged from before. scheduledFor must be in the
+// future - checked against the client's own clock here as a first pass,
+// with the server re-checking against its own clock in bookings.service.js.
+export const BookingCreateInputSchema = z
+  .object({
+    workerId: z.number().int().positive(),
+    serviceIds: z.array(z.number().int().positive()).min(1),
+    addressLabel: z.string().min(3).max(200),
+    latitude: z.number().nullable().optional(),
+    longitude: z.number().nullable().optional(),
+    scheduledFor: z.string().datetime().optional(),
+    responseDeadlineHours: z
+      .number()
+      .int()
+      .refine((h) => RESPONSE_DEADLINE_HOURS.includes(h), { message: 'Must be one of 1, 6, or 24 hours' })
+      .optional(),
+  })
+  .refine((b) => Boolean(b.scheduledFor) === Boolean(b.responseDeadlineHours), {
+    message: 'scheduledFor and responseDeadlineHours must be provided together',
+    path: ['responseDeadlineHours'],
+  })
+  .refine((b) => !b.scheduledFor || new Date(b.scheduledFor) > new Date(), {
+    message: 'scheduledFor must be in the future',
+    path: ['scheduledFor'],
+  });
 
 export const BookingCancelInputSchema = z.object({
   reason: z.string().max(300).nullable().optional(),

@@ -278,6 +278,36 @@ export function BookingDetail() {
         <Badge tone={BOOKING_STATUS_TONE[booking.status]}>{BOOKING_STATUS_LABEL[booking.status]}</Badge>
       </div>
 
+      {booking.scheduledFor && (
+        <Card className="mt-6">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-text-muted">Scheduled for</span>
+            <span className="font-medium">
+              {new Date(booking.scheduledFor).toLocaleString(undefined, {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+              })}
+            </span>
+          </div>
+          {booking.status === 'requested' && booking.respondBy && (
+            <div className="mt-1 flex items-center justify-between text-sm">
+              <span className="text-text-muted">Respond by</span>
+              <span className="font-medium">
+                {new Date(booking.respondBy).toLocaleString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                })}
+              </span>
+            </div>
+          )}
+        </Card>
+      )}
+
       {isInstantWaiting ? (
         <WaitingForWorker />
       ) : isTerminalNonCompleted ? (

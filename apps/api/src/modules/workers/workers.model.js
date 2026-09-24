@@ -13,7 +13,14 @@ function toProfile(row) {
     serviceAreaLabel: row.service_area_label,
     handle: row.handle,
     welcomedAt: row.welcomed_at,
+    // Self-reported only, not computed - "usually replies within Xh" on
+    // the worker's profile.
+    typicalResponseHours: row.typical_response_hours,
   };
+}
+
+function toAvailabilityBlock(row) {
+  return { id: row.id, dayOfWeek: row.day_of_week, startTime: row.start_time.slice(0, 5), endTime: row.end_time.slice(0, 5) };
 }
 
 function toWorkerService(row) {
@@ -134,10 +141,15 @@ export async function ackWelcome(userId) {
 // now - instant-request matching needs a real coordinate, not the free-text
 // service_area_label. Going offline leaves the last known location in
 // place (harmless - they won't be matched again until back online).
+// online_overridden_at is stamped here (this is always the explicit manual
+// toggle - see workers.routes.js) so the availability schedule knows a
+// manual override is in effect until the next block boundary after this
+// moment (see apps/api/src/lib/availability.js).
 export async function setOnline(userId, { isOnline, latitude, longitude }) {
   const { rows } = await pool.query(
     `UPDATE worker_profiles
      SET is_online = $2,
+         online_overridden_at = now(),
          latitude = CASE WHEN $2 THEN COALESCE($3, latitude) ELSE latitude END,
          longitude = CASE WHEN $2 THEN COALESCE($4, longitude) ELSE longitude END,
          updated_at = now()
@@ -146,6 +158,78 @@ export async function setOnline(userId, { isOnline, latitude, longitude }) {
     [userId, isOnline, latitude ?? null, longitude ?? null]
   );
   return rows[0] ? toProfile(rows[0]) : null;
+}
+
+// The schedule-driven sync path (workers.service.js syncEffectiveOnline) -
+// deliberately does NOT touch online_overridden_at, since this isn't a new
+// manual action, just the computed status catching up to the schedule.
+export async function setIsOnlineFromSchedule(userId, isOnline) {
+  await pool.query('UPDATE worker_profiles SET is_online = $2, updated_at = now() WHERE user_id = $1', [
+    userId,
+    isOnline,
+  ]);
+}
+
+export async function setTypicalResponseHours(userId, hours) {
+  const { rows } = await pool.query(
+    'UPDATE worker_profiles SET typical_response_hours = $2, updated_at = now() WHERE user_id = $1 RETURNING *',
+    [userId, hours]
+  );
+  return rows[0] ? toProfile(rows[0]) : null;
+}
+
+export async function findOnlineOverriddenAt(workerId) {
+  const { rows } = await pool.query('SELECT online_overridden_at FROM worker_profiles WHERE user_id = $1', [
+    workerId,
+  ]);
+  return rows[0]?.online_overridden_at ?? null;
+}
+
+export async function listAvailability(workerId) {
+  const { rows } = await pool.query(
+    'SELECT * FROM worker_availability_blocks WHERE worker_id = $1 ORDER BY day_of_week, start_time',
+    [workerId]
+  );
+  return rows.map(toAvailabilityBlock);
+}
+
+// Replace-all, same pattern as replaceWorkerServices - the worker's full
+// weekly schedule is always submitted and saved as one set, not
+// incrementally patched.
+export async function replaceAvailability(workerId, blocks) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('DELETE FROM worker_availability_blocks WHERE worker_id = $1', [workerId]);
+    for (const { dayOfWeek, startTime, endTime } of blocks) {
+      await client.query(
+        'INSERT INTO worker_availability_blocks (worker_id, day_of_week, start_time, end_time) VALUES ($1, $2, $3, $4)',
+        [workerId, dayOfWeek, startTime, endTime]
+      );
+    }
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+  return listAvailability(workerId);
+}
+
+// Every approved worker who has at least one availability block set - the
+// full set syncEffectiveOnline is run over right before instant-request
+// matching (see bookings.service.js), so matching always sees each
+// scheduled worker's current computed status rather than whatever was
+// stored as of their last touchpoint.
+export async function listWorkersWithAvailability() {
+  const { rows } = await pool.query(
+    `SELECT DISTINCT wp.user_id, wp.is_online, wp.online_overridden_at
+     FROM worker_profiles wp
+     JOIN worker_availability_blocks b ON b.worker_id = wp.user_id
+     WHERE wp.verification_status = 'approved'`
+  );
+  return rows.map((r) => ({ userId: r.user_id, isOnline: r.is_online, onlineOverriddenAt: r.online_overridden_at }));
 }
 
 export async function listServiceCatalog() {
@@ -271,6 +355,7 @@ function toSearchResult(row) {
     // the phone-scoping spec) - only the booking detail endpoint, once
     // accepted, ever includes it.
     trustScore: row.trust_score === null ? null : Number(row.trust_score),
+    typicalResponseHours: row.typical_response_hours,
     matchedService: {
       id: row.service_id,
       name: row.service_name,
@@ -292,7 +377,7 @@ export async function searchWorkers({ category, serviceId, q }) {
     `SELECT * FROM (
        SELECT DISTINCT ON (u.id)
          u.id AS user_id, u.full_name, wp.handle, u.profile_image_url, wp.verification_status,
-         wp.rating_avg, wp.jobs_completed_count, wp.service_area_label, wp.trust_score,
+         wp.rating_avg, wp.jobs_completed_count, wp.service_area_label, wp.trust_score, wp.typical_response_hours,
          ws.service_id, s.name AS service_name, s.category, ws.price
        FROM users u
        JOIN worker_profiles wp ON wp.user_id = u.id
@@ -364,6 +449,7 @@ function toWorkerDetail(profileRow, serviceRows, { reviewsCount, reviews }) {
     // Raw score - see toSearchResult above, same reasoning (stripped down
     // to trustTier by workers.service.js before this reaches a customer).
     trustScore: profileRow.trust_score === null ? null : Number(profileRow.trust_score),
+    typicalResponseHours: profileRow.typical_response_hours,
     services: serviceRows.map((row) => ({
       id: row.service_id,
       name: row.service_name,
@@ -380,7 +466,8 @@ function toWorkerDetail(profileRow, serviceRows, { reviewsCount, reviews }) {
 export async function findApprovedWorkerDetail(userId) {
   const { rows } = await pool.query(
     `SELECT u.id AS user_id, u.full_name, wp.handle, u.profile_image_url, wp.verification_status,
-            wp.bio, wp.rating_avg, wp.jobs_completed_count, wp.service_area_label, wp.trust_score
+            wp.bio, wp.rating_avg, wp.jobs_completed_count, wp.service_area_label, wp.trust_score,
+            wp.typical_response_hours
      FROM users u
      JOIN worker_profiles wp ON wp.user_id = u.id
      WHERE u.id = $1 AND wp.verification_status = 'approved'`,

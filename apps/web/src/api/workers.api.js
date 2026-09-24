@@ -25,6 +25,19 @@ export function setOnline({ isOnline, latitude, longitude }) {
   return apiFetch('/workers/me/online', { method: 'PATCH', body: { isOnline, latitude, longitude } });
 }
 
+export function getAvailability() {
+  return apiFetch('/workers/me/availability');
+}
+
+// blocks: [{ dayOfWeek: 0-6, startTime: 'HH:MM', endTime: 'HH:MM' }] - replace-all.
+export function setAvailability(blocks) {
+  return apiFetch('/workers/me/availability', { method: 'PUT', body: { blocks } });
+}
+
+export function setTypicalResponseHours(hours) {
+  return apiFetch('/workers/me/response-time', { method: 'PATCH', body: { hours } });
+}
+
 // Marks the one-time post-approval welcome as shown - idempotent, safe to
 // call more than once (a no-op after the first).
 export function ackWelcome() {
