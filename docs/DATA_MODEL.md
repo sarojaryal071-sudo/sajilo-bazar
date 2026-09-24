@@ -151,14 +151,23 @@ Tracks the broadcast/instant-request fan-out — who was notified, who accepted.
 
 ## 8. `chat_messages`
 
-One row per message, tied directly to a booking — no separate conversation object.
+One row per message, tied directly to a booking — no separate conversation object. A
+message is text, an attachment (image or PDF, via the same Cloudinary pipeline as
+verification documents/profile photos), or both - `message` is nullable and a CHECK
+constraint (`chat_messages_has_content`, migration 023) requires at least one of
+`message`/`attachment_url`. Attachments persist on the row like any other message
+field, not a transient upload preview - disputes reusing the booking's chat transcript
+as evidence (business plan §7) retrieve them the same way as regular messages.
 
 | Column | Type | Notes |
 |---|---|---|
 | id | serial pk | |
 | booking_id | fk → bookings | |
 | sender_id | fk → users | |
-| message | text | |
+| message | text | nullable - see above |
+| attachment_url | text | nullable - Cloudinary `secure_url` |
+| attachment_type | varchar(10) | nullable - `image` \| `pdf` |
+| attachment_name | varchar(255) | nullable - original filename (shown on the PDF file chip) |
 | created_at | timestamptz | |
 
 ## 9. `reviews`

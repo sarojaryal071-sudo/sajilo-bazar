@@ -20,3 +20,12 @@ export async function send(req, res, next) {
     next(err.issues ? new ApiError(400, 'Invalid message', err.issues) : err);
   }
 }
+
+export async function sendAttachment(req, res, next) {
+  try {
+    const created = await chatService.sendAttachment(Number(req.params.bookingId), req.user.id, req.file);
+    res.status(201).json({ message: created });
+  } catch (err) {
+    next(err);
+  }
+}

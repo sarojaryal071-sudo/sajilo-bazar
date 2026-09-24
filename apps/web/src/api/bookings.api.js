@@ -63,6 +63,16 @@ export function sendMessage(bookingId, message) {
   return apiFetch(`/bookings/${bookingId}/messages`, { method: 'POST', body: { message } });
 }
 
+export function sendAttachment(bookingId, file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  return apiFetch(`/bookings/${bookingId}/messages/attachment`, {
+    method: 'POST',
+    body: formData,
+    isFormData: true,
+  });
+}
+
 export function getReview(bookingId) {
   return apiFetch(`/bookings/${bookingId}/review`);
 }
