@@ -8,7 +8,7 @@ This index is filled in incrementally - only files touched by a task get an entr
 here as part of that task. A file with no entry yet doesn't mean it's undocumented
 forever, just that no session has touched it since this index was introduced.
 
-_Last updated: 2026-09-24 — Fix: SPA navigation kept the old page's scroll position instead of landing at top_
+_Last updated: 2026-09-24 — Roll out new logo mark (Wordmark icon, favicon, PWA manifest icons)_
 
 ## apps/api
 | File | Purpose |
@@ -74,7 +74,10 @@ _Last updated: 2026-09-24 — Fix: SPA navigation kept the old page's scroll pos
 | `src/screens/Auth/ForgotPassword.jsx` | New public screen (`/forgot-password`) - phone + new password + confirm, no OTP/email/admin verification (deliberate, business-accepted for this testing phase - see docs/SCREENS.md). Auto-logs in after a successful reset |
 | `src/App.jsx` | New public `/forgot-password` route alongside `/login`/`/signup` |
 | `apps/web/.env.example` | `VITE_GOOGLE_CLIENT_ID` (same Client ID as the API's `GOOGLE_CLIENT_ID`) |
-| `src/components/Wordmark.jsx` | New: extracted from `Landing.jsx` (was a private component there) - the "SB" mark + "Sajilo Bazar" text, now also reused by `LegalPage.jsx` |
+| `src/components/Wordmark.jsx` | Extracted from `Landing.jsx` (was a private component there) - logo mark + "Sajilo Bazar" text, reused by `LegalPage.jsx`. The icon is `public/images/logo-mark.png` (rendered plain, no background chip - every current usage site is on a white/light surface); the old "SB" text-in-a-teal-square placeholder is gone |
+| `public/images/logo-mark.png`, `public/favicon.ico`, `public/favicon-16x16.png`, `public/favicon-32x32.png`, `public/apple-touch-icon.png`, `public/icon-192.png`, `public/icon-512.png`, `public/icon-192-maskable.png`, `public/icon-512-maskable.png` | New brand logo mark asset set, generated with `sharp` (+ `png-to-ico` for the `.ico`) from the supplied source PNG (1254x1254, transparent, the pin already has generous built-in padding - checked every opaque pixel sits within 40% of the canvas half-size from center, i.e. inside the maskable "safe zone", so no extra padding was added). `logo-mark.png`/`favicon-*.png`/`icon-192.png`/`icon-512.png` are transparent (`purpose: "any"` in the manifest); `favicon.ico`/`apple-touch-icon.png`/`icon-*-maskable.png` are flattened onto opaque white (ICO has no reliable alpha support, iOS renders transparency as black, and a maskable icon should never rely on transparency since the OS-applied mask can show an unpredictable color behind it) |
+| `index.html` | `<link rel="icon">`/`apple-touch-icon` tags point at the new favicon set instead of the old unbranded placeholder `favicon.svg` (a leftover default icon, not an actual Sajilo Bazar mark - deleted) |
+| `public/manifest.json` | `icons` array replaced: `icon-192.png`/`icon-512.png` (`purpose: "any"`) + `icon-192-maskable.png`/`icon-512-maskable.png` (`purpose: "maskable"`), instead of the single placeholder `favicon.svg` entry |
 | `src/screens/Legal/legalContent.js` | Verbatim content (not paraphrased) for `/terms` and `/privacy`, as `{ title, subtitle, effectiveDate, sections: [{ heading, blocks: [{type:'p'|'ul', ...}] }], docNote }` - includes the source documents' own placeholder brackets (e.g. contact email "to be added") and draft-status footer note |
 | `src/screens/Legal/LegalPage.jsx` | Shared plain long-form layout for `/terms`/`/privacy` - simpler than the rest of Landing (no gradient hero/icon cards) since it's a legal document, not a marketing surface. Small header (Wordmark + "Back to home"), readable max-w-2xl column, standard heading hierarchy |
 | `src/screens/Legal/Terms.jsx` / `src/screens/Legal/Privacy.jsx` | Thin wrappers: `<LegalPage content={TERMS_CONTENT / PRIVACY_CONTENT} />` |
