@@ -8,11 +8,14 @@ This index is filled in incrementally - only files touched by a task get an entr
 here as part of that task. A file with no entry yet doesn't mean it's undocumented
 forever, just that no session has touched it since this index was introduced.
 
-_Last updated: 2026-09-25 — Earnings screen gains a disabled "Top Up" placeholder next to the credit balance (real top-up mechanism still an open business decision)_
+_Last updated: 2026-09-25 — Bug-fix round: Home/Dashboard notification card rebuilt around real unread state (not a dismissible per-type banner), unified Alerts feed gains dispute/support-reply notifications, promo banner seed-data fix, hamburger menu de-duplicated against the bottom nav, Settings Notifications rebuilt as a channel switcher_
 
 ## apps/api
 | File | Purpose |
 |---|---|
+| `src/db/migrations/034_add_dispute_and_support_notification_types.sql` | Extends `notifications_type_check` with `dispute_resolved`/`support_reply` |
+| `src/modules/admin/admin.service.js` | `resolveDispute` now notifies both booking parties (`dispute_resolved`); `replyToTicket` now notifies the ticket's owner (`support_reply`) - previously neither ever called `notify()`, so the Alerts feed silently missed both event types |
+| `src/db/seed.js` | New `seedAnnouncement` - the canonical seed script never created a promo/announcement row at all (root cause of "seeded promo rows exist but nothing renders" - the actual gap was upstream of any frontend/query code, in the seed data itself); idempotent by title, republishes if found in a non-`published` status |
 | `src/db/migrations/033_create_addresses.sql` | `addresses(user_id, label, address_label, latitude, longitude, is_default)` - a partial unique index enforces at most one default per user at the DB level |
 | `src/modules/addresses/addresses.model.js` | `listForUser`, `findById`, `countForUser`, `create`/`update`/`remove`, `setDefault` (unsets any existing default first, in the same transaction) |
 | `src/modules/addresses/addresses.service.js` | `createAddress` makes the first address a customer ever saves the default automatically; the rest just wrap the model with 404s on a not-owned id |
@@ -86,6 +89,11 @@ _Last updated: 2026-09-25 — Earnings screen gains a disabled "Top Up" placehol
 ## apps/web
 | File | Purpose |
 |---|---|
+| `src/components/NotificationSummaryCard.jsx` | New - Home/Dashboard's single notification-related card, decided 2026-09-25. Generic across every notification type (not announcement-specific); fetches unread notifications, shows the single one's preview if there's exactly one or "You have N notifications" for 2+, and is never itself dismissible/openable - tapping it always navigates to `/notifications`. Replaces the old idea of surfacing a personal notification as a dismissible banner (`PromoBanner.jsx` keeps that pattern, but now only for the separate merchandising promo) |
+| `src/screens/Home/Home.jsx` / `src/screens/WorkerDashboard/WorkerDashboard.jsx` | Both render `NotificationSummaryCard` under the promo banner |
+| `src/lib/notificationText.js` | `describeNotification` gains `dispute_resolved`/`support_reply` cases |
+| `src/components/HamburgerMenu.jsx` | Dashboard and Bookings/Jobs rows removed - both were already the bottom nav's first two tabs (`BottomNav.jsx`), so listing them here too was pure duplication. Now just Earnings (worker only) + Profile + Settings + Log out |
+| `src/screens/Settings/Settings.jsx` | `NotificationMatrix` rebuilt: a channel switcher (In-app / SMS / Email / WhatsApp segmented control, same visual pattern as `BookingRequest`'s Now/Schedule toggle) replaces the old 4-column side-by-side grid - the 5 category toggles below now reflect whichever channel is selected (fully functional for In-app, disabled with a "Coming soon" note for the other three) rather than all four showing at once |
 | `src/screens/Earnings/Earnings.jsx` | The credit balance stat + running-balance transaction history already covered this task's "credit balance section" - adds a disabled "Add credit" / "Top Up" `Card` right below the stat grid (`Badge tone="neutral"` "Coming soon", same bordered-pill pattern as the eSewa payment placeholder) since the real top-up mechanism is still an open business decision |
 | `src/api/addresses.api.js` | `list`, `create`, `update`, `remove`, `setDefault` |
 | `src/components/AddressPicker.jsx` | New - Uber-style booking-time location picker (default Home / another saved address / a fresh one-off entry with an optional "Use my current location" capture). Used by `BookingRequest.jsx` and `InstantRequest.jsx`, replacing their old plain free-text `Input` |
@@ -174,6 +182,7 @@ _Last updated: 2026-09-25 — Earnings screen gains a disabled "Top Up" placehol
 ## packages/shared
 | File | Purpose |
 |---|---|
+| `schemas/enums.js` | `NOTIFICATION_TYPES` gains `dispute_resolved`/`support_reply` (both mapped to the `support` category in `NOTIFICATION_TYPE_CATEGORY`) - the unified Alerts feed's last two missing event types |
 | `schemas/address.schema.js` | New - `AddressSchema`, `AddressCreateInputSchema`, `AddressUpdateInputSchema` |
 | `schemas/enums.js` | New `NOTIFICATION_CATEGORIES` (the 5 Settings -> Notifications matrix rows) and `NOTIFICATION_TYPE_CATEGORY` (maps each of the 9 `NOTIFICATION_TYPES` to the category that gates it) |
 | `schemas/notification.schema.js` | New `NotificationPreferencesSchema`, `NotificationPreferenceUpdateInputSchema` |
