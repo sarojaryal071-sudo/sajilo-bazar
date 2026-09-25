@@ -232,6 +232,38 @@ async function ensureVerificationDocument(workerId, docType) {
   );
 }
 
+// The Home/Dashboard promo banner reads the latest published, audience-
+// matching content_items row (see announcements.controller.js) - a row
+// left in the default 'draft' status (e.g. created by hand and never
+// explicitly published from the admin Announcements screen) never
+// renders anywhere. Idempotent by title: re-running this republishes it
+// if someone unpublished/drafted it since the last run, rather than
+// creating a duplicate.
+async function seedAnnouncement(adminId) {
+  const title = 'Welcome to Sajilo Bazar!';
+  const { rows: existing } = await pool.query(
+    "SELECT id, status FROM content_items WHERE kind = 'announcement' AND title = $1",
+    [title]
+  );
+  if (existing[0]) {
+    if (existing[0].status !== 'published') {
+      await pool.query(
+        "UPDATE content_items SET status = 'published', published_at = now(), updated_at = now() WHERE id = $1",
+        [existing[0].id]
+      );
+      console.log(`Republished seed announcement #${existing[0].id}`);
+    }
+    return;
+  }
+  const { rows } = await pool.query(
+    `INSERT INTO content_items (kind, title, body, audience, status, published_at, created_by)
+     VALUES ('announcement', $1, $2, 'all', 'published', now(), $3)
+     RETURNING id`,
+    [title, 'Book trusted local workers for home services across Kathmandu.', adminId]
+  );
+  console.log(`Seeded announcement #${rows[0].id} (published)`);
+}
+
 async function findExistingBooking(customerId, workerId, status) {
   const { rows } = await pool.query(
     'SELECT id FROM bookings WHERE customer_id = $1 AND worker_id = $2 AND status = $3 LIMIT 1',
@@ -305,6 +337,8 @@ async function main() {
 
   const admin = await findOrCreateAdmin();
   console.log(`Admin: ${admin.full_name ?? admin.fullName} (#${admin.id})`);
+
+  await seedAnnouncement(admin.id);
 
   const workers = [];
   for (const w of WORKERS) {

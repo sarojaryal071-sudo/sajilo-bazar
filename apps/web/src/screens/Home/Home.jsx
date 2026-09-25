@@ -8,6 +8,7 @@ import { CategoryIcon } from '../../components/CategoryIcon.jsx';
 import { WorkerCard } from '../../components/WorkerCard.jsx';
 import { PromoBanner } from '../../components/PromoBanner.jsx';
 import { AnnouncementModal } from '../../components/AnnouncementModal.jsx';
+import { NotificationSummaryCard } from '../../components/NotificationSummaryCard.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import * as workersApi from '../../api/workers.api.js';
 import * as announcementsApi from '../../api/announcements.api.js';
@@ -141,6 +142,8 @@ export function Home() {
           onClose={() => setAnnouncementOpen(false)}
         />
       )}
+
+      <NotificationSummaryCard />
 
       {!searchActive ? (
         <motion.div

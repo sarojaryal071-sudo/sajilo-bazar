@@ -290,12 +290,16 @@ export async function resolveDispute(id, adminId, { status, resolutionNotes, atF
   const resolvedAtFault = status === 'resolved' ? atFault ?? null : null;
   const resolved = await adminModel.resolveDispute(id, { status, resolutionNotes, atFault: resolvedAtFault, adminId });
 
-  if (resolvedAtFault === 'worker') {
-    const booking = await bookingsModel.findById(resolved.bookingId);
-    if (booking?.workerId) {
-      await trustScoreService.checkDisputeEscalation(booking.workerId);
-      await trustScoreService.recomputeAndStore(booking.workerId);
-    }
+  const booking = await bookingsModel.findById(resolved.bookingId);
+  if (booking) {
+    const payload = { disputeId: resolved.id, bookingId: booking.id, status: resolved.status };
+    await notify(booking.customerId, 'dispute_resolved', payload);
+    if (booking.workerId) await notify(booking.workerId, 'dispute_resolved', payload);
+  }
+
+  if (resolvedAtFault === 'worker' && booking?.workerId) {
+    await trustScoreService.checkDisputeEscalation(booking.workerId);
+    await trustScoreService.recomputeAndStore(booking.workerId);
   }
 
   return resolved;
@@ -335,7 +339,9 @@ export async function createSupportTicket({ userId, bookingId, subject, priority
 export async function replyToTicket(id, adminId, message) {
   const ticket = await adminModel.findSupportTicketById(id);
   if (!ticket) throw new ApiError(404, 'Support ticket not found');
-  return adminModel.addTicketMessage(id, { senderId: adminId, message });
+  const ticketMessage = await adminModel.addTicketMessage(id, { senderId: adminId, message });
+  await notify(ticket.userId, 'support_reply', { ticketId: id, subject: ticket.subject, message });
+  return ticketMessage;
 }
 
 export async function setTicketStatus(id, status) {

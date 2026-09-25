@@ -12,6 +12,7 @@ import { EarningsChart } from '../../components/EarningsChart.jsx';
 import { SkeletonBlock } from '../../components/Skeleton.jsx';
 import { PromoBanner } from '../../components/PromoBanner.jsx';
 import { AnnouncementModal } from '../../components/AnnouncementModal.jsx';
+import { NotificationSummaryCard } from '../../components/NotificationSummaryCard.jsx';
 import * as workersApi from '../../api/workers.api.js';
 import * as bookingsApi from '../../api/bookings.api.js';
 import * as commissionLedgerApi from '../../api/commissionLedger.api.js';
@@ -386,6 +387,8 @@ export function WorkerDashboard() {
           onClose={() => setAnnouncementOpen(false)}
         />
       )}
+
+      <NotificationSummaryCard />
 
       <motion.div
         initial={{ opacity: 0, y: 8 }}

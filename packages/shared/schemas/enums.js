@@ -57,6 +57,8 @@ export const NOTIFICATION_TYPES = [
   'review_received',
   'verification_update',
   'announcement',
+  'dispute_resolved',
+  'support_reply',
 ];
 
 // Settings -> Notifications matrix rows. Coarser than NOTIFICATION_TYPES -
@@ -80,4 +82,6 @@ export const NOTIFICATION_TYPE_CATEGORY = {
   review_received: 'reviews',
   verification_update: 'support',
   announcement: 'promos',
+  dispute_resolved: 'support',
+  support_reply: 'support',
 };
