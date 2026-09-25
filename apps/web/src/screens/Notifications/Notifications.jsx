@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Screen } from '../../components/Screen.jsx';
 import { Card } from '../../components/Card.jsx';
+import { AnnouncementModal } from '../../components/AnnouncementModal.jsx';
 import { useSocket } from '../../context/SocketContext.jsx';
 import * as notificationsApi from '../../api/notifications.api.js';
 import { describeNotification } from '../../lib/notificationText.js';
@@ -12,6 +13,7 @@ export function Notifications() {
   const socket = useSocket();
   const [notifications, setNotifications] = useState(null);
   const [error, setError] = useState('');
+  const [openAnnouncement, setOpenAnnouncement] = useState(null);
 
   useEffect(() => {
     notificationsApi
@@ -37,6 +39,10 @@ export function Notifications() {
       setNotifications((prev) =>
         prev.map((n) => (n.id === notification.id ? { ...n, readAt: new Date().toISOString() } : n))
       );
+    }
+    if (notification.type === 'announcement') {
+      setOpenAnnouncement(notification.payload);
+      return;
     }
     if (notification.payload?.bookingId) {
       navigate(`/booking/${notification.payload.bookingId}`);
@@ -91,6 +97,14 @@ export function Notifications() {
           );
         })}
       </div>
+
+      {openAnnouncement && (
+        <AnnouncementModal
+          title={openAnnouncement.title}
+          body={openAnnouncement.body}
+          onClose={() => setOpenAnnouncement(null)}
+        />
+      )}
     </Screen>
   );
 }

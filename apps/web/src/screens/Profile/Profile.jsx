@@ -1,11 +1,22 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Screen } from '../../components/Screen.jsx';
 import { Card } from '../../components/Card.jsx';
+import { Badge } from '../../components/Badge.jsx';
 import { Button } from '../../components/Button.jsx';
 import { Input } from '../../components/Input.jsx';
 import { Avatar } from '../../components/Avatar.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import * as usersApi from '../../api/users.api.js';
+import * as workersApi from '../../api/workers.api.js';
+
+const VERIFICATION_TONE = { pending: 'warning', approved: 'success', rejected: 'danger', unsubmitted: 'neutral' };
+const DOC_STATUS_TONE = { pending: 'warning', approved: 'success', rejected: 'danger' };
+
+function formatDate(iso) {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'long' });
+}
 
 function CameraIcon() {
   return (
@@ -22,13 +33,23 @@ function CameraIcon() {
 
 export function Profile() {
   const { user, logout, refreshUser } = useAuth();
+  const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ fullName: user.fullName, email: user.email || '' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState('');
+  const [workerData, setWorkerData] = useState(null);
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (user.role !== 'worker') return;
+    workersApi
+      .getMyWorkerData()
+      .then(setWorkerData)
+      .catch(() => {});
+  }, [user.role]);
 
   async function handleSave(e) {
     e.preventDefault();
@@ -86,6 +107,14 @@ export function Profile() {
         <div>
           <h1 className="text-xl font-bold">{user.fullName}</h1>
           <p className="text-sm text-text-muted">{user.clientId}</p>
+          <div className="mt-1.5 flex items-center gap-2">
+            <Badge className="capitalize">{user.role}</Badge>
+            {workerData && (
+              <Badge tone={VERIFICATION_TONE[workerData.profile.verificationStatus]}>
+                {workerData.profile.verificationStatus}
+              </Badge>
+            )}
+          </div>
           {uploadingPhoto && <p className="mt-1 text-xs text-text-muted">Uploading photo...</p>}
           {photoError && <p className="mt-1 text-xs text-danger">{photoError}</p>}
         </div>
@@ -122,12 +151,44 @@ export function Profile() {
           <div className="flex flex-col gap-3">
             <Row label="Phone" value={user.phone} />
             <Row label="Email" value={user.email || '—'} />
+            {workerData?.profile.handle && <Row label="Worker ID" value={workerData.profile.handle} />}
+            {formatDate(user.createdAt) && <Row label="Member since" value={formatDate(user.createdAt)} />}
             <Button variant="secondary" onClick={() => setEditing(true)}>
               Edit profile
             </Button>
           </div>
         )}
       </Card>
+
+      {user.role === 'worker' && workerData?.profile.verificationStatus === 'approved' && (
+        <Button variant="secondary" className="mt-4" onClick={() => navigate(`/worker/${user.id}`)}>
+          View my public profile
+        </Button>
+      )}
+
+      {user.role === 'worker' && workerData?.documents.length > 0 && (
+        <Card className="mt-4">
+          <p className="font-semibold">Submitted documents</p>
+          <div className="mt-3 flex flex-col gap-2">
+            {workerData.documents.map((doc) => (
+              <div key={doc.id}>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="capitalize text-text-muted">{doc.docType}</span>
+                  <Badge tone={DOC_STATUS_TONE[doc.status] ?? 'neutral'}>{doc.status}</Badge>
+                </div>
+                {doc.status === 'rejected' && doc.reviewComment && (
+                  <p className="mt-0.5 text-xs text-text-muted">{doc.reviewComment}</p>
+                )}
+              </div>
+            ))}
+          </div>
+          {workerData.profile.verificationStatus === 'rejected' && (
+            <Button onClick={() => navigate('/worker/apply')} variant="secondary" className="mt-3 w-full">
+              Re-apply with new documents
+            </Button>
+          )}
+        </Card>
+      )}
 
       <Button variant="ghost" className="mt-8" onClick={logout}>
         Log out

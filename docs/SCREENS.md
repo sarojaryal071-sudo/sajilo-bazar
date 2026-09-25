@@ -40,7 +40,10 @@ Build in this order — don't jump ahead to later-phase screens.
   email/admin verification of ownership. Deliberately open for this testing/pre-launch
   phase (business-accepted, documented decision) - resets the password and logs the user
   in immediately. Also how a Google-only account (no password yet) gains its first one
-- Profile screen (view/edit own profile)
+- Profile screen (view/edit own profile) — for a worker, also shows their role/verification-
+  status badges, member-since date, worker handle, a link to their own public worker
+  profile once approved, and their submitted verification documents (moved here from the
+  worker Dashboard, which stays daily-activity-only)
 - Worker: "Apply as worker" flow (skills, services, pricing, document upload)
 - Worker: verification pending / status screen
 
@@ -88,8 +91,13 @@ Build in this order — don't jump ahead to later-phase screens.
 
 ## Phase 4 — Notifications
 
-- Notification inbox/list screen
+- Notification inbox/list screen — a published admin announcement (see Phase 6 below) fans
+  out as a real notification to every matching customer/worker, not just the Home/Dashboard
+  promo banner; tapping one opens the full text in a modal rather than the generic
+  booking-navigate fallback
 - Notification bell/badge component (not a full screen — see `DESIGN_SYSTEM.md`)
+- Promo banner (Home and worker Dashboard, not a full screen) — the single latest live
+  announcement for that viewer's role, tap to read the full text, dismiss for the session
 
 ## Phase 5 — Commission Ledger (worker-facing)
 
@@ -128,9 +136,14 @@ parallel system (see `DATA_MODEL.md`'s "Scheduled booking + worker availability"
 - Admin: Users list + detail (customers + workers), suspend/reinstate
 - Admin: Bookings list + detail, moderation actions
 - Admin: Categories/services management (the `services` table)
-- Admin: Support tickets list + detail
+- Admin: Support tickets — single messenger-style master-detail screen (conversation list
+  on the left, identified by the actual person's name; full chat panel on the right,
+  reusing the same message-bubble/composer look as the in-app booking chat), not a
+  data table + separate detail page
 - Admin: Disputes list + detail
-- Admin: Announcements (simple — platform-wide notices)
+- Admin: Announcements (simple — platform-wide notices) — publishing one fans a real
+  notification out to every matching customer/worker (see Phase 4 above), not just the
+  promo banner
 - Admin: Policies (simple static content management, not a builder)
 
 ## Later phases — not built until their phase starts

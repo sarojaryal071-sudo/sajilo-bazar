@@ -35,6 +35,8 @@ export function describeNotification({ type, payload }) {
       };
     case 'verification_update':
       return { title: 'Verification update', body: payload.status || '' };
+    case 'announcement':
+      return { title: payload.title || 'Announcement', body: payload.body || '' };
     default:
       return { title: 'Notification', body: '' };
   }

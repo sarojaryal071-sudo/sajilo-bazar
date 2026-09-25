@@ -681,6 +681,15 @@ export async function updateAnnouncement(id, { title, body, audience, scheduledA
   return rows[0] ? toContentItem(rows[0]) : null;
 }
 
+// User ids to notify when an announcement is published - 'all' means every
+// customer/worker (never admins, who don't need marketing/product
+// announcements), 'customers'/'workers' map straight to that role.
+export async function listUserIdsForAudience(audience) {
+  const roles = audience === 'all' ? ['customer', 'worker'] : [audience === 'customers' ? 'customer' : 'worker'];
+  const { rows } = await pool.query('SELECT id FROM users WHERE role = ANY($1::text[])', [roles]);
+  return rows.map((r) => r.id);
+}
+
 export async function setAnnouncementStatus(id, status) {
   const { rows } = await pool.query(
     `UPDATE content_items
