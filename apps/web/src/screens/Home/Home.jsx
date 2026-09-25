@@ -6,12 +6,10 @@ import { Card } from '../../components/Card.jsx';
 import { Avatar } from '../../components/Avatar.jsx';
 import { CategoryIcon } from '../../components/CategoryIcon.jsx';
 import { WorkerCard } from '../../components/WorkerCard.jsx';
-import { PromoBanner } from '../../components/PromoBanner.jsx';
-import { AnnouncementModal } from '../../components/AnnouncementModal.jsx';
-import { NotificationSummaryCard } from '../../components/NotificationSummaryCard.jsx';
+import { PromotionCarousel } from '../../components/PromotionCarousel.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import * as workersApi from '../../api/workers.api.js';
-import * as announcementsApi from '../../api/announcements.api.js';
+import * as publicationsApi from '../../api/publications.api.js';
 
 const SEARCH_DEBOUNCE_MS = 175;
 
@@ -47,9 +45,7 @@ export function Home() {
 
   const [categories, setCategories] = useState(null);
   const [loadError, setLoadError] = useState('');
-  const [announcement, setAnnouncement] = useState(null);
-  const [bannerDismissed, setBannerDismissed] = useState(false);
-  const [announcementOpen, setAnnouncementOpen] = useState(false);
+  const [promotions, setPromotions] = useState([]);
 
   const [searchActive, setSearchActive] = useState(false);
   const [activeCategory, setActiveCategory] = useState('');
@@ -72,9 +68,9 @@ export function Home() {
       })
       .catch(() => setLoadError('Could not load services right now.'));
 
-    announcementsApi
-      .getActive('customers')
-      .then(({ announcement }) => setAnnouncement(announcement))
+    publicationsApi
+      .getActivePromotions('customers')
+      .then(({ promotions }) => setPromotions(promotions))
       .catch(() => {});
   }, []);
 
@@ -128,22 +124,7 @@ export function Home() {
         <Avatar name={user.fullName} imageUrl={user.profileImageUrl} size={48} />
       </div>
 
-      {announcement && !bannerDismissed && (
-        <PromoBanner
-          announcement={announcement}
-          onDismiss={() => setBannerDismissed(true)}
-          onOpen={() => setAnnouncementOpen(true)}
-        />
-      )}
-      {announcementOpen && announcement && (
-        <AnnouncementModal
-          title={announcement.title}
-          body={announcement.body}
-          onClose={() => setAnnouncementOpen(false)}
-        />
-      )}
-
-      <NotificationSummaryCard />
+      <PromotionCarousel promotions={promotions} />
 
       {!searchActive ? (
         <motion.div

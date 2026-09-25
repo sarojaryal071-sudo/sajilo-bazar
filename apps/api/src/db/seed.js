@@ -11,6 +11,8 @@ import bcrypt from 'bcryptjs';
 import 'dotenv/config';
 import { pool } from './pool.js';
 import * as authModel from '../modules/auth/auth.model.js';
+import * as adminModel from '../modules/admin/admin.model.js';
+import { notify } from '../modules/notifications/notifications.service.js';
 
 const SEED_PASSWORD = 'Seed@12345';
 const SEED_CUSTOMER_PHONE = '+9779800000001';
@@ -232,36 +234,65 @@ async function ensureVerificationDocument(workerId, docType) {
   );
 }
 
-// The Home/Dashboard promo banner reads the latest published, audience-
-// matching content_items row (see announcements.controller.js) - a row
-// left in the default 'draft' status (e.g. created by hand and never
-// explicitly published from the admin Announcements screen) never
-// renders anywhere. Idempotent by title: re-running this republishes it
-// if someone unpublished/drafted it since the last run, rather than
-// creating a duplicate.
-async function seedAnnouncement(adminId) {
-  const title = 'Welcome to Sajilo Bazar!';
+// The Home/Dashboard carousel reads every live, audience-matching
+// type='promotion' row from `publications` (see publications.controller.js)
+// - a row left in the default 'draft' status (e.g. created by hand and
+// never explicitly published from the admin Publications screen) never
+// renders anywhere. Idempotent by title: re-running this republishes a
+// row if someone unpublished/drafted it since the last run, rather than
+// creating a duplicate. Seeds two so the carousel's 2+ (horizontally
+// scrollable) case is exercised by default, not just the single-card one.
+async function seedPromotion({ title, body, adminId, displayOrder }) {
   const { rows: existing } = await pool.query(
-    "SELECT id, status FROM content_items WHERE kind = 'announcement' AND title = $1",
+    "SELECT id, status FROM publications WHERE type = 'promotion' AND title = $1",
     [title]
   );
   if (existing[0]) {
     if (existing[0].status !== 'published') {
       await pool.query(
-        "UPDATE content_items SET status = 'published', published_at = now(), updated_at = now() WHERE id = $1",
+        "UPDATE publications SET status = 'published', published_at = now(), updated_at = now() WHERE id = $1",
         [existing[0].id]
       );
-      console.log(`Republished seed announcement #${existing[0].id}`);
+      console.log(`Republished seed promotion #${existing[0].id}`);
     }
     return;
   }
   const { rows } = await pool.query(
-    `INSERT INTO content_items (kind, title, body, audience, status, published_at, created_by)
-     VALUES ('announcement', $1, $2, 'all', 'published', now(), $3)
+    `INSERT INTO publications (type, title, body, audience, status, published_at, display_order, created_by)
+     VALUES ('promotion', $1, $2, 'all', 'published', now(), $3, $4)
      RETURNING id`,
-    [title, 'Book trusted local workers for home services across Kathmandu.', adminId]
+    [title, body, displayOrder, adminId]
   );
-  console.log(`Seeded announcement #${rows[0].id} (published)`);
+  console.log(`Seeded promotion #${rows[0].id} (published)`);
+}
+
+// A single type='notification' publication, published through the same
+// notify() fan-out admin.service.js's setPublicationStatus uses (reused
+// directly here rather than duplicated as raw SQL) - confirms the bell
+// badge/Alerts path for this publication type actually works end-to-end,
+// not just that a row exists. Distinct from the promotions above, which
+// never touch notify()/notifications at all.
+async function seedNotificationPublication(adminId) {
+  const title = 'Welcome to Sajilo Bazar!';
+  const { rows: existing } = await pool.query(
+    "SELECT id FROM publications WHERE type = 'notification' AND title = $1",
+    [title]
+  );
+  if (existing[0]) return;
+
+  const publication = await adminModel.createPublication({
+    type: 'notification',
+    title,
+    body: 'Book trusted local workers for home services across Kathmandu.',
+    audience: 'all',
+    createdBy: adminId,
+  });
+  await adminModel.setPublicationStatus(publication.id, 'published');
+  const userIds = await adminModel.listUserIdsForAudience('all');
+  await Promise.all(
+    userIds.map((userId) => notify(userId, 'announcement', { publicationId: publication.id, title, body: publication.body }))
+  );
+  console.log(`Seeded notification publication #${publication.id} (published, fanned out to ${userIds.length} users)`);
 }
 
 async function findExistingBooking(customerId, workerId, status) {
@@ -338,7 +369,19 @@ async function main() {
   const admin = await findOrCreateAdmin();
   console.log(`Admin: ${admin.full_name ?? admin.fullName} (#${admin.id})`);
 
-  await seedAnnouncement(admin.id);
+  await seedPromotion({
+    title: 'Welcome to Sajilo Bazar!',
+    body: 'Book trusted local workers for home services across Kathmandu.',
+    adminId: admin.id,
+    displayOrder: 0,
+  });
+  await seedPromotion({
+    title: '10% off your first booking',
+    body: 'New here? Get 10% off your first completed booking this month.',
+    adminId: admin.id,
+    displayOrder: 1,
+  });
+  await seedNotificationPublication(admin.id);
 
   const workers = [];
   for (const w of WORKERS) {

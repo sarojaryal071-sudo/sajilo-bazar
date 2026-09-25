@@ -10,13 +10,11 @@ import { ReviewsList } from '../../components/ReviewsList.jsx';
 import { AddServiceModal } from '../../components/AddServiceModal.jsx';
 import { EarningsChart } from '../../components/EarningsChart.jsx';
 import { SkeletonBlock } from '../../components/Skeleton.jsx';
-import { PromoBanner } from '../../components/PromoBanner.jsx';
-import { AnnouncementModal } from '../../components/AnnouncementModal.jsx';
-import { NotificationSummaryCard } from '../../components/NotificationSummaryCard.jsx';
+import { PromotionCarousel } from '../../components/PromotionCarousel.jsx';
 import * as workersApi from '../../api/workers.api.js';
 import * as bookingsApi from '../../api/bookings.api.js';
 import * as commissionLedgerApi from '../../api/commissionLedger.api.js';
-import * as announcementsApi from '../../api/announcements.api.js';
+import * as publicationsApi from '../../api/publications.api.js';
 import { getCurrentLocation, getGeolocationPermissionState, getLocationBlockedMessage } from '../../lib/geolocation.js';
 
 const SERVICE_STATUS_TONE = { pending: 'warning', rejected: 'danger' };
@@ -275,9 +273,7 @@ export function WorkerDashboard() {
   const [showWelcome, setShowWelcome] = useState(false);
   const [earningsSummary, setEarningsSummary] = useState(null);
   const [sparkline, setSparkline] = useState(null);
-  const [announcement, setAnnouncement] = useState(null);
-  const [bannerDismissed, setBannerDismissed] = useState(false);
-  const [announcementOpen, setAnnouncementOpen] = useState(false);
+  const [promotions, setPromotions] = useState([]);
 
   useEffect(() => {
     workersApi
@@ -302,9 +298,9 @@ export function WorkerDashboard() {
       .getMySparkline()
       .then(({ sparkline }) => setSparkline(sparkline))
       .catch(() => {});
-    announcementsApi
-      .getActive('workers')
-      .then(({ announcement }) => setAnnouncement(announcement))
+    publicationsApi
+      .getActivePromotions('workers')
+      .then(({ promotions }) => setPromotions(promotions))
       .catch(() => {});
   }, []);
 
@@ -373,22 +369,7 @@ export function WorkerDashboard() {
         {data.profile.handle && <span className="text-sm text-text-muted">{data.profile.handle}</span>}
       </div>
 
-      {announcement && !bannerDismissed && (
-        <PromoBanner
-          announcement={announcement}
-          onDismiss={() => setBannerDismissed(true)}
-          onOpen={() => setAnnouncementOpen(true)}
-        />
-      )}
-      {announcementOpen && announcement && (
-        <AnnouncementModal
-          title={announcement.title}
-          body={announcement.body}
-          onClose={() => setAnnouncementOpen(false)}
-        />
-      )}
-
-      <NotificationSummaryCard />
+      <PromotionCarousel promotions={promotions} />
 
       <motion.div
         initial={{ opacity: 0, y: 8 }}

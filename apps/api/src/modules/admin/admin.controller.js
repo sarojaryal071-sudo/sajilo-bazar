@@ -8,7 +8,7 @@ import {
   AdminSupportTicketCreateInputSchema,
   AdminSupportTicketReplyInputSchema,
   AdminSupportTicketStatusInputSchema,
-  AdminAnnouncementInputSchema,
+  AdminPublicationInputSchema,
   AdminPolicyInputSchema,
   AdminDocumentRejectInputSchema,
 } from '@sajilo-bazar/shared';
@@ -326,60 +326,60 @@ export async function setTicketStatus(req, res, next) {
   }
 }
 
-// ---- Announcements ----
+// ---- Publications ----
 
-export async function listAnnouncements(req, res, next) {
+export async function listPublications(req, res, next) {
   try {
-    const { status, audience } = req.query;
-    const announcements = await adminService.listAnnouncements({ status, audience });
-    res.json({ announcements });
+    const { type, status, audience } = req.query;
+    const publications = await adminService.listPublications({ type, status, audience });
+    res.json({ publications });
   } catch (err) {
     next(err);
   }
 }
 
-export async function getAnnouncement(req, res, next) {
+export async function getPublication(req, res, next) {
   try {
-    const announcement = await adminService.getAnnouncement(parseId(req));
-    res.json({ announcement });
+    const publication = await adminService.getPublication(parseId(req));
+    res.json({ publication });
   } catch (err) {
     next(err);
   }
 }
 
-export async function createAnnouncement(req, res, next) {
+export async function createPublication(req, res, next) {
   try {
-    const input = AdminAnnouncementInputSchema.parse(req.body);
-    const announcement = await adminService.createAnnouncement(input, req.user.id);
-    res.status(201).json({ announcement });
+    const input = AdminPublicationInputSchema.parse(req.body);
+    const publication = await adminService.createPublication(input, req.user.id);
+    res.status(201).json({ publication });
   } catch (err) {
-    next(err.issues ? new ApiError(400, 'Invalid announcement input', err.issues) : err);
+    next(err.issues ? new ApiError(400, 'Invalid publication input', err.issues) : err);
   }
 }
 
-export async function updateAnnouncement(req, res, next) {
+export async function updatePublication(req, res, next) {
   try {
-    const input = AdminAnnouncementInputSchema.parse(req.body);
-    const announcement = await adminService.updateAnnouncement(parseId(req), input);
-    res.json({ announcement });
+    const input = AdminPublicationInputSchema.parse(req.body);
+    const publication = await adminService.updatePublication(parseId(req), input);
+    res.json({ publication });
   } catch (err) {
-    next(err.issues ? new ApiError(400, 'Invalid announcement input', err.issues) : err);
+    next(err.issues ? new ApiError(400, 'Invalid publication input', err.issues) : err);
   }
 }
 
-export async function publishAnnouncement(req, res, next) {
+export async function publishPublication(req, res, next) {
   try {
-    const announcement = await adminService.setAnnouncementStatus(parseId(req), 'published');
-    res.json({ announcement });
+    const publication = await adminService.setPublicationStatus(parseId(req), 'published');
+    res.json({ publication });
   } catch (err) {
     next(err);
   }
 }
 
-export async function unpublishAnnouncement(req, res, next) {
+export async function unpublishPublication(req, res, next) {
   try {
-    const announcement = await adminService.setAnnouncementStatus(parseId(req), 'unpublished');
-    res.json({ announcement });
+    const publication = await adminService.setPublicationStatus(parseId(req), 'unpublished');
+    res.json({ publication });
   } catch (err) {
     next(err);
   }

@@ -1,11 +1,12 @@
 import { motion } from 'framer-motion';
 import { Button } from './Button.jsx';
 
-// Full-content view for an announcement, opened from either the
-// Notifications inbox (tapping an 'announcement' notification) or the
-// PromoBanner on Home/WorkerDashboard - the same two-line preview in both
-// of those only ever shows a truncated body, so this is the one place the
-// whole text is actually readable.
+// Full-content view for a type='notification' publication, opened from the
+// Notifications inbox when tapping its 'announcement'-type notification
+// (see Notifications.jsx) - the inbox row only ever shows a truncated
+// body, so this is the one place the whole text is actually readable.
+// type='promotion' publications never reach here; they render only via
+// PromotionCarousel on Home/WorkerDashboard, with no notification tie-in.
 export function AnnouncementModal({ title, body, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:px-5">

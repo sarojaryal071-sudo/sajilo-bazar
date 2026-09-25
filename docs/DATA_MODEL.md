@@ -319,6 +319,34 @@ suspension, always a ticket a human picks up.
 `support_ticket_messages` is a simple threaded reply log (`ticket_id`, `sender_id`, `message`,
 `created_at`) - the ticket's opening message is inserted the same way as any reply.
 
+## 14. `publications`
+
+Added 2026-09-25, replacing the `content_items` `kind='announcement'` rows (`content_items`
+itself stays, now restricted to `kind='policy'` only - see Policies in `SCREENS.md`). One
+admin Publications screen creates rows of either type; `type` is the only field that drives
+routing (see `admin.service.js` `setPublicationStatus`) - `notification` fans out via the
+existing `notifications` table/`notify()` (reusing the `'announcement'` notification type,
+only its trigger source changed), `promotion` never touches notifications at all and renders
+only via the Home/Dashboard carousel. Deliberately a plain `VARCHAR` + `CHECK` rather than an
+enum type, so a future publication type is a migration adding one CHECK value plus a routing
+branch, not a new admin screen.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | serial pk | |
+| type | text | `CHECK IN ('notification', 'promotion')` |
+| title | varchar(160) | |
+| body | text | |
+| image_url | text | nullable; only used by `promotion` in practice, not enforced at this layer |
+| cta_label / cta_link | varchar(60) / text | nullable; `promotion`-only in practice |
+| audience | text | `all` \| `customers` \| `workers`, default `all` |
+| status | text | `draft` \| `published` \| `unpublished`, default `draft` |
+| scheduled_at / expires_at | timestamptz | informational "live now" fields — no cron flips status; `isLive` is computed fresh on every read, same idiom as `content_items` |
+| published_at | timestamptz | stamped when `status` transitions to `published` |
+| display_order | integer | carousel ordering for `promotion`; unused for `notification` |
+| created_by | fk → users | |
+| created_at / updated_at | timestamptz | |
+
 ## Trust score
 
 Worker-facing 0-100 score (`worker_profiles.trust_score`), computed and persisted by

@@ -18,3 +18,4 @@ export * from './schemas/supportTicket.schema.js';
 export * from './schemas/trustScore.schema.js';
 export * from './schemas/availability.schema.js';
 export * from './schemas/address.schema.js';
+export * from './schemas/publication.schema.js';

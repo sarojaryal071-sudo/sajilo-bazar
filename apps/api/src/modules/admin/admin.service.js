@@ -350,47 +350,55 @@ export async function setTicketStatus(id, status) {
   return ticket;
 }
 
-// ---- Announcements (Round D) ----
+// ---- Publications (2026-09-25) ----
+//
+// One admin flow for both publication types, routed entirely by `type`:
+// - 'notification': publishing fans a real notification out to every
+//   matching user via the existing notify()/notifications table (reusing
+//   the 'announcement' notification type - only its trigger source
+//   changed, from "announcement" to "publication where type=notification").
+//   Visible only through the bell/Alerts unread badge and the Alerts feed
+//   - never a Home/Dashboard card of any kind.
+// - 'promotion': never touches notify()/notifications at all. Rendered
+//   only via listActivePromotions (see publications module) as the
+//   Home/Dashboard carousel.
+// Unpublishing doesn't retract anything already sent - same as every
+// other notification in this app, it's a durable, one-way record.
 
-export async function listAnnouncements(filters) {
-  return adminModel.listAnnouncements(filters);
+export async function listPublications(filters) {
+  return adminModel.listPublications(filters);
 }
 
-export async function getAnnouncement(id) {
-  const announcement = await adminModel.findAnnouncementById(id);
-  if (!announcement) throw new ApiError(404, 'Announcement not found');
-  return announcement;
+export async function getPublication(id) {
+  const publication = await adminModel.findPublicationById(id);
+  if (!publication) throw new ApiError(404, 'Publication not found');
+  return publication;
 }
 
-export async function createAnnouncement(input, adminId) {
-  return adminModel.createAnnouncement({ ...input, createdBy: adminId });
+export async function createPublication(input, adminId) {
+  return adminModel.createPublication({ ...input, createdBy: adminId });
 }
 
-export async function updateAnnouncement(id, input) {
-  const announcement = await adminModel.updateAnnouncement(id, input);
-  if (!announcement) throw new ApiError(404, 'Announcement not found');
-  return announcement;
+export async function updatePublication(id, input) {
+  const publication = await adminModel.updatePublication(id, input);
+  if (!publication) throw new ApiError(404, 'Publication not found');
+  return publication;
 }
 
-// Publishing fans a real notification out to every matching user, so it
-// actually lands in their Alerts inbox (not just the Home/Dashboard promo
-// banner, which only ever shows the single latest live one and is easy to
-// miss/dismiss). Unpublishing doesn't retract anything already sent - same
-// as every other notification in this app, it's a durable, one-way record.
-export async function setAnnouncementStatus(id, status) {
-  const announcement = await adminModel.setAnnouncementStatus(id, status);
-  if (!announcement) throw new ApiError(404, 'Announcement not found');
+export async function setPublicationStatus(id, status) {
+  const publication = await adminModel.setPublicationStatus(id, status);
+  if (!publication) throw new ApiError(404, 'Publication not found');
 
-  if (status === 'published') {
-    const userIds = await adminModel.listUserIdsForAudience(announcement.audience);
+  if (status === 'published' && publication.type === 'notification') {
+    const userIds = await adminModel.listUserIdsForAudience(publication.audience);
     await Promise.all(
       userIds.map((userId) =>
-        notify(userId, 'announcement', { announcementId: announcement.id, title: announcement.title, body: announcement.body })
+        notify(userId, 'announcement', { publicationId: publication.id, title: publication.title, body: publication.body })
       )
     );
   }
 
-  return announcement;
+  return publication;
 }
 
 // ---- Policies (Round D) ----

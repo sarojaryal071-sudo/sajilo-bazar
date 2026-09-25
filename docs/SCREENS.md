@@ -112,23 +112,21 @@ Build in this order — don't jump ahead to later-phase screens.
 
 - Notification inbox/list screen (Alerts, `/notifications`) — the single unified activity
   feed across every notification type (booking-lifecycle events, chat messages, admin
-  announcements, dispute resolutions, support-ticket replies, reviews), newest first; this
-  is the only place read/unread state is set. A published admin announcement (see Phase 6
-  below) fans out as a real notification here to every matching customer/worker, not just
-  the Home/Dashboard promo banner; tapping one opens the full text in a modal rather than
-  the generic booking-navigate fallback
-- Notification bell/badge component (not a full screen — see `DESIGN_SYSTEM.md`)
-- Home/Dashboard notification summary card (`NotificationSummaryCard`, not a full screen) —
-  decided 2026-09-25: at most one notification-related card ever shows on Home/Dashboard,
-  reflecting current unread state from Alerts. With exactly 1 unread notification it
-  previews that notification; with 2+ it shows a count ("You have N notifications") instead
-  of stacking individual cards. The card itself is never openable/dismissible in place —
-  tapping it only navigates to Alerts, where reading/dismissing actually happens. Generic
-  across every notification type, not just announcements
-- Promo banner (Home and worker Dashboard, not a full screen) — a separate UI element from
-  the notification summary card above, keeps its own placement/pattern: the single latest
-  live announcement for that viewer's role, tap to read the full text, dismiss for the
-  session
+  notifications, dispute resolutions, support-ticket replies, reviews), newest first; this
+  is the only place read/unread state is set. A published admin `type='notification'`
+  publication (see Phase 6 below) fans out as a real notification here to every matching
+  customer/worker; tapping one opens the full text in a modal rather than the generic
+  booking-navigate fallback
+- Notification bell/badge component (not a full screen — see `DESIGN_SYSTEM.md`). Decided
+  2026-09-25: this badge is the only unread-notification signal anywhere outside Alerts —
+  there is no separate Home/Dashboard notification card of any kind (an earlier round briefly
+  had one, `NotificationSummaryCard`; it was removed as redundant with this badge)
+- Home/Dashboard promotion carousel (`PromotionCarousel`, not a full screen) — renders every
+  live admin `type='promotion'` publication for that viewer's role: 0 live promotions renders
+  nothing, exactly 1 is a single full-width card, 2+ is a horizontally scrollable row of
+  cards. Purely a merchandising surface — a promotion publish never touches
+  notifications/Alerts at all, and this carousel never reflects unread-notification state
+  (that's the bell badge's job, above)
 
 ## Phase 5 — Commission Ledger (worker-facing)
 
@@ -189,10 +187,15 @@ parallel system (see `DATA_MODEL.md`'s "Scheduled booking + worker availability"
   reusing the same message-bubble/composer look as the in-app booking chat), not a
   data table + separate detail page
 - Admin: Disputes list + detail
-- Admin: Announcements (simple — platform-wide notices) — publishing one fans a real
-  notification out to every matching customer/worker (see Phase 4 above), not just the
-  promo banner
-- Admin: Policies (simple static content management, not a builder)
+- Admin: Publications (renamed from Announcements, 2026-09-25) — one screen, one form, a
+  Type dropdown (Notification / Promotion) at the top that drives everything else: which
+  fields show (image/CTA only for Promotion) and where the published row appears. Publishing
+  a Notification fans a real notification out to every matching customer/worker (see Phase 4
+  above) and touches nothing on Home/Dashboard; publishing a Promotion renders only in the
+  Home/Dashboard carousel and never touches notifications/Alerts. Designed to take a future
+  publication type as an enum addition + routing rule, not a new screen
+- Admin: Policies (simple static content management, not a builder) — unaffected by the
+  Publications rework above; still its own screen/table (`content_items`, `kind='policy'`)
 
 ## Later phases — not built until their phase starts
 
