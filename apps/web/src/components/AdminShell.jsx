@@ -97,7 +97,7 @@ function SupportIcon() {
   );
 }
 
-function AnnouncementsIcon() {
+function PublicationsIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M3 11v3a1 1 0 0 0 1 1h2l4 4V6L6 10H4a1 1 0 0 0-1 1Z" strokeLinecap="round" strokeLinejoin="round" />
@@ -144,7 +144,7 @@ const NAV_ITEMS = [
   { to: '/admin/accounting', label: 'Accounting', icon: AccountingIcon },
   { to: '/admin/disputes', label: 'Disputes', icon: DisputesIcon },
   { to: '/admin/support', label: 'Support tickets', icon: SupportIcon },
-  { to: '/admin/announcements', label: 'Announcements', icon: AnnouncementsIcon },
+  { to: '/admin/publications', label: 'Publications', icon: PublicationsIcon },
   { to: '/admin/policies', label: 'Policies', icon: PoliciesIcon },
   { to: '/admin/settings', label: 'Settings', icon: SettingsIcon },
 ];

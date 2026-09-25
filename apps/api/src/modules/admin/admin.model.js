@@ -591,7 +591,8 @@ export async function setTicketStatus(id, status) {
   return rows[0] ? findSupportTicketById(id) : null;
 }
 
-// ---- Announcements + Policies (Round D) ----
+// ---- Publications (2026-09-25, replaces the old Announcements half of
+// content_items) + Policies (Round D) ----
 
 // isLive is computed here rather than stored - no cron exists to flip
 // status at scheduled_at/expires_at, so "live" is just "published, and any
@@ -607,7 +608,6 @@ function toContentItem(row) {
 
   return {
     id: row.id,
-    kind: row.kind,
     policyType: row.policy_type,
     title: row.title,
     body: row.body,
@@ -622,85 +622,150 @@ function toContentItem(row) {
   };
 }
 
-export async function listAnnouncements({ status, audience }) {
+function toPublication(row) {
+  const now = Date.now();
+  const scheduledAt = row.scheduled_at ? new Date(row.scheduled_at) : null;
+  const expiresAt = row.expires_at ? new Date(row.expires_at) : null;
+  const isLive =
+    row.status === 'published' &&
+    (!scheduledAt || scheduledAt.getTime() <= now) &&
+    (!expiresAt || expiresAt.getTime() > now);
+
+  return {
+    id: row.id,
+    type: row.type,
+    title: row.title,
+    body: row.body,
+    imageUrl: row.image_url,
+    ctaLabel: row.cta_label,
+    ctaLink: row.cta_link,
+    audience: row.audience,
+    status: row.status,
+    isLive,
+    scheduledAt: row.scheduled_at,
+    expiresAt: row.expires_at,
+    publishedAt: row.published_at,
+    displayOrder: row.display_order,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export async function listPublications({ type, status, audience }) {
   const { rows } = await pool.query(
-    `SELECT * FROM content_items
-     WHERE kind = 'announcement'
-       AND ($1::text IS NULL OR status = $1)
-       AND ($2::text IS NULL OR audience = $2)
+    `SELECT * FROM publications
+     WHERE ($1::text IS NULL OR type = $1)
+       AND ($2::text IS NULL OR status = $2)
+       AND ($3::text IS NULL OR audience = $3)
      ORDER BY created_at DESC`,
-    [status || null, audience || null]
+    [type || null, status || null, audience || null]
   );
-  return rows.map(toContentItem);
+  return rows.map(toPublication);
 }
 
-export async function findAnnouncementById(id) {
-  const { rows } = await pool.query(
-    "SELECT * FROM content_items WHERE id = $1 AND kind = 'announcement'",
-    [id]
-  );
-  return rows[0] ? toContentItem(rows[0]) : null;
+export async function findPublicationById(id) {
+  const { rows } = await pool.query('SELECT * FROM publications WHERE id = $1', [id]);
+  return rows[0] ? toPublication(rows[0]) : null;
 }
 
-// Public-facing (Home promo banner) - the single latest live announcement
-// for a given audience, computing "live" directly in SQL (published, and
-// within any schedule window) rather than fetching every published row and
-// filtering in JS. audience 'all' announcements show to every audience.
-export async function findLatestActiveAnnouncement(audience) {
+// Public-facing (Home/Dashboard promotion carousel) - every live
+// type='promotion' publication for a given audience, ordered for the
+// carousel. 'all'-audience publications show to every audience.
+export async function listActivePromotions(audience) {
   const { rows } = await pool.query(
-    `SELECT * FROM content_items
-     WHERE kind = 'announcement'
+    `SELECT * FROM publications
+     WHERE type = 'promotion'
        AND status = 'published'
        AND audience IN ($1, 'all')
        AND (scheduled_at IS NULL OR scheduled_at <= now())
        AND (expires_at IS NULL OR expires_at > now())
-     ORDER BY created_at DESC
-     LIMIT 1`,
+     ORDER BY display_order ASC, created_at DESC`,
     [audience]
   );
-  return rows[0] ? toContentItem(rows[0]) : null;
+  return rows.map(toPublication);
 }
 
-export async function createAnnouncement({ title, body, audience, scheduledAt, expiresAt, createdBy }) {
+export async function createPublication({
+  type,
+  title,
+  body,
+  imageUrl,
+  ctaLabel,
+  ctaLink,
+  audience,
+  scheduledAt,
+  expiresAt,
+  displayOrder,
+  createdBy,
+}) {
   const { rows } = await pool.query(
-    `INSERT INTO content_items (kind, title, body, audience, scheduled_at, expires_at, created_by)
-     VALUES ('announcement', $1, $2, $3, $4, $5, $6) RETURNING *`,
-    [title, body, audience, scheduledAt ?? null, expiresAt ?? null, createdBy]
+    `INSERT INTO publications
+       (type, title, body, image_url, cta_label, cta_link, audience, scheduled_at, expires_at, display_order, created_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+    [
+      type,
+      title,
+      body,
+      imageUrl ?? null,
+      ctaLabel ?? null,
+      ctaLink ?? null,
+      audience,
+      scheduledAt ?? null,
+      expiresAt ?? null,
+      displayOrder ?? 0,
+      createdBy,
+    ]
   );
-  return toContentItem(rows[0]);
+  return toPublication(rows[0]);
 }
 
-export async function updateAnnouncement(id, { title, body, audience, scheduledAt, expiresAt }) {
+export async function updatePublication(
+  id,
+  { title, body, imageUrl, ctaLabel, ctaLink, audience, scheduledAt, expiresAt, displayOrder }
+) {
   const { rows } = await pool.query(
-    `UPDATE content_items
-     SET title = $2, body = $3, audience = $4, scheduled_at = $5, expires_at = $6, updated_at = now()
-     WHERE id = $1 AND kind = 'announcement'
+    `UPDATE publications
+     SET title = $2, body = $3, image_url = $4, cta_label = $5, cta_link = $6,
+         audience = $7, scheduled_at = $8, expires_at = $9, display_order = $10, updated_at = now()
+     WHERE id = $1
      RETURNING *`,
-    [id, title, body, audience, scheduledAt ?? null, expiresAt ?? null]
+    [
+      id,
+      title,
+      body,
+      imageUrl ?? null,
+      ctaLabel ?? null,
+      ctaLink ?? null,
+      audience,
+      scheduledAt ?? null,
+      expiresAt ?? null,
+      displayOrder ?? 0,
+    ]
   );
-  return rows[0] ? toContentItem(rows[0]) : null;
+  return rows[0] ? toPublication(rows[0]) : null;
 }
 
-// User ids to notify when an announcement is published - 'all' means every
-// customer/worker (never admins, who don't need marketing/product
-// announcements), 'customers'/'workers' map straight to that role.
+// User ids to notify when a type='notification' publication is published -
+// 'all' means every customer/worker (never admins, who don't need
+// marketing/product notifications), 'customers'/'workers' map straight to
+// that role.
 export async function listUserIdsForAudience(audience) {
   const roles = audience === 'all' ? ['customer', 'worker'] : [audience === 'customers' ? 'customer' : 'worker'];
   const { rows } = await pool.query('SELECT id FROM users WHERE role = ANY($1::text[])', [roles]);
   return rows.map((r) => r.id);
 }
 
-export async function setAnnouncementStatus(id, status) {
+export async function setPublicationStatus(id, status) {
   const { rows } = await pool.query(
-    `UPDATE content_items
+    `UPDATE publications
      SET status = $2,
          published_at = CASE WHEN $3 THEN now() ELSE published_at END,
          updated_at = now()
-     WHERE id = $1 AND kind = 'announcement'
+     WHERE id = $1
      RETURNING *`,
     [id, status, status === 'published']
   );
-  return rows[0] ? toContentItem(rows[0]) : null;
+  return rows[0] ? toPublication(rows[0]) : null;
 }
 
 // The three policy_type rows are seeded once in the migration and never

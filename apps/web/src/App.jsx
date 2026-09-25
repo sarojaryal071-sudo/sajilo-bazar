@@ -40,7 +40,7 @@ import { AdminCategories } from './screens/Admin/AdminCategories.jsx';
 import { AdminDisputes } from './screens/Admin/AdminDisputes.jsx';
 import { AdminDisputeDetail } from './screens/Admin/AdminDisputeDetail.jsx';
 import { AdminSupportTickets } from './screens/Admin/AdminSupportTickets.jsx';
-import { AdminAnnouncements } from './screens/Admin/AdminAnnouncements.jsx';
+import { AdminPublications } from './screens/Admin/AdminPublications.jsx';
 import { AdminPolicies } from './screens/Admin/AdminPolicies.jsx';
 import { AdminComingSoon } from './screens/Admin/AdminComingSoon.jsx';
 
@@ -85,7 +85,7 @@ export default function App() {
             <Route path="/admin/disputes/:id" element={<AdminDisputeDetail />} />
             <Route path="/admin/support" element={<AdminSupportTickets />} />
             <Route path="/admin/support/:id" element={<AdminSupportTickets />} />
-            <Route path="/admin/announcements" element={<AdminAnnouncements />} />
+            <Route path="/admin/publications" element={<AdminPublications />} />
             <Route path="/admin/policies" element={<AdminPolicies />} />
             <Route path="/admin/settings" element={<AdminComingSoon title="Settings" />} />
           </Route>

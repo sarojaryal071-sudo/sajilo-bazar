@@ -47,6 +47,11 @@ export const PAYMENT_METHODS = ['cash', 'esewa'];
 // module). 'building_trust' also covers a worker still in the grace period.
 export const TRUST_TIERS = ['building_trust', 'trusted', 'highly_trusted'];
 
+// Admin Publications screen (2026-09-25). type drives all routing (see
+// publications.service.js) - designed to grow by adding a value here plus
+// a routing branch, never a new admin screen.
+export const PUBLICATION_TYPES = ['notification', 'promotion'];
+
 export const NOTIFICATION_TYPES = [
   'booking_requested',
   'booking_accepted',
