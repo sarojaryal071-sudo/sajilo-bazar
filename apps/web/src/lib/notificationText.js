@@ -37,6 +37,13 @@ export function describeNotification({ type, payload }) {
       return { title: 'Verification update', body: payload.status || '' };
     case 'announcement':
       return { title: payload.title || 'Announcement', body: payload.body || '' };
+    case 'dispute_resolved':
+      return {
+        title: 'Dispute resolved',
+        body: payload.status === 'dismissed' ? 'Your dispute was dismissed' : 'Your dispute has been resolved',
+      };
+    case 'support_reply':
+      return { title: `Reply: ${payload.subject || 'Support ticket'}`, body: payload.message || '' };
     default:
       return { title: 'Notification', body: '' };
   }

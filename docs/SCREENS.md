@@ -52,9 +52,11 @@ Build in this order — don't jump ahead to later-phase screens.
   confirm]), Preferences (language/theme — moved here from the hamburger menu, which is
   now pure navigation), Locations (customer only — saved addresses, add/edit/delete, set
   which one is the default Home Location; see "Customer home location" below), Notifications
-  (unified matrix — 5 categories x 4 channels; only the In-app column is functional in this
-  v1, SMS/Email/WhatsApp are visibly present but disabled under one grouped "Coming soon"
-  badge), Support (contact support, Terms & Conditions, Privacy Policy)
+  (channel switcher at top — In-app / SMS / Email / WhatsApp — selecting a channel swaps
+  which channel's settings the 5 category toggles below reflect, rather than showing all
+  channels side by side; only In-app is functional in this v1, selecting SMS/Email/WhatsApp
+  shows the same 5 toggles disabled with a "Coming soon" note for that channel), Support
+  (contact support, Terms & Conditions, Privacy Policy)
 - Worker: "Apply as worker" flow (skills, services, pricing, document upload)
 - Worker: verification pending / status screen
 - Customer signup's final step: set a Home Location (address + optional "Use my current
@@ -108,13 +110,25 @@ Build in this order — don't jump ahead to later-phase screens.
 
 ## Phase 4 — Notifications
 
-- Notification inbox/list screen — a published admin announcement (see Phase 6 below) fans
-  out as a real notification to every matching customer/worker, not just the Home/Dashboard
-  promo banner; tapping one opens the full text in a modal rather than the generic
-  booking-navigate fallback
+- Notification inbox/list screen (Alerts, `/notifications`) — the single unified activity
+  feed across every notification type (booking-lifecycle events, chat messages, admin
+  announcements, dispute resolutions, support-ticket replies, reviews), newest first; this
+  is the only place read/unread state is set. A published admin announcement (see Phase 6
+  below) fans out as a real notification here to every matching customer/worker, not just
+  the Home/Dashboard promo banner; tapping one opens the full text in a modal rather than
+  the generic booking-navigate fallback
 - Notification bell/badge component (not a full screen — see `DESIGN_SYSTEM.md`)
-- Promo banner (Home and worker Dashboard, not a full screen) — the single latest live
-  announcement for that viewer's role, tap to read the full text, dismiss for the session
+- Home/Dashboard notification summary card (`NotificationSummaryCard`, not a full screen) —
+  decided 2026-09-25: at most one notification-related card ever shows on Home/Dashboard,
+  reflecting current unread state from Alerts. With exactly 1 unread notification it
+  previews that notification; with 2+ it shows a count ("You have N notifications") instead
+  of stacking individual cards. The card itself is never openable/dismissible in place —
+  tapping it only navigates to Alerts, where reading/dismissing actually happens. Generic
+  across every notification type, not just announcements
+- Promo banner (Home and worker Dashboard, not a full screen) — a separate UI element from
+  the notification summary card above, keeps its own placement/pattern: the single latest
+  live announcement for that viewer's role, tap to read the full text, dismiss for the
+  session
 
 ## Phase 5 — Commission Ledger (worker-facing)
 

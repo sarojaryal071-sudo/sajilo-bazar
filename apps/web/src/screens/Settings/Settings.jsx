@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { NOTIFICATION_CATEGORIES } from '@sajilo-bazar/shared';
@@ -131,43 +131,60 @@ function MiniToggle({ checked, onChange, disabled }) {
   );
 }
 
-// Settings -> Notifications: one row per category, four channel columns.
-// Only In-app is real in this v1 (see notification_preferences migration) -
-// SMS/Email/WhatsApp are visibly present but disabled, with a single
-// "Coming soon" badge over the group rather than repeated per cell, same
-// pattern as the eSewa payment placeholder on BookingDetail.
+const NOTIFICATION_CHANNELS = [
+  { value: 'inapp', label: 'In-app' },
+  { value: 'sms', label: 'SMS' },
+  { value: 'email', label: 'Email' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+];
+
+// Settings -> Notifications: a channel switcher up top (segmented control,
+// same bg-surface-alt/bg-brand pattern as BookingRequest's Now/Schedule
+// toggle) decides which channel's preferences the 5 category toggles below
+// reflect - not four columns side by side. Only In-app is real in this v1
+// (see notification_preferences migration): selecting it shows the live,
+// tappable toggles; selecting SMS/Email/WhatsApp shows the same 5 toggles
+// disabled with a "Coming soon" note, so the seam for turning a channel on
+// later is just enabling its toggles, not rebuilding the layout.
 function NotificationMatrix({ preferences, onToggle, busyCategory }) {
+  const [channel, setChannel] = useState('inapp');
+  const isInApp = channel === 'inapp';
+  const channelLabel = NOTIFICATION_CHANNELS.find((c) => c.value === channel)?.label;
+
   return (
     <div className="px-4 py-4">
-      <div className="grid grid-cols-[1fr_2.5rem_2.5rem_2.5rem_2.5rem] items-center gap-x-2 gap-y-4">
-        <span />
-        <span className="text-center text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-          In-app
-        </span>
-        <div className="col-span-3 flex justify-center">
+      <div className="flex gap-1 rounded-full bg-surface-alt p-1">
+        {NOTIFICATION_CHANNELS.map((c) => (
+          <button
+            key={c.value}
+            type="button"
+            onClick={() => setChannel(c.value)}
+            className={`flex-1 rounded-full py-1.5 text-xs font-semibold transition-colors ${
+              channel === c.value ? 'bg-brand text-text-onBrand shadow-resting' : 'text-text-muted'
+            }`}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
+
+      {!isInApp && (
+        <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-surface-alt px-3 py-2">
+          <span className="text-xs text-text-muted">{channelLabel} delivery isn't built yet</span>
           <Badge tone="neutral">Coming soon</Badge>
         </div>
+      )}
 
+      <div className="mt-4 flex flex-col gap-3">
         {NOTIFICATION_CATEGORIES.map((category) => (
-          <Fragment key={category}>
-            <span className="pr-2 text-sm font-medium">{CATEGORY_LABELS[category]}</span>
-            <span className="flex justify-center">
-              <MiniToggle
-                checked={preferences?.[category] ?? true}
-                disabled={busyCategory === category || !preferences}
-                onChange={(next) => onToggle(category, next)}
-              />
-            </span>
-            <span className="flex justify-center">
-              <MiniToggle checked={false} disabled onChange={() => {}} />
-            </span>
-            <span className="flex justify-center">
-              <MiniToggle checked={false} disabled onChange={() => {}} />
-            </span>
-            <span className="flex justify-center">
-              <MiniToggle checked={false} disabled onChange={() => {}} />
-            </span>
-          </Fragment>
+          <div key={category} className="flex items-center justify-between gap-3">
+            <span className="text-sm font-medium">{CATEGORY_LABELS[category]}</span>
+            <MiniToggle
+              checked={isInApp ? (preferences?.[category] ?? true) : false}
+              disabled={!isInApp || busyCategory === category || !preferences}
+              onChange={(next) => onToggle(category, next)}
+            />
+          </div>
         ))}
       </div>
     </div>
