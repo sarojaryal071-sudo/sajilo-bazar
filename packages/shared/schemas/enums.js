@@ -56,4 +56,5 @@ export const NOTIFICATION_TYPES = [
   'chat_message',
   'review_received',
   'verification_update',
+  'announcement',
 ];

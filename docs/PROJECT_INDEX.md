@@ -8,7 +8,7 @@ This index is filled in incrementally - only files touched by a task get an entr
 here as part of that task. A file with no entry yet doesn't mean it's undocumented
 forever, just that no session has touched it since this index was introduced.
 
-_Last updated: 2026-09-24 — Roll out new logo mark (Wordmark icon, favicon, PWA manifest icons)_
+_Last updated: 2026-09-25 — Promo banner parity, messenger-style admin Support Tickets, announcement notifications, worker Profile enrichment_
 
 ## apps/api
 | File | Purpose |
@@ -61,6 +61,9 @@ _Last updated: 2026-09-24 — Roll out new logo mark (Wordmark icon, favicon, PW
 | `src/modules/commissionLedger/commissionLedger.service.js` | Business logic: 15% `COMMISSION_RATE`, `recordCompletion` (called from bookings.service.js), `getSummary`/`getSparkline`/`getSeries`/`getHistory` for the Earnings screen and Dashboard card |
 | `src/modules/commissionLedger/commissionLedger.controller.js` | Route handlers for `GET /commission-ledger/me/{summary,sparkline,series,history}` |
 | `src/modules/commissionLedger/commissionLedger.routes.js` | Mounts the above under `requireAuth, requireRole('worker')` |
+| `src/modules/admin/admin.model.js` | New `listUserIdsForAudience(audience)` - every user id matching an announcement's audience (`'all'` → every customer+worker, never admins) |
+| `src/modules/admin/admin.service.js` | `setAnnouncementStatus` now fans a real `notify(userId, 'announcement', {...})` out to every matching user when a publish actually happens (not on unpublish) - so a published announcement lands in the recipient's Alerts inbox, not just the easy-to-miss/dismiss Home/Dashboard promo banner |
+| `src/db/migrations/030_add_announcement_notification_type.sql` | Adds `'announcement'` to `notifications.type`'s CHECK constraint (the DB-level check is separate from the shared Zod enum - both needed updating) |
 
 ## apps/web
 | File | Purpose |
@@ -124,10 +127,19 @@ _Last updated: 2026-09-24 — Roll out new logo mark (Wordmark icon, favicon, PW
 | `src/screens/BookingDetail/BookingDetail.jsx` | Same "No worker found" / `NoWorkerAvatar` fix applied to the detail header |
 | `src/screens/BookingDetail/BookingDetail.jsx` | New `CompleteSection` - the worker's "Mark complete" step now opens an inline form (final price input, prefilled/editable; Cash selected, eSewa disabled with a "Coming soon" badge) instead of completing immediately; the details card gains a "Payment method" row ("Paid in cash") once `status === 'completed'`, visible to both roles |
 | `src/api/bookings.api.js` | `complete(id, {finalPrice, paymentMethod})` now sends a body instead of a bare PATCH |
+| `src/components/PromoBanner.jsx` | New: extracted from `Home.jsx` (was a private component there) - the announcement promo banner, now also used by `WorkerDashboard.jsx` (previously customer-only, so a worker-audience announcement had nowhere to show). Gains `onOpen` - tapping the banner body opens the full text via `AnnouncementModal`, tapping the X still just dismisses for the session |
+| `src/components/AnnouncementModal.jsx` | New: full-content view for an announcement (title + untruncated body), opened from `PromoBanner`'s `onOpen` or from tapping an `'announcement'` notification in `Notifications.jsx` - the promo banner and the notification list both only ever show a truncated preview |
+| `src/screens/WorkerDashboard/WorkerDashboard.jsx` | Gains its own `PromoBanner`/`AnnouncementModal` (workers-audience announcements, previously invisible anywhere). The "Submitted documents" card is gone from here - moved to `Profile.jsx` (Dashboard is daily-activity-only now; the verification-status hero card and services list stay, since those are still operational/actionable here) |
+| `src/screens/Profile/Profile.jsx` | Significantly enriched, especially for workers (previously identical for every role - just name/clientId/phone/email/logout). New: role badge, worker's verification-status badge, "Member since", worker's `handle`, a "View my public profile" link (→ `/worker/:id`) once approved, and the "Submitted documents" card moved here from `WorkerDashboard.jsx`. Fetches `workersApi.getMyWorkerData()` when `user.role === 'worker'` |
+| `src/screens/Notifications/Notifications.jsx` | Tapping an `'announcement'`-type notification opens `AnnouncementModal` with the full text (still marks it read the same as any other tap) instead of the generic booking-navigate fallback |
+| `src/lib/notificationText.js` | `describeNotification` gains the `'announcement'` case |
+| `src/screens/Admin/AdminSupportTickets.jsx` | Rebuilt as a single messenger-style master-detail screen (conversation list on the left - avatar + the actual person's name + subject preview + status/priority - full chat panel on the right, reusing the same message-bubble/composer visual language as `BookingChat.jsx`: admin's own replies bubble right in brand color, the ticket owner's messages bubble left). Replaces the old plain data-table list + a separate `/admin/support/:id` detail page (deleted - `AdminSupportTicketDetail.jsx`) with one component driven by the optional `:id` route param, so selecting a conversation just updates the URL rather than navigating to a whole new page |
+| `src/App.jsx` | `/admin/support/:id` now renders the same `AdminSupportTickets` component as `/admin/support` (was a separate `AdminSupportTicketDetail` screen) |
 
 ## packages/shared
 | File | Purpose |
 |---|---|
+| `schemas/enums.js` | `NOTIFICATION_TYPES` gained `'announcement'` |
 | `schemas/availability.schema.js` | `AvailabilityBlockSchema` (`dayOfWeek` 0-6, `startTime`/`endTime` as `HH:MM`), `AvailabilityReplaceInputSchema`, `TypicalResponseHoursInputSchema` |
 | `schemas/enums.js` | `RESPONSE_DEADLINE_HOURS` (`[1, 6, 24]`); `NOTIFICATION_TYPES` gained `booking_request_expired` |
 | `schemas/booking.schema.js` | `BookingSchema` gained `scheduledFor`/`responseDeadlineHours`/`respondBy`; `BookingCreateInputSchema` gained optional `scheduledFor`/`responseDeadlineHours` (must be given together, `scheduledFor` must be in the future) |

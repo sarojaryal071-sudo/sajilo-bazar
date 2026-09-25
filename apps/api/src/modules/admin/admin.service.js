@@ -366,9 +366,24 @@ export async function updateAnnouncement(id, input) {
   return announcement;
 }
 
+// Publishing fans a real notification out to every matching user, so it
+// actually lands in their Alerts inbox (not just the Home/Dashboard promo
+// banner, which only ever shows the single latest live one and is easy to
+// miss/dismiss). Unpublishing doesn't retract anything already sent - same
+// as every other notification in this app, it's a durable, one-way record.
 export async function setAnnouncementStatus(id, status) {
   const announcement = await adminModel.setAnnouncementStatus(id, status);
   if (!announcement) throw new ApiError(404, 'Announcement not found');
+
+  if (status === 'published') {
+    const userIds = await adminModel.listUserIdsForAudience(announcement.audience);
+    await Promise.all(
+      userIds.map((userId) =>
+        notify(userId, 'announcement', { announcementId: announcement.id, title: announcement.title, body: announcement.body })
+      )
+    );
+  }
+
   return announcement;
 }
 

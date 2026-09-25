@@ -11,10 +11,13 @@ import { AddServiceModal } from '../../components/AddServiceModal.jsx';
 import { EarningsChart } from '../../components/EarningsChart.jsx';
 import { TrustMeter } from '../../components/TrustMeter.jsx';
 import { SkeletonBlock } from '../../components/Skeleton.jsx';
+import { PromoBanner } from '../../components/PromoBanner.jsx';
+import { AnnouncementModal } from '../../components/AnnouncementModal.jsx';
 import * as workersApi from '../../api/workers.api.js';
 import * as bookingsApi from '../../api/bookings.api.js';
 import * as commissionLedgerApi from '../../api/commissionLedger.api.js';
 import * as trustScoreApi from '../../api/trustScore.api.js';
+import * as announcementsApi from '../../api/announcements.api.js';
 import { getCurrentLocation, getGeolocationPermissionState, getLocationBlockedMessage } from '../../lib/geolocation.js';
 
 const SERVICE_STATUS_TONE = { pending: 'warning', rejected: 'danger' };
@@ -274,6 +277,9 @@ export function WorkerDashboard() {
   const [earningsSummary, setEarningsSummary] = useState(null);
   const [sparkline, setSparkline] = useState(null);
   const [trustScore, setTrustScore] = useState(null);
+  const [announcement, setAnnouncement] = useState(null);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [announcementOpen, setAnnouncementOpen] = useState(false);
 
   useEffect(() => {
     workersApi
@@ -301,6 +307,10 @@ export function WorkerDashboard() {
     trustScoreApi
       .getMyTrustScore()
       .then(({ trustScore }) => setTrustScore(trustScore))
+      .catch(() => {});
+    announcementsApi
+      .getActive('workers')
+      .then(({ announcement }) => setAnnouncement(announcement))
       .catch(() => {});
   }, []);
 
@@ -368,6 +378,21 @@ export function WorkerDashboard() {
         <h1 className="text-2xl font-bold">Dashboard</h1>
         {data.profile.handle && <span className="text-sm text-text-muted">{data.profile.handle}</span>}
       </div>
+
+      {announcement && !bannerDismissed && (
+        <PromoBanner
+          announcement={announcement}
+          onDismiss={() => setBannerDismissed(true)}
+          onOpen={() => setAnnouncementOpen(true)}
+        />
+      )}
+      {announcementOpen && announcement && (
+        <AnnouncementModal
+          title={announcement.title}
+          body={announcement.body}
+          onClose={() => setAnnouncementOpen(false)}
+        />
+      )}
 
       <motion.div
         initial={{ opacity: 0, y: 8 }}
@@ -478,27 +503,6 @@ export function WorkerDashboard() {
         </>
       )}
 
-      <Card className="mt-4">
-        <p className="font-semibold">Submitted documents</p>
-        <div className="mt-3 flex flex-col gap-2">
-          {data.documents.map((doc) => (
-            <div key={doc.id}>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-text-muted capitalize">{doc.docType}</span>
-                <Badge tone={STATUS_COPY[doc.status]?.tone ?? 'neutral'}>{doc.status}</Badge>
-              </div>
-              {doc.status === 'rejected' && doc.reviewComment && (
-                <p className="mt-0.5 text-xs text-text-muted">{doc.reviewComment}</p>
-              )}
-            </div>
-          ))}
-        </div>
-        {data.profile.verificationStatus === 'rejected' && (
-          <Button onClick={() => navigate('/worker/apply')} variant="secondary" className="mt-3 w-full">
-            Re-apply with new documents
-          </Button>
-        )}
-      </Card>
     </Screen>
   );
 }
