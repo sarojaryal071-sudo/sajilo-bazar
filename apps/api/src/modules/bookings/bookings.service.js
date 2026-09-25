@@ -6,6 +6,7 @@ import * as bookingsModel from './bookings.model.js';
 import * as adminModel from '../admin/admin.model.js';
 import * as trustScoreService from '../trustScore/trustScore.service.js';
 import * as workersService from '../workers/workers.service.js';
+import * as usersModel from '../users/users.model.js';
 
 // Hard cutoff (Part 3 of the trust-score spec) - a dispute can only be
 // filed within this many hours of the booking's completion, enforced here
@@ -34,6 +35,15 @@ function serviceNames(booking) {
   return booking.services.map((s) => s.name).join(', ');
 }
 
+// Settings -> Deactivate account: "customer can't create new bookings"
+// while deactivated. In practice the frontend logs a customer out the
+// moment they deactivate, but this guards the API directly too, in case a
+// still-valid token outlives that (e.g. a second open tab).
+async function assertCanBook(customerId) {
+  const customer = await usersModel.findById(customerId);
+  if (customer?.deactivatedAt) throw new ApiError(403, 'Reactivate your account (log back in) to book a service');
+}
+
 // A single indexed sweep for any scheduled request whose response deadline
 // has passed while still 'requested' - see bookings.model.js
 // expireOverdueScheduledRequests for why this is a durable write rather
@@ -59,6 +69,7 @@ export async function createBooking(
   customerId,
   { workerId, serviceIds, addressLabel, latitude, longitude, scheduledFor, responseDeadlineHours }
 ) {
+  await assertCanBook(customerId);
   const available = await bookingsModel.findActiveWorkerServices(workerId, serviceIds);
   if (available.length !== serviceIds.length) {
     throw new ApiError(404, 'This worker does not offer one or more of the selected services');
@@ -98,6 +109,7 @@ export async function createBooking(
 // booking_offers rows are the durable record a worker sees the next time
 // they poll/open the app either way.
 export async function createInstantBooking(customerId, { serviceIds, addressLabel, latitude, longitude }) {
+  await assertCanBook(customerId);
   const booking = await bookingsModel.createInstant({ customerId, serviceIds, addressLabel, latitude, longitude });
 
   // Resync every scheduled worker's effective online status against their

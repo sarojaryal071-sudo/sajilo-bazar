@@ -11,6 +11,8 @@ function toUser(row) {
     email: row.email,
     profileImageUrl: row.profile_image_url,
     moderationStatus: row.moderation_status,
+    deactivatedAt: row.deactivated_at,
+    deletedAt: row.deleted_at,
     createdAt: row.created_at,
   };
 }
@@ -50,6 +52,16 @@ export async function linkGoogleId(userId, googleId) {
     [googleId, userId]
   );
   return toUser(rows[0]);
+}
+
+// Logging back in is what reverses a self-service deactivation (Settings ->
+// Deactivate account) - a no-op if the account isn't currently deactivated.
+export async function reactivate(userId) {
+  const { rows } = await pool.query(
+    'UPDATE users SET deactivated_at = NULL, updated_at = now() WHERE id = $1 RETURNING *',
+    [userId]
+  );
+  return rows[0] ? toUser(rows[0]) : null;
 }
 
 // "Forgot password" reset (business-accepted no-verification flow for this

@@ -31,6 +31,22 @@ function issueToken(user, { keepLoggedIn = false } = {}) {
   return jwt.sign({ sub: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn });
 }
 
+// A deleted account's row still exists (anonymized, not dropped - see
+// users.model.js anonymize), so it must never be distinguishable from "no
+// such account" at login. A deactivated account is the opposite: logging
+// back in through any of the three login paths below is itself the
+// reactivation action (Settings -> Deactivate account's "reversible" half),
+// so this clears it and returns the refreshed user for issueToken.
+async function assertLoginAllowedAndReactivate(user) {
+  if (user.deletedAt) throw new ApiError(401, 'Invalid phone number or password');
+  if (user.moderationStatus === 'suspended') throw new ApiError(403, 'This account has been suspended');
+  if (user.deactivatedAt) {
+    const reactivated = await authModel.reactivate(user.id);
+    return reactivated ?? user;
+  }
+  return user;
+}
+
 export async function signup({ fullName, phone, email, password, role }) {
   const existing = await authModel.findByPhone(phone);
   if (existing) throw new ApiError(409, 'An account with this phone number already exists');
@@ -50,11 +66,7 @@ export async function login({ phone, password, keepLoggedIn }) {
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) throw new ApiError(401, 'Invalid phone number or password');
 
-  if (user.moderationStatus === 'suspended') {
-    throw new ApiError(403, 'This account has been suspended');
-  }
-
-  const { passwordHash, ...safeUser } = user;
+  const { passwordHash, ...safeUser } = await assertLoginAllowedAndReactivate(user);
   return { token: issueToken(safeUser, { keepLoggedIn }), user: safeUser };
 }
 
@@ -78,20 +90,16 @@ export async function googleAuth({ idToken }) {
 
   const byGoogleId = await authModel.findByGoogleId(googleId);
   if (byGoogleId) {
-    if (byGoogleId.moderationStatus === 'suspended') {
-      throw new ApiError(403, 'This account has been suspended');
-    }
-    return { token: issueToken(byGoogleId), user: byGoogleId };
+    const activeUser = await assertLoginAllowedAndReactivate(byGoogleId);
+    return { token: issueToken(activeUser), user: activeUser };
   }
 
   if (email && emailVerified) {
     const byEmail = await authModel.findByEmail(email);
     if (byEmail) {
       const linked = await authModel.linkGoogleId(byEmail.id, googleId);
-      if (linked.moderationStatus === 'suspended') {
-        throw new ApiError(403, 'This account has been suspended');
-      }
-      return { token: issueToken(linked), user: linked };
+      const activeUser = await assertLoginAllowedAndReactivate(linked);
+      return { token: issueToken(activeUser), user: activeUser };
     }
   }
 
@@ -139,12 +147,9 @@ export async function forgotPassword({ phone, newPassword }) {
   const user = await authModel.updatePasswordByPhone(phone, passwordHash);
   if (!user) throw new ApiError(404, 'No account found with that phone number');
 
-  if (user.moderationStatus === 'suspended') {
-    throw new ApiError(403, 'This account has been suspended');
-  }
-
   // Logs the user straight in after the reset - a second manual login
   // immediately after setting the password they just chose would be
   // needless friction.
-  return { token: issueToken(user), user };
+  const activeUser = await assertLoginAllowedAndReactivate(user);
+  return { token: issueToken(activeUser), user: activeUser };
 }

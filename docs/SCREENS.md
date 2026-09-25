@@ -42,8 +42,15 @@ Build in this order — don't jump ahead to later-phase screens.
   in immediately. Also how a Google-only account (no password yet) gains its first one
 - Profile screen (view/edit own profile) — for a worker, also shows their role/verification-
   status badges, member-since date, worker handle, a link to their own public worker
-  profile once approved, and their submitted verification documents (moved here from the
-  worker Dashboard, which stays daily-activity-only)
+  profile once approved, their submitted verification documents (moved here from the
+  worker Dashboard, which stays daily-activity-only), and their full Trust score panel
+  (moved here from the worker Dashboard for the same reason — not a daily-activity metric)
+- Settings screen (`/settings`) — Account (change password, Connected Google account once
+  Google login is configured, Deactivate account [reversible — logging back in undoes it],
+  Delete account [irreversible in-app data deletion request per the Privacy Policy —
+  anonymizes PII, keeps booking/dispute history anonymized, requires typing "DELETE" to
+  confirm]), Preferences (language/theme — moved here from the hamburger menu, which is
+  now pure navigation), Support (contact support, Terms & Conditions, Privacy Policy)
 - Worker: "Apply as worker" flow (skills, services, pricing, document upload)
 - Worker: verification pending / status screen
 

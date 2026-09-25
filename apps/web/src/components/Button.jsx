@@ -6,6 +6,7 @@ const VARIANTS = {
   secondary:
     'bg-surface-raised text-text border border-border shadow-resting hover:shadow-raised disabled:opacity-50',
   ghost: 'text-text hover:bg-surface-alt disabled:opacity-50',
+  danger: 'bg-danger text-white shadow-resting hover:shadow-raised disabled:opacity-50',
 };
 
 export function Button({ variant = 'primary', className = '', children, ...props }) {

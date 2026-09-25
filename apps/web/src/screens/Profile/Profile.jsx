@@ -6,9 +6,11 @@ import { Badge } from '../../components/Badge.jsx';
 import { Button } from '../../components/Button.jsx';
 import { Input } from '../../components/Input.jsx';
 import { Avatar } from '../../components/Avatar.jsx';
+import { TrustMeter } from '../../components/TrustMeter.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import * as usersApi from '../../api/users.api.js';
 import * as workersApi from '../../api/workers.api.js';
+import * as trustScoreApi from '../../api/trustScore.api.js';
 
 const VERIFICATION_TONE = { pending: 'warning', approved: 'success', rejected: 'danger', unsubmitted: 'neutral' };
 const DOC_STATUS_TONE = { pending: 'warning', approved: 'success', rejected: 'danger' };
@@ -41,6 +43,7 @@ export function Profile() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState('');
   const [workerData, setWorkerData] = useState(null);
+  const [trustScore, setTrustScore] = useState(null);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -48,6 +51,10 @@ export function Profile() {
     workersApi
       .getMyWorkerData()
       .then(setWorkerData)
+      .catch(() => {});
+    trustScoreApi
+      .getMyTrustScore()
+      .then(({ trustScore }) => setTrustScore(trustScore))
       .catch(() => {});
   }, [user.role]);
 
@@ -159,6 +166,8 @@ export function Profile() {
           </div>
         )}
       </Card>
+
+      {user.role === 'worker' && <TrustMeter trustScore={trustScore} />}
 
       {user.role === 'worker' && workerData?.profile.verificationStatus === 'approved' && (
         <Button variant="secondary" className="mt-4" onClick={() => navigate(`/worker/${user.id}`)}>

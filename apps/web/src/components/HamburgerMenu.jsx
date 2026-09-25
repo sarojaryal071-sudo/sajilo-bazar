@@ -1,8 +1,36 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { useTheme } from '../context/ThemeContext.jsx';
 import { useLanguage } from '../context/LanguageContext.jsx';
+
+function DashboardIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="3" y="3" width="7" height="9" rx="1.5" />
+      <rect x="14" y="3" width="7" height="5" rx="1.5" />
+      <rect x="14" y="12" width="7" height="9" rx="1.5" />
+      <rect x="3" y="16" width="7" height="5" rx="1.5" />
+    </svg>
+  );
+}
+
+function BookingsIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="3" y="5" width="18" height="16" rx="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M3 10h18M8 3v4M16 3v4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function EarningsIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="12" r="9" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12 7v10M9.5 9.5c0-1.4 1.1-2.5 2.5-2.5s2.5.7 2.5 2c0 3-5 1.5-5 4.5 0 1.3 1.1 2 2.5 2s2.5-1.1 2.5-2.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 function ProfileIcon() {
   return (
@@ -25,49 +53,6 @@ function SettingsIcon() {
   );
 }
 
-function LanguageIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <circle cx="12" cy="12" r="10" strokeLinecap="round" strokeLinejoin="round" />
-      <path
-        d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function ThemeIcon({ dark }) {
-  return dark ? (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.4 5.4 0 0 1-7.54-7.54A9 9 0 0 0 12 3Z" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  ) : (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <circle cx="12" cy="12" r="5" strokeLinecap="round" strokeLinejoin="round" />
-      <path
-        d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function HelpIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <circle cx="12" cy="12" r="10" strokeLinecap="round" strokeLinejoin="round" />
-      <path
-        d="M9.5 9a2.5 2.5 0 1 1 3.4 2.33c-.7.28-1.4.9-1.4 1.67v.5M12 17h.01"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 function LogoutIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -82,9 +67,9 @@ function LogoutIcon() {
 
 export function HamburgerMenu({ open, onClose }) {
   const navigate = useNavigate();
-  const { logout } = useAuth();
-  const { theme, setTheme } = useTheme();
-  const { language, setLanguage, t } = useLanguage();
+  const { user, logout } = useAuth();
+  const { t } = useLanguage();
+  const isWorker = user?.role === 'worker';
 
   function go(to) {
     onClose();
@@ -127,6 +112,29 @@ export function HamburgerMenu({ open, onClose }) {
 
             <div className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
               <button
+                onClick={() => go(isWorker ? '/worker/dashboard' : '/home')}
+                className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-surface-alt"
+              >
+                <DashboardIcon />
+                <span className="flex-1">{t('nav.dashboard')}</span>
+              </button>
+              <button
+                onClick={() => go(isWorker ? '/worker/jobs' : '/bookings')}
+                className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-surface-alt"
+              >
+                <BookingsIcon />
+                <span className="flex-1">{t('nav.bookings')}</span>
+              </button>
+              {isWorker && (
+                <button
+                  onClick={() => go('/worker/earnings')}
+                  className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-surface-alt"
+                >
+                  <EarningsIcon />
+                  <span className="flex-1">Earnings</span>
+                </button>
+              )}
+              <button
                 onClick={() => go('/profile')}
                 className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-surface-alt"
               >
@@ -139,39 +147,6 @@ export function HamburgerMenu({ open, onClose }) {
               >
                 <SettingsIcon />
                 <span className="flex-1">{t('menu.settings')}</span>
-                <span className="text-xs text-text-muted">{t('menu.soon')}</span>
-              </button>
-
-              {/* Instant-apply on tap - no separate page, unlike the rest of
-                  this list. Each is a single row that cycles its own value
-                  and updates the app immediately. */}
-              <button
-                onClick={() => setLanguage(language === 'en' ? 'ne' : 'en')}
-                className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-surface-alt"
-              >
-                <LanguageIcon />
-                <span className="flex-1">{t('menu.language')}</span>
-                <span className="text-xs text-text-muted">
-                  {language === 'en' ? t('menu.english') : t('menu.nepali')}
-                </span>
-              </button>
-              <button
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-surface-alt"
-              >
-                <ThemeIcon dark={theme === 'dark'} />
-                <span className="flex-1">{t('menu.theme')}</span>
-                <span className="text-xs text-text-muted">
-                  {theme === 'dark' ? t('menu.dark') : t('menu.light')}
-                </span>
-              </button>
-
-              <button
-                onClick={() => go('/help')}
-                className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-surface-alt"
-              >
-                <HelpIcon />
-                <span className="flex-1">{t('menu.help')}</span>
               </button>
             </div>
 

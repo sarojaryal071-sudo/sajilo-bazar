@@ -8,11 +8,20 @@ This index is filled in incrementally - only files touched by a task get an entr
 here as part of that task. A file with no entry yet doesn't mean it's undocumented
 forever, just that no session has touched it since this index was introduced.
 
-_Last updated: 2026-09-25 — Promo banner parity, messenger-style admin Support Tickets, announcement notifications, worker Profile enrichment_
+_Last updated: 2026-09-25 — Settings screen (account deactivate/delete, Google link/unlink, language/theme moved from hamburger menu), Profile gains the worker Trust score panel (moved off Dashboard)_
 
 ## apps/api
 | File | Purpose |
 |---|---|
+| `src/db/migrations/031_add_account_deactivate_delete.sql` | Adds `users.deactivated_at` (reversible - cleared automatically the next time the account logs in) and `users.deleted_at` (never cleared) |
+| `src/modules/users/users.model.js` | `toUser` gains `googleId`, `hasPassword`, `deactivatedAt`, `deletedAt`; new `deactivate`, `reactivate`, `anonymize` (PII scrub + `deleted_at`, per the Privacy Policy's retention decision - booking/dispute/commission_ledger rows stay, FK'd to the same `users.id`), `findByGoogleId`, `setGoogleId`, `clearGoogleId` |
+| `src/modules/users/users.service.js` | New `deactivateAccount`, `deleteAccount`, `linkGoogleAccount` (verifies the ID token server-side, same as sign-in; refuses to steal an id already linked elsewhere), `unlinkGoogleAccount` (refuses to leave a Google-only account with no way back in - requires `hasPassword` first) |
+| `src/modules/users/users.controller.js` / `users.routes.js` | `POST /users/me/deactivate`, `POST /users/me/delete`, `POST /users/me/google`, `DELETE /users/me/google` |
+| `src/modules/auth/auth.model.js` | `toUser` gains `deactivatedAt`/`deletedAt`; new `reactivate` |
+| `src/modules/auth/auth.service.js` | New `assertLoginAllowedAndReactivate` - shared by `login`, `googleAuth`'s two existing-account branches, and `forgotPassword`: blocks a deleted account the same way as "no such account" (never distinguishable), and auto-clears `deactivated_at` on any successful login (that's the entire "log back in to reactivate" flow - no separate endpoint) |
+| `src/modules/workers/workers.model.js` | `searchWorkers`/`findApprovedWorkerDetail` exclude a deactivated or deleted worker (same as the existing `verification_status = 'approved'` filter) |
+| `src/modules/bookings/bookings.model.js` | `findActiveWorkerServices`/`findNearbyOnlineWorkers` exclude a deactivated or deleted worker, so neither manual nor instant booking can reach one |
+| `src/modules/bookings/bookings.service.js` | New `assertCanBook` - blocks `createBooking`/`createInstantBooking` for a deactivated customer (defense in depth; the frontend also logs a customer out the moment they deactivate) |
 | `src/db/migrations/029_add_google_auth_and_keep_logged_in_support.sql` | Adds `users.google_id` (unique, nullable), `users.phone_verified` (default `false` - no SMS/OTP exists yet, same unverified status for every account regardless of how it signed up); drops the `NOT NULL` on `users.password_hash` (a Google-only account has none until it sets one via "Forgot password") |
 | `src/modules/auth/auth.model.js` | `toUser` gains `phoneVerified`; `createUser` takes optional `googleId` (mutually optional with `passwordHash`); new `findByGoogleId`, `findByEmail` (Google-linking lookup only, never a login credential), `linkGoogleId`, `updatePasswordByPhone` (forgot-password reset) |
 | `src/modules/auth/auth.service.js` | `issueToken(user, {keepLoggedIn})` picks `JWT_EXPIRES_IN_KEEP_LOGGED_IN` (default 30d) vs `JWT_EXPIRES_IN` (default 7d); `login` takes `keepLoggedIn`; new `googleAuth({idToken})` (verifies server-side via `google-auth-library`, logs in an existing `google_id` match or a verified-email match to an existing phone+password account - linking it - or returns `{needsPhone: true, pendingToken}` for a genuinely new sign-in, never creating a user row yet); `completeGoogleSignup({pendingToken, phone, role})` (verifies the short-lived pending JWT's `type` claim, then creates the account); `forgotPassword({phone, newPassword})` (deliberately open for this testing phase - see docs/SCREENS.md - resets and logs in) |
@@ -68,6 +77,13 @@ _Last updated: 2026-09-25 — Promo banner parity, messenger-style admin Support
 ## apps/web
 | File | Purpose |
 |---|---|
+| `src/screens/Settings/Settings.jsx` | New Settings screen (`/settings`, replaces the old `ComingSoon` placeholder). Neumorphic-glass section cards (`shadow-neu-card`/`glass-surface`/`glass-border`/`backdrop-blur-xl` - the same tokens `AuthScreen.jsx` already used, now reused outside the auth flow). **Account**: change password (links to `/forgot-password`), Connected Google account (link/unlink - hidden entirely when `VITE_GOOGLE_CLIENT_ID` isn't set, same degrade-gracefully rule `GoogleSignInButton.jsx` already follows), Deactivate account (reversible, confirm dialog, logs the user out), Delete account (irreversible, must type `DELETE` to confirm, logs the user out). **Preferences**: language/theme toggles, moved here from `HamburgerMenu.jsx`. **Support**: Contact support (→ `/help`), Terms & Conditions, Privacy Policy |
+| `src/components/HamburgerMenu.jsx` | Pared down to pure navigation: Dashboard, Bookings (role-aware routes), Earnings (worker only), Profile, Settings, Log out. Language/theme toggles and the Help row are gone (moved into `Settings.jsx`; Help is still reachable from Settings' Support section) |
+| `src/components/Button.jsx` | New `danger` variant (solid `bg-danger`) - the primary variant's `bg-brand` is a gradient `background-image`, which a `!bg-danger` override couldn't beat, so this is a real variant rather than a class hack |
+| `src/screens/Profile/Profile.jsx` | Gains the worker's full `TrustMeter` panel (moved from `WorkerDashboard.jsx` - fetches `trustScoreApi.getMyTrustScore()` the same way) |
+| `src/screens/WorkerDashboard/WorkerDashboard.jsx` | `TrustMeter` removed (now on `Profile.jsx` instead) - Dashboard stays today's-jobs/quick-stats only |
+| `src/i18n/en.json` / `ne.json` | Drop `menu.soon`/`menu.help` (no longer referenced) |
+| `src/screens/ComingSoon/ComingSoon.jsx` | Deleted - was only ever used by the old `/settings` placeholder route, now unreferenced |
 | `src/components/GoogleSignInButton.jsx` | New: renders Google's own button via Google Identity Services (script loaded once, cached at module scope) - no npm dependency. Renders nothing (not even a disabled placeholder) when `VITE_GOOGLE_CLIENT_ID` isn't set |
 | `src/components/GooglePhoneRoleForm.jsx` | New: shared "almost done" step shown after a `needsPhone: true` Google sign-in - phone number + role picker (same two options as Signup's role-select step), calls `completeGoogleSignup`. Used by both Login and Signup |
 | `src/context/AuthContext.jsx` | `login` passes through `keepLoggedIn`; new `googleAuth(idToken)` (sets token/user immediately for an existing/linked account, or returns `{needsPhone, pendingToken, ...}` untouched for a new sign-in), `completeGoogleSignup`, `forgotPassword` (also logs in immediately) |
@@ -139,6 +155,7 @@ _Last updated: 2026-09-25 — Promo banner parity, messenger-style admin Support
 ## packages/shared
 | File | Purpose |
 |---|---|
+| `schemas/user.schema.js` | `UserSchema` gained `googleId`, `hasPassword`, `deactivatedAt`, `deletedAt`; new `GoogleLinkInputSchema` (`{idToken}`), `DeleteAccountInputSchema` (`{confirm: 'DELETE'}` - a lightweight typed are-you-sure, not real auth) |
 | `schemas/enums.js` | `NOTIFICATION_TYPES` gained `'announcement'` |
 | `schemas/availability.schema.js` | `AvailabilityBlockSchema` (`dayOfWeek` 0-6, `startTime`/`endTime` as `HH:MM`), `AvailabilityReplaceInputSchema`, `TypicalResponseHoursInputSchema` |
 | `schemas/enums.js` | `RESPONSE_DEADLINE_HOURS` (`[1, 6, 24]`); `NOTIFICATION_TYPES` gained `booking_request_expired` |
