@@ -50,12 +50,16 @@ Build in this order — don't jump ahead to later-phase screens.
   Delete account [irreversible in-app data deletion request per the Privacy Policy —
   anonymizes PII, keeps booking/dispute history anonymized, requires typing "DELETE" to
   confirm]), Preferences (language/theme — moved here from the hamburger menu, which is
-  now pure navigation), Notifications (unified matrix — 5 categories x 4 channels; only
-  the In-app column is functional in this v1, SMS/Email/WhatsApp are visibly present but
-  disabled under one grouped "Coming soon" badge), Support (contact support, Terms &
-  Conditions, Privacy Policy)
+  now pure navigation), Locations (customer only — saved addresses, add/edit/delete, set
+  which one is the default Home Location; see "Customer home location" below), Notifications
+  (unified matrix — 5 categories x 4 channels; only the In-app column is functional in this
+  v1, SMS/Email/WhatsApp are visibly present but disabled under one grouped "Coming soon"
+  badge), Support (contact support, Terms & Conditions, Privacy Policy)
 - Worker: "Apply as worker" flow (skills, services, pricing, document upload)
 - Worker: verification pending / status screen
+- Customer signup's final step: set a Home Location (address + optional "Use my current
+  location") — see "Customer home location" below. Skippable; not shown to workers, and not
+  shown to an existing account logging in via Google (only a genuinely new signup)
 
 ## Phase 2 — Manual Booking
 
@@ -73,7 +77,9 @@ Build in this order — don't jump ahead to later-phase screens.
   (business plan §13); schedule mode adds a date/time picker and a 1/6/24h
   response-deadline preset picker, both required together. Available directly from any
   worker's profile, the same entry point as an urgent booking - not gated to
-  unmatched/broadcast-fallback workers
+  unmatched/broadcast-fallback workers. Location is chosen via the same Uber-style
+  picker as the instant flow (see "Customer home location" below) rather than a plain
+  free-text field
 - Bookings list screen (customer + worker views)
 - Booking detail / tracking screen
 - In-app chat (tied to a booking) — single seamless composer bar (not the
@@ -93,7 +99,8 @@ Build in this order — don't jump ahead to later-phase screens.
 
 ## Phase 3 — Instant Request
 
-- Instant request creation screen (service, description, location)
+- Instant request creation screen (service, description, location — the same
+  `AddressPicker` as the manual flow; see "Customer home location" below)
 - Live "waiting for worker" state (customer side)
 - Live incoming-request popup/notification (worker side) — accept/decline under time
   pressure
@@ -123,6 +130,21 @@ Build in this order — don't jump ahead to later-phase screens.
   response deadline visible on the detail screen. (An actual date/time-scheduling *model*
   now exists - see "Scheduled Booking & Worker Availability" below - but a dedicated
   calendar/schedule view of it is still deferred.)
+
+## Customer home location
+
+Not part of the original phase numbering in `PROJECT_BRIEF.md` - promoted to active build
+directly from the business plan (customer-facing counterpart to worker availability below).
+A customer can save multiple addresses (`addresses` table); the first one they ever save
+becomes their default "Home Location" automatically, matching how a first-run Uber-style
+signup step behaves.
+
+- Signup's Home Location step (Phase 1, above) - sets the initial default.
+- Settings -> Locations (Phase 1, above) - full CRUD, change which saved address is default.
+- `AddressPicker` component - used at booking time by both the manual (Phase 2) and instant
+  (Phase 3) request screens: choose the default Home Location, any other saved address, or
+  type a fresh one-off address just for that booking (with an optional live-location capture,
+  same permission-aware pattern as the worker's online toggle).
 
 ## Scheduled Booking & Worker Availability (business plan §13)
 

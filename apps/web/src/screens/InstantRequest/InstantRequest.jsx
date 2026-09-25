@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Screen } from '../../components/Screen.jsx';
 import { Card } from '../../components/Card.jsx';
-import { Input } from '../../components/Input.jsx';
 import { Button } from '../../components/Button.jsx';
+import { AddressPicker } from '../../components/AddressPicker.jsx';
 import * as workersApi from '../../api/workers.api.js';
 import * as bookingsApi from '../../api/bookings.api.js';
 import { getCurrentLocation } from '../../lib/geolocation.js';
@@ -13,7 +13,7 @@ export function InstantRequest() {
   const [categories, setCategories] = useState(null);
   const [loadError, setLoadError] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
-  const [addressLabel, setAddressLabel] = useState('');
+  const [address, setAddress] = useState(null);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -40,14 +40,24 @@ export function InstantRequest() {
     e.preventDefault();
     setError('');
     if (selectedIds.length === 0) return setError('Choose what you need help with.');
-    if (addressLabel.trim().length < 3) return setError('Enter the address where the worker should come.');
+    if (!address || address.addressLabel.trim().length < 3) {
+      return setError('Enter the address where the worker should come.');
+    }
 
     setSubmitting(true);
     try {
-      const { latitude, longitude } = await getCurrentLocation();
+      // A saved/default address already carries lat/lng; a fresh one-off
+      // entry only has it if "Use my current location" was tapped in the
+      // picker - fall back to asking the browser directly, same as this
+      // flow always did before the picker existed, so instant matching
+      // (which needs real coordinates) never runs without them.
+      let { latitude, longitude } = address;
+      if (latitude == null || longitude == null) {
+        ({ latitude, longitude } = await getCurrentLocation());
+      }
       const { booking } = await bookingsApi.createInstant({
         serviceIds: selectedIds,
-        addressLabel: addressLabel.trim(),
+        addressLabel: address.addressLabel.trim(),
         latitude,
         longitude,
       });
@@ -103,13 +113,7 @@ export function InstantRequest() {
           </div>
         ))}
 
-        <Input
-          label="Address"
-          name="addressLabel"
-          placeholder="Where should the worker come?"
-          value={addressLabel}
-          onChange={(e) => setAddressLabel(e.target.value)}
-        />
+        <AddressPicker value={address} onChange={setAddress} />
 
         {error && <p className="text-sm text-danger">{error}</p>}
 

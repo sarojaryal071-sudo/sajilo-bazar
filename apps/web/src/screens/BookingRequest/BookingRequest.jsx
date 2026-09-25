@@ -3,9 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Screen } from '../../components/Screen.jsx';
 import { Card } from '../../components/Card.jsx';
 import { Avatar } from '../../components/Avatar.jsx';
-import { Input } from '../../components/Input.jsx';
 import { Button } from '../../components/Button.jsx';
 import { SkeletonBlock } from '../../components/Skeleton.jsx';
+import { AddressPicker } from '../../components/AddressPicker.jsx';
 import * as workersApi from '../../api/workers.api.js';
 import * as bookingsApi from '../../api/bookings.api.js';
 
@@ -28,7 +28,7 @@ export function BookingRequest() {
   const navigate = useNavigate();
   const [worker, setWorker] = useState(null);
   const [loadError, setLoadError] = useState('');
-  const [addressLabel, setAddressLabel] = useState('');
+  const [address, setAddress] = useState(null);
   const [mode, setMode] = useState('now');
   const [scheduledFor, setScheduledFor] = useState('');
   const [responseDeadlineHours, setResponseDeadlineHours] = useState(6);
@@ -95,7 +95,7 @@ export function BookingRequest() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
-    if (addressLabel.trim().length < 3) {
+    if (!address || address.addressLabel.trim().length < 3) {
       return setError('Enter the address where the worker should come.');
     }
     if (mode === 'schedule' && !scheduledFor) {
@@ -106,7 +106,9 @@ export function BookingRequest() {
       const { booking } = await bookingsApi.create({
         workerId: Number(workerId),
         serviceIds: services.map((s) => s.id),
-        addressLabel: addressLabel.trim(),
+        addressLabel: address.addressLabel.trim(),
+        latitude: address.latitude,
+        longitude: address.longitude,
         ...(mode === 'schedule'
           ? { scheduledFor: new Date(scheduledFor).toISOString(), responseDeadlineHours }
           : {}),
@@ -167,13 +169,7 @@ export function BookingRequest() {
       </div>
 
       <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
-        <Input
-          label="Address"
-          name="addressLabel"
-          placeholder="Where should the worker come?"
-          value={addressLabel}
-          onChange={(e) => setAddressLabel(e.target.value)}
-        />
+        <AddressPicker value={address} onChange={setAddress} />
 
         {mode === 'schedule' && (
           <>

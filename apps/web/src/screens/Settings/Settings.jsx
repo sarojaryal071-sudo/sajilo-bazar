@@ -5,12 +5,15 @@ import { NOTIFICATION_CATEGORIES } from '@sajilo-bazar/shared';
 import { Screen } from '../../components/Screen.jsx';
 import { Button } from '../../components/Button.jsx';
 import { Badge } from '../../components/Badge.jsx';
+import { Input } from '../../components/Input.jsx';
 import { GoogleSignInButton } from '../../components/GoogleSignInButton.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useTheme } from '../../context/ThemeContext.jsx';
 import { useLanguage } from '../../context/LanguageContext.jsx';
 import * as usersApi from '../../api/users.api.js';
 import * as notificationsApi from '../../api/notifications.api.js';
+import * as addressesApi from '../../api/addresses.api.js';
+import { getCurrentLocation, getGeolocationPermissionState, getLocationBlockedMessage } from '../../lib/geolocation.js';
 
 const GOOGLE_CONFIGURED = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
 
@@ -171,6 +174,137 @@ function NotificationMatrix({ preferences, onToggle, busyCategory }) {
   );
 }
 
+// Add/edit a saved address - initial === null means "new", an address
+// object means "edit" (and offers Delete). Shares the same "Use my current
+// location" capture as AddressPicker's one-off entry.
+function AddressFormDialog({ initial, onSave, onDelete, onCancel, busy, error }) {
+  const [label, setLabel] = useState(initial?.label ?? 'Home');
+  const [addressLabel, setAddressLabel] = useState(initial?.addressLabel ?? '');
+  const [coords, setCoords] = useState(
+    initial?.latitude != null ? { latitude: initial.latitude, longitude: initial.longitude } : null
+  );
+  const [locating, setLocating] = useState(false);
+  const [locateError, setLocateError] = useState('');
+
+  async function handleUseCurrentLocation() {
+    setLocateError('');
+    setLocating(true);
+    try {
+      const permissionState = await getGeolocationPermissionState();
+      if (permissionState === 'denied') {
+        setLocateError(getLocationBlockedMessage());
+        return;
+      }
+      const { latitude, longitude } = await getCurrentLocation();
+      setCoords({ latitude, longitude });
+    } catch (err) {
+      setLocateError(err.message);
+    } finally {
+      setLocating(false);
+    }
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    if (addressLabel.trim().length < 3) return;
+    onSave({
+      label: label.trim() || 'Home',
+      addressLabel: addressLabel.trim(),
+      latitude: coords?.latitude ?? null,
+      longitude: coords?.longitude ?? null,
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 px-0 sm:items-center sm:px-5">
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-sm rounded-t-3xl border border-glass-border bg-glass-surface p-6 shadow-neu-card backdrop-blur-xl sm:rounded-3xl"
+      >
+        <h2 className="text-lg font-bold">{initial ? 'Edit address' : 'Add address'}</h2>
+        <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-3">
+          <Input label="Label" placeholder="Home, Office..." value={label} onChange={(e) => setLabel(e.target.value)} />
+          <Input
+            label="Address"
+            placeholder="Street, area, city"
+            value={addressLabel}
+            onChange={(e) => setAddressLabel(e.target.value)}
+          />
+          <button
+            type="button"
+            onClick={handleUseCurrentLocation}
+            disabled={locating}
+            className="self-start text-sm font-medium text-brand-solid disabled:opacity-50"
+          >
+            {locating ? 'Locating...' : coords ? 'Location captured' : 'Use my current location'}
+          </button>
+          {locateError && <p className="text-sm text-danger">{locateError}</p>}
+          {error && <p className="text-sm text-danger">{error}</p>}
+          <div className="mt-2 flex items-center gap-3">
+            {initial && (
+              <button type="button" onClick={onDelete} disabled={busy} className="text-sm font-medium text-danger">
+                Delete
+              </button>
+            )}
+            <div className="ml-auto flex gap-3">
+              <Button type="button" variant="ghost" onClick={onCancel} disabled={busy}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={busy || addressLabel.trim().length < 3}>
+                {busy ? 'Saving...' : 'Save'}
+              </Button>
+            </div>
+          </div>
+        </form>
+      </motion.div>
+    </div>
+  );
+}
+
+// Settings -> Locations (customer only - see docs/SCREENS.md). The Home
+// Location set at signup shows up here as the default address; a customer
+// can add more, edit, delete, or change which one is default.
+function LocationsSection({ addresses, onAdd, onEdit, onSetDefault }) {
+  return (
+    <>
+      {addresses === null ? (
+        <p className="px-4 py-3.5 text-sm text-text-muted">Loading...</p>
+      ) : addresses.length === 0 ? (
+        <p className="px-4 py-3.5 text-sm text-text-muted">No saved addresses yet.</p>
+      ) : (
+        addresses.map((address) => (
+          <div key={address.id} className="flex items-center gap-3 border-b border-glass-border px-4 py-3.5">
+            <button type="button" onClick={() => onEdit(address)} className="min-w-0 flex-1 text-left">
+              <span className="flex items-center gap-2">
+                <span className="text-sm font-medium">{address.label}</span>
+                {address.isDefault && <Badge tone="success">Default</Badge>}
+              </span>
+              <span className="block truncate text-xs text-text-muted">{address.addressLabel}</span>
+            </button>
+            {!address.isDefault && (
+              <button
+                type="button"
+                onClick={() => onSetDefault(address)}
+                className="shrink-0 text-xs font-medium text-brand-solid"
+              >
+                Set default
+              </button>
+            )}
+          </div>
+        ))
+      )}
+      <button
+        type="button"
+        onClick={onAdd}
+        className="flex w-full items-center px-4 py-3.5 text-left text-sm font-medium text-brand-solid"
+      >
+        + Add address
+      </button>
+    </>
+  );
+}
+
 export function Settings() {
   const navigate = useNavigate();
   const { user, logout, refreshUser } = useAuth();
@@ -185,13 +319,68 @@ export function Settings() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [preferences, setPreferences] = useState(null);
   const [busyCategory, setBusyCategory] = useState(null);
+  const [addresses, setAddresses] = useState(null);
+  const [addressDialog, setAddressDialog] = useState(null); // null | 'new' | an address object
+  const [addressBusy, setAddressBusy] = useState(false);
+  const [addressError, setAddressError] = useState('');
 
   useEffect(() => {
     notificationsApi
       .getPreferences()
       .then(({ preferences }) => setPreferences(preferences))
       .catch(() => {});
+    if (user.role === 'customer') loadAddresses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function loadAddresses() {
+    addressesApi
+      .list()
+      .then(({ addresses }) => setAddresses(addresses))
+      .catch(() => setAddresses([]));
+  }
+
+  async function handleSaveAddress(input) {
+    setAddressBusy(true);
+    setAddressError('');
+    try {
+      if (addressDialog === 'new') {
+        await addressesApi.create(input);
+      } else {
+        await addressesApi.update(addressDialog.id, input);
+      }
+      loadAddresses();
+      setAddressDialog(null);
+    } catch (err) {
+      setAddressError(err.message);
+    } finally {
+      setAddressBusy(false);
+    }
+  }
+
+  async function handleDeleteAddress() {
+    setAddressBusy(true);
+    setAddressError('');
+    try {
+      await addressesApi.remove(addressDialog.id);
+      loadAddresses();
+      setAddressDialog(null);
+    } catch (err) {
+      setAddressError(err.message);
+    } finally {
+      setAddressBusy(false);
+    }
+  }
+
+  async function handleSetDefaultAddress(address) {
+    try {
+      await addressesApi.setDefault(address.id);
+      loadAddresses();
+    } catch {
+      // Non-critical - the list just doesn't reflect the change; the user
+      // can retry the same tap.
+    }
+  }
 
   async function handleTogglePreference(category, next) {
     setBusyCategory(category);
@@ -325,6 +514,17 @@ export function Settings() {
         />
       </SettingsSection>
 
+      {user.role === 'customer' && (
+        <SettingsSection title="Locations">
+          <LocationsSection
+            addresses={addresses}
+            onAdd={() => setAddressDialog('new')}
+            onEdit={(address) => setAddressDialog(address)}
+            onSetDefault={handleSetDefaultAddress}
+          />
+        </SettingsSection>
+      )}
+
       <SettingsSection title="Notifications">
         <NotificationMatrix
           preferences={preferences}
@@ -389,6 +589,20 @@ export function Settings() {
             />
           </label>
         </ConfirmDialog>
+      )}
+
+      {addressDialog && (
+        <AddressFormDialog
+          initial={addressDialog === 'new' ? null : addressDialog}
+          busy={addressBusy}
+          error={addressError}
+          onSave={handleSaveAddress}
+          onDelete={handleDeleteAddress}
+          onCancel={() => {
+            setAddressDialog(null);
+            setAddressError('');
+          }}
+        />
       )}
     </Screen>
   );
