@@ -384,6 +384,7 @@ export async function searchWorkers({ category, serviceId, q }) {
        JOIN worker_services ws ON ws.worker_id = u.id AND ws.is_active = true AND ws.approval_status = 'approved'
        JOIN services s ON s.id = ws.service_id AND s.is_active = true
        WHERE wp.verification_status = 'approved'
+         AND u.deactivated_at IS NULL AND u.deleted_at IS NULL
          AND ($1::text IS NULL OR s.category = $1)
          AND ($2::int IS NULL OR s.id = $2)
          AND (
@@ -470,7 +471,8 @@ export async function findApprovedWorkerDetail(userId) {
             wp.typical_response_hours
      FROM users u
      JOIN worker_profiles wp ON wp.user_id = u.id
-     WHERE u.id = $1 AND wp.verification_status = 'approved'`,
+     WHERE u.id = $1 AND wp.verification_status = 'approved'
+       AND u.deactivated_at IS NULL AND u.deleted_at IS NULL`,
     [userId]
   );
   if (!rows[0]) return null;

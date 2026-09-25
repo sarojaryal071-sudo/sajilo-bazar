@@ -87,8 +87,10 @@ export async function findActiveWorkerServices(workerId, serviceIds) {
   const { rows } = await pool.query(
     `SELECT ws.service_id, ws.price FROM worker_services ws
      JOIN worker_profiles wp ON wp.user_id = ws.worker_id
+     JOIN users u ON u.id = ws.worker_id
      WHERE ws.worker_id = $1 AND ws.service_id = ANY($2::int[])
-       AND ws.is_active = true AND ws.approval_status = 'approved' AND wp.verification_status = 'approved'`,
+       AND ws.is_active = true AND ws.approval_status = 'approved' AND wp.verification_status = 'approved'
+       AND u.deactivated_at IS NULL AND u.deleted_at IS NULL`,
     [workerId, serviceIds]
   );
   return rows.map((r) => ({ serviceId: r.service_id, price: Number(r.price) }));
@@ -186,6 +188,7 @@ export async function findNearbyOnlineWorkers(serviceIds, latitude, longitude, r
      FROM users u
      JOIN worker_profiles wp ON wp.user_id = u.id
      WHERE wp.verification_status = 'approved'
+       AND u.deactivated_at IS NULL AND u.deleted_at IS NULL
        AND wp.is_online = true
        AND wp.latitude IS NOT NULL AND wp.longitude IS NOT NULL
        AND 6371 * acos(LEAST(1, GREATEST(-1,

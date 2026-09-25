@@ -9,14 +9,12 @@ import { BookingListItem } from '../../components/BookingListItem.jsx';
 import { ReviewsList } from '../../components/ReviewsList.jsx';
 import { AddServiceModal } from '../../components/AddServiceModal.jsx';
 import { EarningsChart } from '../../components/EarningsChart.jsx';
-import { TrustMeter } from '../../components/TrustMeter.jsx';
 import { SkeletonBlock } from '../../components/Skeleton.jsx';
 import { PromoBanner } from '../../components/PromoBanner.jsx';
 import { AnnouncementModal } from '../../components/AnnouncementModal.jsx';
 import * as workersApi from '../../api/workers.api.js';
 import * as bookingsApi from '../../api/bookings.api.js';
 import * as commissionLedgerApi from '../../api/commissionLedger.api.js';
-import * as trustScoreApi from '../../api/trustScore.api.js';
 import * as announcementsApi from '../../api/announcements.api.js';
 import { getCurrentLocation, getGeolocationPermissionState, getLocationBlockedMessage } from '../../lib/geolocation.js';
 
@@ -276,7 +274,6 @@ export function WorkerDashboard() {
   const [showWelcome, setShowWelcome] = useState(false);
   const [earningsSummary, setEarningsSummary] = useState(null);
   const [sparkline, setSparkline] = useState(null);
-  const [trustScore, setTrustScore] = useState(null);
   const [announcement, setAnnouncement] = useState(null);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [announcementOpen, setAnnouncementOpen] = useState(false);
@@ -303,10 +300,6 @@ export function WorkerDashboard() {
     commissionLedgerApi
       .getMySparkline()
       .then(({ sparkline }) => setSparkline(sparkline))
-      .catch(() => {});
-    trustScoreApi
-      .getMyTrustScore()
-      .then(({ trustScore }) => setTrustScore(trustScore))
       .catch(() => {});
     announcementsApi
       .getActive('workers')
@@ -446,8 +439,6 @@ export function WorkerDashboard() {
               onClick={() => navigate('/worker/earnings')}
             />
           )}
-
-          <TrustMeter trustScore={trustScore} />
 
           <p className="mt-6 mb-3 text-sm font-semibold uppercase tracking-wide text-text-muted">
             Active jobs

@@ -14,3 +14,7 @@ usersRoutes.get('/me', requireAuth, usersController.getMe);
 usersRoutes.patch('/me', requireAuth, usersController.updateMe);
 usersRoutes.post('/me/photo', requireAuth, upload.single('photo'), usersController.uploadPhoto);
 usersRoutes.post('/me/support-tickets', requireAuth, usersController.createSupportTicket);
+usersRoutes.post('/me/deactivate', requireAuth, usersController.deactivate);
+usersRoutes.post('/me/delete', requireAuth, usersController.deleteAccount);
+usersRoutes.post('/me/google', requireAuth, usersController.linkGoogle);
+usersRoutes.delete('/me/google', requireAuth, usersController.unlinkGoogle);

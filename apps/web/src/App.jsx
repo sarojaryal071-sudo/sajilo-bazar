@@ -17,6 +17,7 @@ import { Signup } from './screens/Auth/Signup.jsx';
 import { Home } from './screens/Home/Home.jsx';
 import { Bookings } from './screens/Bookings/Bookings.jsx';
 import { Profile } from './screens/Profile/Profile.jsx';
+import { Settings } from './screens/Settings/Settings.jsx';
 import { WorkerDetail } from './screens/WorkerDetail/WorkerDetail.jsx';
 import { WorkerApply } from './screens/WorkerApply/WorkerApply.jsx';
 import { WorkerDashboard } from './screens/WorkerDashboard/WorkerDashboard.jsx';
@@ -28,7 +29,6 @@ import { BookingChat } from './screens/BookingChat/BookingChat.jsx';
 import { InstantRequest } from './screens/InstantRequest/InstantRequest.jsx';
 import { Notifications } from './screens/Notifications/Notifications.jsx';
 import { Earnings } from './screens/Earnings/Earnings.jsx';
-import { ComingSoon } from './screens/ComingSoon/ComingSoon.jsx';
 import { HelpSupport } from './screens/HelpSupport/HelpSupport.jsx';
 import { AdminDashboard } from './screens/Admin/AdminDashboard.jsx';
 import { AdminApprovals } from './screens/Admin/AdminApprovals.jsx';
@@ -65,7 +65,7 @@ export default function App() {
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/worker/dashboard" element={<WorkerDashboard />} />
                 <Route path="/worker/jobs" element={<WorkerJobs />} />
-                <Route path="/settings" element={<ComingSoon title="Settings" />} />
+                <Route path="/settings" element={<Settings />} />
                 <Route path="/help" element={<HelpSupport />} />
           </Route>
 

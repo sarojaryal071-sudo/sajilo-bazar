@@ -27,6 +27,13 @@ export const UserSchema = z.object({
   email: z.string().email().nullable().optional(),
   profileImageUrl: z.string().url().nullable().optional(),
   moderationStatus: z.enum(MODERATION_STATUSES).default('active'),
+  googleId: z.string().nullable().optional(),
+  hasPassword: z.boolean().optional(),
+  // Reversible (Settings -> Deactivate account, cleared automatically the
+  // next time this user logs in) vs. deletedAt, which never clears - see
+  // users.model.js anonymize.
+  deactivatedAt: z.string().datetime().nullable().optional(),
+  deletedAt: z.string().datetime().nullable().optional(),
   createdAt: z.string().datetime().optional(),
 });
 
@@ -89,4 +96,19 @@ export const ProfileUpdateInputSchema = z.object({
   fullName: z.string().min(2).max(120).optional(),
   email: z.string().email().nullable().optional(),
   profileImageUrl: z.string().url().nullable().optional(),
+});
+
+// Settings -> Account -> "Connected Google account". Same server-side
+// verification path as sign-in (google-auth-library) - the client never
+// gets to assert whose Google account this is.
+export const GoogleLinkInputSchema = z.object({
+  idToken: z.string().min(1),
+});
+
+// Settings -> Account -> "Delete account". Irreversible (unlike Deactivate,
+// which needs no payload), so this requires the user to type the literal
+// word as a lightweight are-you-sure - not real authentication, just
+// friction proportional to the fact that this can't be undone.
+export const DeleteAccountInputSchema = z.object({
+  confirm: z.literal('DELETE'),
 });
