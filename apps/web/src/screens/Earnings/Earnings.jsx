@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { Screen } from '../../components/Screen.jsx';
 import { Card } from '../../components/Card.jsx';
 import { Button } from '../../components/Button.jsx';
+import { Badge } from '../../components/Badge.jsx';
 import { EarningsChart } from '../../components/EarningsChart.jsx';
 import { SkeletonBlock } from '../../components/Skeleton.jsx';
 import * as commissionLedgerApi from '../../api/commissionLedger.api.js';
@@ -123,6 +124,25 @@ export function Earnings() {
           </p>
         </Card>
       </div>
+
+      {/* Top-up mechanism (cash to an agent, bank transfer, etc.) is still an
+          open business decision - this is a visible seam, not a working flow,
+          same disabled-pill + "Coming soon" pattern as the eSewa payment
+          placeholder on BookingDetail. */}
+      <Card className="mt-3 flex items-center justify-between gap-3 py-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium">Add credit</p>
+          <p className="text-xs text-text-muted">Top up your balance to pay down what's owed</p>
+        </div>
+        <button
+          type="button"
+          disabled
+          className="flex shrink-0 items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium text-text-muted opacity-60"
+        >
+          Top Up
+          <Badge tone="neutral">Coming soon</Badge>
+        </button>
+      </Card>
 
       <Card className="mt-4">
         <div className="flex items-center justify-between">

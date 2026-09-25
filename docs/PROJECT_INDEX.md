@@ -8,7 +8,7 @@ This index is filled in incrementally - only files touched by a task get an entr
 here as part of that task. A file with no entry yet doesn't mean it's undocumented
 forever, just that no session has touched it since this index was introduced.
 
-_Last updated: 2026-09-25 — Customer home location: saved addresses (Settings -> Locations, signup step, booking-time picker)_
+_Last updated: 2026-09-25 — Earnings screen gains a disabled "Top Up" placeholder next to the credit balance (real top-up mechanism still an open business decision)_
 
 ## apps/api
 | File | Purpose |
@@ -86,6 +86,7 @@ _Last updated: 2026-09-25 — Customer home location: saved addresses (Settings 
 ## apps/web
 | File | Purpose |
 |---|---|
+| `src/screens/Earnings/Earnings.jsx` | The credit balance stat + running-balance transaction history already covered this task's "credit balance section" - adds a disabled "Add credit" / "Top Up" `Card` right below the stat grid (`Badge tone="neutral"` "Coming soon", same bordered-pill pattern as the eSewa payment placeholder) since the real top-up mechanism is still an open business decision |
 | `src/api/addresses.api.js` | `list`, `create`, `update`, `remove`, `setDefault` |
 | `src/components/AddressPicker.jsx` | New - Uber-style booking-time location picker (default Home / another saved address / a fresh one-off entry with an optional "Use my current location" capture). Used by `BookingRequest.jsx` and `InstantRequest.jsx`, replacing their old plain free-text `Input` |
 | `src/components/HomeLocationStep.jsx` | New - Signup's final step for a new customer only: address + optional "Use my current location", saved via `addressesApi.create` (the first address a customer saves becomes their default automatically); skippable |

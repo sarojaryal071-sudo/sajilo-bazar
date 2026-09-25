@@ -122,9 +122,11 @@ Build in this order — don't jump ahead to later-phase screens.
   jobs-completed count) sitting alongside the existing today's-jobs/quick-stats content;
   tapping it navigates to the full Earnings screen
 - Worker: Earnings screen (summary row: total lifetime earnings, this month, commission
-  owed, credit balance; full range chart - 7D/30D/All; paginated transaction history with
-  customer, amount, commission, and running balance per job) — reached via the Dashboard
-  card, not a bottom-nav tab
+  owed, credit balance; a disabled "Top Up" placeholder directly below - the real top-up
+  mechanism (cash to an agent, bank transfer, etc.) is still an open business decision, not
+  built; full range chart - 7D/30D/All; paginated transaction history with customer, amount,
+  commission, and running balance per job, i.e. the credit balance's debit ledger) — reached
+  via the Dashboard card, not a bottom-nav tab
 - Worker: Schedule — still folded into Jobs, not a separate "calendar" screen; a scheduled
   booking shows up in the same Jobs list as any other, with its scheduled date/time and
   response deadline visible on the detail screen. (An actual date/time-scheduling *model*
