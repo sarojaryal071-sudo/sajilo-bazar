@@ -9,6 +9,7 @@ import { PhoneInput } from '../../components/PhoneInput.jsx';
 import { PasswordInput } from '../../components/PasswordInput.jsx';
 import { GoogleSignInButton } from '../../components/GoogleSignInButton.jsx';
 import { GooglePhoneRoleForm } from '../../components/GooglePhoneRoleForm.jsx';
+import { HomeLocationStep } from '../../components/HomeLocationStep.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { resolvePostAuthPath } from '../../lib/postAuthRedirect.js';
 
@@ -27,6 +28,22 @@ export function Signup() {
   const [submitting, setSubmitting] = useState(false);
   const [googlePending, setGooglePending] = useState(null);
   const [googleError, setGoogleError] = useState('');
+  // Set only right after a brand-new customer account is created (phone+
+  // password or Google) - gates the Home Location step before the normal
+  // post-auth redirect. Never set for an existing account logging back in.
+  const [newCustomer, setNewCustomer] = useState(null);
+
+  async function proceedAfterSignup(user) {
+    if (user.role === 'customer') {
+      setNewCustomer(user);
+      return;
+    }
+    navigate(await resolvePostAuthPath(user));
+  }
+
+  async function handleHomeLocationDone() {
+    navigate(await resolvePostAuthPath(newCustomer));
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -41,7 +58,7 @@ export function Signup() {
     setSubmitting(true);
     try {
       const user = await signup({ ...form, email: form.email || null, role });
-      navigate(await resolvePostAuthPath(user));
+      await proceedAfterSignup(user);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -64,7 +81,15 @@ export function Signup() {
   }
 
   async function handleGoogleSignupComplete(user) {
-    navigate(await resolvePostAuthPath(user));
+    await proceedAfterSignup(user);
+  }
+
+  if (newCustomer) {
+    return (
+      <AuthScreen>
+        <HomeLocationStep onDone={handleHomeLocationDone} />
+      </AuthScreen>
+    );
   }
 
   if (googlePending) {

@@ -8,11 +8,16 @@ This index is filled in incrementally - only files touched by a task get an entr
 here as part of that task. A file with no entry yet doesn't mean it's undocumented
 forever, just that no session has touched it since this index was introduced.
 
-_Last updated: 2026-09-25 — Settings gains a unified Notifications preferences matrix (5 categories x 4 channels, only In-app functional)_
+_Last updated: 2026-09-25 — Customer home location: saved addresses (Settings -> Locations, signup step, booking-time picker)_
 
 ## apps/api
 | File | Purpose |
 |---|---|
+| `src/db/migrations/033_create_addresses.sql` | `addresses(user_id, label, address_label, latitude, longitude, is_default)` - a partial unique index enforces at most one default per user at the DB level |
+| `src/modules/addresses/addresses.model.js` | `listForUser`, `findById`, `countForUser`, `create`/`update`/`remove`, `setDefault` (unsets any existing default first, in the same transaction) |
+| `src/modules/addresses/addresses.service.js` | `createAddress` makes the first address a customer ever saves the default automatically; the rest just wrap the model with 404s on a not-owned id |
+| `src/modules/addresses/addresses.controller.js` / `addresses.routes.js` | `GET/POST /addresses/me`, `PATCH/DELETE /addresses/me/:id`, `POST /addresses/me/:id/default` - customer-only (`requireRole('customer')`) |
+| `src/app.js` | Mounts `addressesRoutes` at `/api/addresses` |
 | `src/db/migrations/032_create_notification_preferences.sql` | `notification_preferences(user_id, category, in_app)` - absence of a row means "on" (the default), so a toggle-off is the only thing that ever writes one |
 | `src/modules/notifications/notifications.model.js` | New `listPreferenceOverrides`, `setPreference` (upsert), `isCategoryAllowed` (the single check `notify()` makes) |
 | `src/modules/notifications/notifications.service.js` | `notify()` now looks up the type's category (`NOTIFICATION_TYPE_CATEGORY`) and skips writing/pushing the notification entirely if that category's `in_app` is off; new `getMyPreferences`/`updateMyPreference` (every category defaults to `true` unless explicitly overridden) |
@@ -81,6 +86,13 @@ _Last updated: 2026-09-25 — Settings gains a unified Notifications preferences
 ## apps/web
 | File | Purpose |
 |---|---|
+| `src/api/addresses.api.js` | `list`, `create`, `update`, `remove`, `setDefault` |
+| `src/components/AddressPicker.jsx` | New - Uber-style booking-time location picker (default Home / another saved address / a fresh one-off entry with an optional "Use my current location" capture). Used by `BookingRequest.jsx` and `InstantRequest.jsx`, replacing their old plain free-text `Input` |
+| `src/components/HomeLocationStep.jsx` | New - Signup's final step for a new customer only: address + optional "Use my current location", saved via `addressesApi.create` (the first address a customer saves becomes their default automatically); skippable |
+| `src/screens/Auth/Signup.jsx` | Gates the post-signup redirect on `HomeLocationStep` for a brand-new customer account (both the phone+password and Google-complete paths) - never shown to an existing account just logging in via Google |
+| `src/screens/BookingRequest/BookingRequest.jsx` | Replaces the free-text address `Input` with `AddressPicker`; now sends `latitude`/`longitude` on create, which this screen previously never captured at all |
+| `src/screens/InstantRequest/InstantRequest.jsx` | Replaces the free-text address `Input` with `AddressPicker`; still falls back to live `getCurrentLocation()` if the chosen address has no coordinates (a fresh one-off entry where "Use my current location" wasn't tapped) |
+| `src/screens/Settings/Settings.jsx` | Gains a Locations section (customer only) - list of saved addresses with a Default badge and "Set default", `AddressFormDialog` for add/edit/delete |
 | `src/api/notifications.api.js` | New `getPreferences`, `updatePreference({category, inApp})` |
 | `src/screens/Settings/Settings.jsx` | Gains a Notifications section: `NotificationMatrix` - one row per `NOTIFICATION_CATEGORIES` category, four channel columns; only In-app is a real `MiniToggle` (optimistic update, rolls back on error), SMS/Email/WhatsApp are permanently-disabled toggles under one grouped `Badge tone="neutral"` "Coming soon" (not repeated per cell) |
 | `src/screens/Settings/Settings.jsx` | New Settings screen (`/settings`, replaces the old `ComingSoon` placeholder). Neumorphic-glass section cards (`shadow-neu-card`/`glass-surface`/`glass-border`/`backdrop-blur-xl` - the same tokens `AuthScreen.jsx` already used, now reused outside the auth flow). **Account**: change password (links to `/forgot-password`), Connected Google account (link/unlink - hidden entirely when `VITE_GOOGLE_CLIENT_ID` isn't set, same degrade-gracefully rule `GoogleSignInButton.jsx` already follows), Deactivate account (reversible, confirm dialog, logs the user out), Delete account (irreversible, must type `DELETE` to confirm, logs the user out). **Preferences**: language/theme toggles, moved here from `HamburgerMenu.jsx`. **Support**: Contact support (→ `/help`), Terms & Conditions, Privacy Policy |
@@ -161,6 +173,7 @@ _Last updated: 2026-09-25 — Settings gains a unified Notifications preferences
 ## packages/shared
 | File | Purpose |
 |---|---|
+| `schemas/address.schema.js` | New - `AddressSchema`, `AddressCreateInputSchema`, `AddressUpdateInputSchema` |
 | `schemas/enums.js` | New `NOTIFICATION_CATEGORIES` (the 5 Settings -> Notifications matrix rows) and `NOTIFICATION_TYPE_CATEGORY` (maps each of the 9 `NOTIFICATION_TYPES` to the category that gates it) |
 | `schemas/notification.schema.js` | New `NotificationPreferencesSchema`, `NotificationPreferenceUpdateInputSchema` |
 | `schemas/user.schema.js` | `UserSchema` gained `googleId`, `hasPassword`, `deactivatedAt`, `deletedAt`; new `GoogleLinkInputSchema` (`{idToken}`), `DeleteAccountInputSchema` (`{confirm: 'DELETE'}` - a lightweight typed are-you-sure, not real auth) |
