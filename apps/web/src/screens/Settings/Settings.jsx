@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { NOTIFICATION_CATEGORIES } from '@sajilo-bazar/shared';
 import { Screen } from '../../components/Screen.jsx';
 import { Button } from '../../components/Button.jsx';
 import { Badge } from '../../components/Badge.jsx';
@@ -9,8 +10,17 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { useTheme } from '../../context/ThemeContext.jsx';
 import { useLanguage } from '../../context/LanguageContext.jsx';
 import * as usersApi from '../../api/users.api.js';
+import * as notificationsApi from '../../api/notifications.api.js';
 
 const GOOGLE_CONFIGURED = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
+
+const CATEGORY_LABELS = {
+  bookings: 'Bookings & cancellations',
+  chat: 'Chat messages',
+  support: 'Disputes & support replies',
+  reviews: 'Reviews & ratings',
+  promos: 'Promos & announcements',
+};
 
 function ChevronIcon() {
   return (
@@ -97,6 +107,70 @@ function ConfirmDialog({
   );
 }
 
+function MiniToggle({ checked, onChange, disabled }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+        checked ? 'bg-brand-solid' : 'bg-surface-alt'
+      }`}
+    >
+      <span
+        className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-resting transition-transform ${
+          checked ? 'translate-x-4' : 'translate-x-0'
+        }`}
+      />
+    </button>
+  );
+}
+
+// Settings -> Notifications: one row per category, four channel columns.
+// Only In-app is real in this v1 (see notification_preferences migration) -
+// SMS/Email/WhatsApp are visibly present but disabled, with a single
+// "Coming soon" badge over the group rather than repeated per cell, same
+// pattern as the eSewa payment placeholder on BookingDetail.
+function NotificationMatrix({ preferences, onToggle, busyCategory }) {
+  return (
+    <div className="px-4 py-4">
+      <div className="grid grid-cols-[1fr_2.5rem_2.5rem_2.5rem_2.5rem] items-center gap-x-2 gap-y-4">
+        <span />
+        <span className="text-center text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+          In-app
+        </span>
+        <div className="col-span-3 flex justify-center">
+          <Badge tone="neutral">Coming soon</Badge>
+        </div>
+
+        {NOTIFICATION_CATEGORIES.map((category) => (
+          <Fragment key={category}>
+            <span className="pr-2 text-sm font-medium">{CATEGORY_LABELS[category]}</span>
+            <span className="flex justify-center">
+              <MiniToggle
+                checked={preferences?.[category] ?? true}
+                disabled={busyCategory === category || !preferences}
+                onChange={(next) => onToggle(category, next)}
+              />
+            </span>
+            <span className="flex justify-center">
+              <MiniToggle checked={false} disabled onChange={() => {}} />
+            </span>
+            <span className="flex justify-center">
+              <MiniToggle checked={false} disabled onChange={() => {}} />
+            </span>
+            <span className="flex justify-center">
+              <MiniToggle checked={false} disabled onChange={() => {}} />
+            </span>
+          </Fragment>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function Settings() {
   const navigate = useNavigate();
   const { user, logout, refreshUser } = useAuth();
@@ -109,6 +183,28 @@ export function Settings() {
   const [dialogBusy, setDialogBusy] = useState(false);
   const [dialogError, setDialogError] = useState('');
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [preferences, setPreferences] = useState(null);
+  const [busyCategory, setBusyCategory] = useState(null);
+
+  useEffect(() => {
+    notificationsApi
+      .getPreferences()
+      .then(({ preferences }) => setPreferences(preferences))
+      .catch(() => {});
+  }, []);
+
+  async function handleTogglePreference(category, next) {
+    setBusyCategory(category);
+    setPreferences((prev) => ({ ...prev, [category]: next })); // optimistic
+    try {
+      const { preferences } = await notificationsApi.updatePreference({ category, inApp: next });
+      setPreferences(preferences);
+    } catch {
+      setPreferences((prev) => ({ ...prev, [category]: !next })); // roll back
+    } finally {
+      setBusyCategory(null);
+    }
+  }
 
   function closeDialog() {
     setDialog(null);
@@ -226,6 +322,14 @@ export function Settings() {
           value={theme === 'dark' ? t('menu.dark') : t('menu.light')}
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
           last
+        />
+      </SettingsSection>
+
+      <SettingsSection title="Notifications">
+        <NotificationMatrix
+          preferences={preferences}
+          busyCategory={busyCategory}
+          onToggle={handleTogglePreference}
         />
       </SettingsSection>
 

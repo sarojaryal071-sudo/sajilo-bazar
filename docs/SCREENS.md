@@ -50,7 +50,10 @@ Build in this order — don't jump ahead to later-phase screens.
   Delete account [irreversible in-app data deletion request per the Privacy Policy —
   anonymizes PII, keeps booking/dispute history anonymized, requires typing "DELETE" to
   confirm]), Preferences (language/theme — moved here from the hamburger menu, which is
-  now pure navigation), Support (contact support, Terms & Conditions, Privacy Policy)
+  now pure navigation), Notifications (unified matrix — 5 categories x 4 channels; only
+  the In-app column is functional in this v1, SMS/Email/WhatsApp are visibly present but
+  disabled under one grouped "Coming soon" badge), Support (contact support, Terms &
+  Conditions, Privacy Policy)
 - Worker: "Apply as worker" flow (skills, services, pricing, document upload)
 - Worker: verification pending / status screen
 

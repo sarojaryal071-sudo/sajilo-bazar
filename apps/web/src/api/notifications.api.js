@@ -16,3 +16,11 @@ export function markRead(id) {
 export function markAllRead() {
   return apiFetch('/notifications/read-all', { method: 'PATCH' });
 }
+
+export function getPreferences() {
+  return apiFetch('/notifications/preferences');
+}
+
+export function updatePreference({ category, inApp }) {
+  return apiFetch('/notifications/preferences', { method: 'PUT', body: { category, inApp } });
+}

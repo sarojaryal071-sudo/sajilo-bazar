@@ -58,3 +58,26 @@ export const NOTIFICATION_TYPES = [
   'verification_update',
   'announcement',
 ];
+
+// Settings -> Notifications matrix rows. Coarser than NOTIFICATION_TYPES -
+// the matrix groups related types under one togglable row rather than
+// exposing all nine individually.
+export const NOTIFICATION_CATEGORIES = ['bookings', 'chat', 'support', 'reviews', 'promos'];
+
+// Which matrix row gates a given notification type - read by notify()
+// (apps/api/src/modules/notifications/notifications.service.js) to decide
+// whether a user's Settings -> Notifications -> In-app preference allows
+// this notification through. verification_update sits under 'support'
+// (a decision from admin about the worker's own account, the closest fit
+// among the five fixed rows) rather than getting a sixth row of its own.
+export const NOTIFICATION_TYPE_CATEGORY = {
+  booking_requested: 'bookings',
+  booking_accepted: 'bookings',
+  booking_declined: 'bookings',
+  booking_request_expired: 'bookings',
+  booking_status_changed: 'bookings',
+  chat_message: 'chat',
+  review_received: 'reviews',
+  verification_update: 'support',
+  announcement: 'promos',
+};
