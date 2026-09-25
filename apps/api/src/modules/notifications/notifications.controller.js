@@ -1,3 +1,4 @@
+import { NotificationPreferenceUpdateInputSchema } from '@sajilo-bazar/shared';
 import { ApiError } from '../../middleware/error.middleware.js';
 import * as notificationsService from './notifications.service.js';
 
@@ -36,5 +37,24 @@ export async function markAllRead(req, res, next) {
     res.status(204).end();
   } catch (err) {
     next(err);
+  }
+}
+
+export async function getPreferences(req, res, next) {
+  try {
+    const preferences = await notificationsService.getMyPreferences(req.user.id);
+    res.json({ preferences });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updatePreference(req, res, next) {
+  try {
+    const input = NotificationPreferenceUpdateInputSchema.parse(req.body);
+    const preferences = await notificationsService.updateMyPreference(req.user.id, input);
+    res.json({ preferences });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid notification preference', err.issues) : err);
   }
 }

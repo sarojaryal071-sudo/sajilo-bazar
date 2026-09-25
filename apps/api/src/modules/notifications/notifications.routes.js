@@ -8,5 +8,7 @@ notificationsRoutes.use(requireAuth);
 
 notificationsRoutes.get('/', notificationsController.list);
 notificationsRoutes.get('/unread-count', notificationsController.unreadCount);
+notificationsRoutes.get('/preferences', notificationsController.getPreferences);
+notificationsRoutes.put('/preferences', notificationsController.updatePreference);
 notificationsRoutes.patch('/read-all', notificationsController.markAllRead);
 notificationsRoutes.patch('/:id/read', notificationsController.markRead);

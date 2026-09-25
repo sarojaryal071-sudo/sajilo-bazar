@@ -8,11 +8,15 @@ This index is filled in incrementally - only files touched by a task get an entr
 here as part of that task. A file with no entry yet doesn't mean it's undocumented
 forever, just that no session has touched it since this index was introduced.
 
-_Last updated: 2026-09-25 — Settings screen (account deactivate/delete, Google link/unlink, language/theme moved from hamburger menu), Profile gains the worker Trust score panel (moved off Dashboard)_
+_Last updated: 2026-09-25 — Settings gains a unified Notifications preferences matrix (5 categories x 4 channels, only In-app functional)_
 
 ## apps/api
 | File | Purpose |
 |---|---|
+| `src/db/migrations/032_create_notification_preferences.sql` | `notification_preferences(user_id, category, in_app)` - absence of a row means "on" (the default), so a toggle-off is the only thing that ever writes one |
+| `src/modules/notifications/notifications.model.js` | New `listPreferenceOverrides`, `setPreference` (upsert), `isCategoryAllowed` (the single check `notify()` makes) |
+| `src/modules/notifications/notifications.service.js` | `notify()` now looks up the type's category (`NOTIFICATION_TYPE_CATEGORY`) and skips writing/pushing the notification entirely if that category's `in_app` is off; new `getMyPreferences`/`updateMyPreference` (every category defaults to `true` unless explicitly overridden) |
+| `src/modules/notifications/notifications.controller.js` / `notifications.routes.js` | `GET /notifications/preferences`, `PUT /notifications/preferences` |
 | `src/db/migrations/031_add_account_deactivate_delete.sql` | Adds `users.deactivated_at` (reversible - cleared automatically the next time the account logs in) and `users.deleted_at` (never cleared) |
 | `src/modules/users/users.model.js` | `toUser` gains `googleId`, `hasPassword`, `deactivatedAt`, `deletedAt`; new `deactivate`, `reactivate`, `anonymize` (PII scrub + `deleted_at`, per the Privacy Policy's retention decision - booking/dispute/commission_ledger rows stay, FK'd to the same `users.id`), `findByGoogleId`, `setGoogleId`, `clearGoogleId` |
 | `src/modules/users/users.service.js` | New `deactivateAccount`, `deleteAccount`, `linkGoogleAccount` (verifies the ID token server-side, same as sign-in; refuses to steal an id already linked elsewhere), `unlinkGoogleAccount` (refuses to leave a Google-only account with no way back in - requires `hasPassword` first) |
@@ -77,6 +81,8 @@ _Last updated: 2026-09-25 — Settings screen (account deactivate/delete, Google
 ## apps/web
 | File | Purpose |
 |---|---|
+| `src/api/notifications.api.js` | New `getPreferences`, `updatePreference({category, inApp})` |
+| `src/screens/Settings/Settings.jsx` | Gains a Notifications section: `NotificationMatrix` - one row per `NOTIFICATION_CATEGORIES` category, four channel columns; only In-app is a real `MiniToggle` (optimistic update, rolls back on error), SMS/Email/WhatsApp are permanently-disabled toggles under one grouped `Badge tone="neutral"` "Coming soon" (not repeated per cell) |
 | `src/screens/Settings/Settings.jsx` | New Settings screen (`/settings`, replaces the old `ComingSoon` placeholder). Neumorphic-glass section cards (`shadow-neu-card`/`glass-surface`/`glass-border`/`backdrop-blur-xl` - the same tokens `AuthScreen.jsx` already used, now reused outside the auth flow). **Account**: change password (links to `/forgot-password`), Connected Google account (link/unlink - hidden entirely when `VITE_GOOGLE_CLIENT_ID` isn't set, same degrade-gracefully rule `GoogleSignInButton.jsx` already follows), Deactivate account (reversible, confirm dialog, logs the user out), Delete account (irreversible, must type `DELETE` to confirm, logs the user out). **Preferences**: language/theme toggles, moved here from `HamburgerMenu.jsx`. **Support**: Contact support (→ `/help`), Terms & Conditions, Privacy Policy |
 | `src/components/HamburgerMenu.jsx` | Pared down to pure navigation: Dashboard, Bookings (role-aware routes), Earnings (worker only), Profile, Settings, Log out. Language/theme toggles and the Help row are gone (moved into `Settings.jsx`; Help is still reachable from Settings' Support section) |
 | `src/components/Button.jsx` | New `danger` variant (solid `bg-danger`) - the primary variant's `bg-brand` is a gradient `background-image`, which a `!bg-danger` override couldn't beat, so this is a real variant rather than a class hack |
@@ -155,6 +161,8 @@ _Last updated: 2026-09-25 — Settings screen (account deactivate/delete, Google
 ## packages/shared
 | File | Purpose |
 |---|---|
+| `schemas/enums.js` | New `NOTIFICATION_CATEGORIES` (the 5 Settings -> Notifications matrix rows) and `NOTIFICATION_TYPE_CATEGORY` (maps each of the 9 `NOTIFICATION_TYPES` to the category that gates it) |
+| `schemas/notification.schema.js` | New `NotificationPreferencesSchema`, `NotificationPreferenceUpdateInputSchema` |
 | `schemas/user.schema.js` | `UserSchema` gained `googleId`, `hasPassword`, `deactivatedAt`, `deletedAt`; new `GoogleLinkInputSchema` (`{idToken}`), `DeleteAccountInputSchema` (`{confirm: 'DELETE'}` - a lightweight typed are-you-sure, not real auth) |
 | `schemas/enums.js` | `NOTIFICATION_TYPES` gained `'announcement'` |
 | `schemas/availability.schema.js` | `AvailabilityBlockSchema` (`dayOfWeek` 0-6, `startTime`/`endTime` as `HH:MM`), `AvailabilityReplaceInputSchema`, `TypicalResponseHoursInputSchema` |
