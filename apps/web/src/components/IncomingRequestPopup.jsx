@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useSocket } from '../context/SocketContext.jsx';
+import { useIsDesktop } from '../hooks/useIsDesktop.js';
 import { Button } from './Button.jsx';
 import * as bookingsApi from '../api/bookings.api.js';
+import { WORKER_DESKTOP_BLOCK_MESSAGE } from '../lib/workerDesktopBlock.js';
 
 const OFFER_TIMEOUT_SEC = 30;
 
@@ -16,6 +18,7 @@ export function IncomingRequestPopup() {
   const { user } = useAuth();
   const socket = useSocket();
   const navigate = useNavigate();
+  const isDesktop = useIsDesktop();
   const [queue, setQueue] = useState([]);
   const [secondsLeft, setSecondsLeft] = useState(OFFER_TIMEOUT_SEC);
   const [busy, setBusy] = useState(false);
@@ -62,7 +65,7 @@ export function IncomingRequestPopup() {
   }
 
   async function handleAccept() {
-    if (!current || busy) return;
+    if (!current || busy || isDesktop) return;
     setBusy(true);
     try {
       const { booking } = await bookingsApi.claim(current.booking.id);
@@ -77,7 +80,7 @@ export function IncomingRequestPopup() {
   }
 
   async function handleDecline() {
-    if (!current || busy) return;
+    if (!current || busy || isDesktop) return;
     setBusy(true);
     try {
       await bookingsApi.declineOffer(current.booking.id);
@@ -116,14 +119,18 @@ export function IncomingRequestPopup() {
           </p>
           <p className="text-sm text-text-muted">{current.booking.addressLabel}</p>
 
-          <div className="mt-4 flex gap-3">
-            <Button variant="secondary" className="flex-1" disabled={busy} onClick={handleDecline}>
-              Decline
-            </Button>
-            <Button className="flex-1" disabled={busy} onClick={handleAccept}>
-              Accept
-            </Button>
-          </div>
+          {isDesktop ? (
+            <p className="mt-4 text-sm font-medium text-warning">{WORKER_DESKTOP_BLOCK_MESSAGE}</p>
+          ) : (
+            <div className="mt-4 flex gap-3">
+              <Button variant="secondary" className="flex-1" disabled={busy} onClick={handleDecline}>
+                Decline
+              </Button>
+              <Button className="flex-1" disabled={busy} onClick={handleAccept}>
+                Accept
+              </Button>
+            </div>
+          )}
         </div>
       </motion.div>
     </div>

@@ -11,8 +11,10 @@ import { Button } from '../../components/Button.jsx';
 import { ReviewModal } from '../../components/ReviewModal.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useSocket } from '../../context/SocketContext.jsx';
+import { useIsDesktop } from '../../hooks/useIsDesktop.js';
 import * as bookingsApi from '../../api/bookings.api.js';
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_TONE, NO_WORKER_TERMINAL_STATUSES } from '../../lib/bookingStatus.js';
+import { WORKER_DESKTOP_BLOCK_MESSAGE, WORKER_ACTIVE_BOOKING_STATUSES } from '../../lib/workerDesktopBlock.js';
 
 const STEPS = ['requested', 'accepted', 'in_progress', 'completed'];
 const WAITING_POLL_MS = 4000;
@@ -222,6 +224,7 @@ export function BookingDetail() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const socket = useSocket();
+  const isDesktop = useIsDesktop();
   const [booking, setBooking] = useState(null);
   const [review, setReview] = useState(null);
   const [error, setError] = useState('');
@@ -301,6 +304,27 @@ export function BookingDetail() {
   }
 
   const isWorker = user.role === 'worker';
+
+  // Founder decision 2026-09-26: the active in-progress job screen is
+  // mobile-only for a worker - accept/decline (requested), start job
+  // (accepted), and chat + mark-complete (in_progress) all live on this one
+  // shared screen, so blocking it here in one place covers all of them at
+  // once rather than gating each action button separately. A completed/
+  // cancelled/declined booking is just history, which stays fully
+  // desktop-usable (see WORKER_ACTIVE_BOOKING_STATUSES).
+  if (isWorker && isDesktop && WORKER_ACTIVE_BOOKING_STATUSES.includes(booking.status)) {
+    return (
+      <Screen>
+        <button onClick={() => navigate(-1)} className="mb-4 self-start text-sm text-text-muted">
+          &larr; Back
+        </button>
+        <div className="mt-10 flex flex-col items-center gap-2 text-center">
+          <p className="max-w-sm text-base font-medium text-text-muted">{WORKER_DESKTOP_BLOCK_MESSAGE}</p>
+        </div>
+      </Screen>
+    );
+  }
+
   const otherName = isWorker ? booking.customerName : booking.workerName;
   const otherImage = isWorker ? booking.customerImageUrl : booking.workerImageUrl;
   const isTerminalNonCompleted = booking.status === 'cancelled' || booking.status === 'declined';

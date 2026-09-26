@@ -11,11 +11,13 @@ import { AddServiceModal } from '../../components/AddServiceModal.jsx';
 import { EarningsChart } from '../../components/EarningsChart.jsx';
 import { SkeletonBlock } from '../../components/Skeleton.jsx';
 import { PromotionCarousel } from '../../components/PromotionCarousel.jsx';
+import { useIsDesktop } from '../../hooks/useIsDesktop.js';
 import * as workersApi from '../../api/workers.api.js';
 import * as bookingsApi from '../../api/bookings.api.js';
 import * as commissionLedgerApi from '../../api/commissionLedger.api.js';
 import * as publicationsApi from '../../api/publications.api.js';
 import { getCurrentLocation, getGeolocationPermissionState, getLocationBlockedMessage } from '../../lib/geolocation.js';
+import { WORKER_DESKTOP_BLOCK_MESSAGE } from '../../lib/workerDesktopBlock.js';
 
 const SERVICE_STATUS_TONE = { pending: 'warning', rejected: 'danger' };
 
@@ -155,10 +157,15 @@ function EarningsCard({ summary, sparkline, onClick }) {
 }
 
 function OnlineToggle({ isOnline, onToggle }) {
+  const isDesktop = useIsDesktop();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   async function handleChange() {
+    if (isDesktop) {
+      setError(WORKER_DESKTOP_BLOCK_MESSAGE);
+      return;
+    }
     setError('');
     setBusy(true);
     try {
