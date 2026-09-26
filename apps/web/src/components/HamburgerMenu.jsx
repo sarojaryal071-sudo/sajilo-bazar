@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useLanguage } from '../context/LanguageContext.jsx';
 
-function EarningsIcon() {
+export function EarningsIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <circle cx="12" cy="12" r="9" strokeLinecap="round" strokeLinejoin="round" />
@@ -12,7 +12,7 @@ function EarningsIcon() {
   );
 }
 
-function ProfileIcon() {
+export function ProfileIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M20 21a8 8 0 1 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" strokeLinecap="round" strokeLinejoin="round" />
@@ -20,7 +20,7 @@ function ProfileIcon() {
   );
 }
 
-function SettingsIcon() {
+export function SettingsIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <circle cx="12" cy="12" r="3" strokeLinecap="round" strokeLinejoin="round" />
@@ -33,7 +33,7 @@ function SettingsIcon() {
   );
 }
 
-function LogoutIcon() {
+export function LogoutIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path

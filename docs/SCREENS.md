@@ -187,6 +187,42 @@ parallel system (see `DATA_MODEL.md`'s "Scheduled booking + worker availability"
   Availability schedule, and booking history are unaffected - only the operational actions
   above are blocked.
 
+## Customer desktop responsive reflow (2026-09-27)
+
+Piece C of the "Desktop scope, Admin RBAC + escalation, Customer responsive reflow, Fuel
+charge" round. Before this, every authenticated customer/worker screen rendered the same
+phone-width centered column regardless of viewport - correct on a phone, but a stranded
+narrow column with large dead space on either side on a desktop browser. This is a
+layout/breakpoint change only, at the same `lg:` (1024px) breakpoint `useIsDesktop` already
+uses - no new visual language; the existing neumorphic/glass surfaces and brand gradient are
+unchanged.
+
+- **Sidebar nav replaces the bottom tab bar** at `lg:` widths. `Sidebar.jsx` (new) renders the
+  same destinations as `BottomNav.jsx` + `HamburgerMenu.jsx` combined - role tabs (customer:
+  Home/Bookings; worker: Dashboard/Jobs), Alerts, Earnings (worker only), Profile, Settings,
+  Log out - as a persistent left rail instead of a fixed bottom bar plus a slide-out overlay,
+  since those are mobile navigation patterns that stop making sense once there's a whole
+  sidebar's worth of width. `AppShell.jsx` renders `Sidebar` alongside the existing
+  `BottomNav`/`HamburgerMenu` (`lg:flex` / `lg:hidden` on the right elements so exactly one nav
+  pattern ever shows). Only affects the 7 screens actually wrapped by `AppShell` (Home,
+  Bookings, Profile, WorkerDashboard, WorkerJobs, Settings, HelpSupport) - the rest of the app
+  (WorkerDetail, BookingRequest, BookingDetail, BookingChat, Notifications, Earnings,
+  WorkerAvailability, WorkerApply) is drill-in screens with their own back button, by design,
+  on both mobile and desktop.
+- **`Screen.jsx`'s shared phone-width column widens at `lg:`** - the `max-w-md` mobile
+  baseline is unchanged, but a new `maxWidth` prop (`'default'`: `lg:max-w-2xl`, `'wide'`:
+  `lg:max-w-5xl`) means every screen built on `Screen` (14 of them) gets a wider column on
+  desktop instead of a phone-width one stranded in the middle of the page. `BookingChat.jsx`
+  doesn't use `Screen` (its own full-height header/scroll/composer layout) so its own
+  hardcoded `max-w-md` containers got the same `lg:max-w-2xl` widening directly.
+- **Home/search (highest priority)** uses `maxWidth="wide"` and reflows both grids at `lg:`:
+  the resting-state category grid goes `grid-cols-2` -> `sm:grid-cols-3 lg:grid-cols-4`, and
+  the active-state worker search results go from a single-column stack to `lg:grid-cols-2` of
+  `WorkerCard`s.
+- Auth/onboarding screens (Login, Signup, ForgotPassword, WorkerApply) are unaffected - they
+  use the separate `AuthScreen.jsx` shell, not `Screen.jsx`, and stay a fixed-width centered
+  card at every viewport (a login form shouldn't stretch edge to edge on desktop).
+
 ## Phase 6 — Admin (minimal, no theming)
 
 - Admin dashboard (overview stats)
