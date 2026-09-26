@@ -24,7 +24,7 @@ const ICONS = {
 // active when the user is on one of these, even though it isn't a NavLink.
 const MENU_ROUTES = ['/profile', '/settings', '/help'];
 
-function NavIcon({ name }) {
+export function NavIcon({ name }) {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <g strokeLinecap="round" strokeLinejoin="round">{ICONS[name]}</g>
@@ -36,12 +36,12 @@ function NavIcon({ name }) {
 // tappable to enter search mode), not as a separate nav destination. No
 // standalone Profile tab either - it moved into the hamburger menu, which
 // is always the last tab (see MENU_ROUTES / HamburgerMenu.jsx).
-const CUSTOMER_TABS = [
+export const CUSTOMER_TABS = [
   { to: '/home', icon: 'home', labelKey: 'nav.home' },
   { to: '/bookings', icon: 'bookings', labelKey: 'nav.bookings' },
 ];
 
-const WORKER_TABS = [
+export const WORKER_TABS = [
   { to: '/worker/dashboard', icon: 'dashboard', labelKey: 'nav.dashboard' },
   { to: '/worker/jobs', icon: 'jobs', labelKey: 'nav.jobs' },
 ];
@@ -59,7 +59,7 @@ export function BottomNav({ role, onOpenMenu }) {
   const menuActive = MENU_ROUTES.some((route) => location.pathname.startsWith(route));
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-surface-raised shadow-raised">
+    <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-surface-raised shadow-raised lg:hidden">
       <div className="mx-auto flex max-w-md items-center justify-around px-2 py-2">
         {tabs.map((tab) => (
           <NavLink

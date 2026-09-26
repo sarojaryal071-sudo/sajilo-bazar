@@ -309,7 +309,7 @@ export function BookingChat() {
   return (
     <div className="flex h-dvh flex-col bg-surface-alt">
       <header className="shrink-0 border-b border-border bg-surface">
-        <div className="mx-auto flex w-full max-w-md items-center gap-3 px-5 py-4">
+        <div className="mx-auto flex w-full max-w-md items-center gap-3 px-5 py-4 lg:max-w-2xl">
           <button
             onClick={() => navigate(-1)}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-text-muted"
@@ -325,11 +325,11 @@ export function BookingChat() {
         </div>
       </header>
 
-      {error && <p className="mx-auto w-full max-w-md px-5 pt-2 text-sm text-danger">{error}</p>}
+      {error && <p className="mx-auto w-full max-w-md px-5 pt-2 text-sm text-danger lg:max-w-2xl">{error}</p>}
 
       <div className="relative min-h-0 flex-1">
         <div ref={scrollRef} onScroll={handleScroll} className="h-full overflow-y-auto">
-          <div className="mx-auto flex w-full max-w-md flex-col gap-3 px-5 py-4">
+          <div className="mx-auto flex w-full max-w-md flex-col gap-3 px-5 py-4 lg:max-w-2xl">
             {messages.length === 0 && (
               <p className="text-sm text-text-muted">No messages yet - say hello.</p>
             )}
@@ -430,7 +430,7 @@ export function BookingChat() {
       />
 
       <form onSubmit={handleSend} className="shrink-0 border-t border-border bg-surface">
-        <div className="relative mx-auto w-full max-w-md px-5 py-3">
+        <div className="relative mx-auto w-full max-w-md px-5 py-3 lg:max-w-2xl">
           {uploading && <p className="mb-1.5 text-xs text-text-muted">Uploading...</p>}
           <div className="flex items-center gap-1 rounded-full border border-border bg-surface-alt pl-1 pr-2 focus-within:border-brand-solid">
             <div className="relative">

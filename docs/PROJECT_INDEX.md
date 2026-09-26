@@ -8,7 +8,7 @@ This index is filled in incrementally - only files touched by a task get an entr
 here as part of that task. A file with no entry yet doesn't mean it's undocumented
 forever, just that no session has touched it since this index was introduced.
 
-_Last updated: 2026-09-27 — Piece B (Admin RBAC + escalation round): grouped admin nav (Overview/Operations/Support/Finance/People & Content/standalone Settings), department-based visibility with Super Admin bypass, a new Staff screen for granting departments, manual escalation + a shared log on disputes/support tickets, department color-coded badges on every list row, and a read-only Support exception on Users_
+_Last updated: 2026-09-27 — Piece C (Customer desktop responsive reflow round): a new `Sidebar.jsx` replaces the bottom tab bar + hamburger menu at `lg:` widths on the 7 `AppShell`-wrapped screens; `Screen.jsx`'s shared phone-width column widens at `lg:` (new `maxWidth` prop) so every screen built on it gets real desktop breathing room instead of a stranded narrow column; Home's category/search-results grids reflow to multi-column at `lg:`_
 
 ## apps/api
 | File | Purpose |
@@ -211,6 +211,13 @@ _Last updated: 2026-09-27 — Piece B (Admin RBAC + escalation round): grouped a
 | `src/screens/Admin/AdminUserDetail.jsx` (read-only Support exception) | Computes `canEdit = canAccessDepartment({isSuperAdmin, departments}, 'people_content')` from the viewer's own access. Suspend/Reinstate button and the entire notes-editing UI (textarea enabled state, Save button, Saved indicator) are gated on `canEdit` - a Support-only viewer can still see everything but can't mutate. Cosmetic only; the real gate is server-side (`admin.routes.js`) |
 | `src/api/admin.api.js` (RBAC/Staff) | New `getAnalytics`, `getAccountingSummary`, `listStaff`, `getStaffDetail`, `createStaff`, `updateStaffAccess`, `escalateDispute(id, department)`, `escalateTicket(id, department)` |
 | `src/App.jsx` (Staff route) | `/admin/staff` now renders `AdminStaff` instead of the `AdminComingSoon` stub |
+| `src/components/Sidebar.jsx` | New (2026-09-27, Piece C) - desktop-width (`lg:flex`, hidden below that) replacement for `BottomNav`/`HamburgerMenu`: same destinations (role tabs, Alerts, Earnings for a worker, Profile, Settings, Log out) as a persistent left rail. Reuses `BottomNav.jsx`'s now-exported `NavIcon`/`CUSTOMER_TABS`/`WORKER_TABS` and `HamburgerMenu.jsx`'s now-exported icon components rather than duplicating the SVGs |
+| `src/components/BottomNav.jsx` (Piece C) | `NavIcon`, `CUSTOMER_TABS`, `WORKER_TABS` now exported (for `Sidebar.jsx` to reuse); root `<nav>` gains `lg:hidden` so it and `Sidebar` never both render |
+| `src/components/HamburgerMenu.jsx` (Piece C) | `EarningsIcon`, `ProfileIcon`, `SettingsIcon`, `LogoutIcon` now exported (for `Sidebar.jsx` to reuse) - the menu overlay itself is unchanged, still mountable, just unreachable at `lg:` since its only trigger (BottomNav's menu button) is hidden there |
+| `src/components/AppShell.jsx` (Piece C) | Renders `Sidebar` alongside `BottomNav`/`HamburgerMenu`; root layout goes `lg:flex-row`; the bottom-bar nav-clearance padding (`pb-20`) drops to `lg:pb-0` since the sidebar replaces the bottom bar there |
+| `src/components/Screen.jsx` (Piece C) | New `maxWidth` prop (`'default'`: `max-w-md lg:max-w-2xl`, `'wide'`: `max-w-md lg:max-w-5xl`) - the shared phone-width column now widens at `lg:` instead of staying `max-w-md` at every viewport. Every one of the 14 screens built on `Screen` picks this up automatically; `Home.jsx` opts into `'wide'` |
+| `src/screens/Home/Home.jsx` (Piece C) | `maxWidth="wide"`; category grid `grid-cols-2` -> `sm:grid-cols-3 lg:grid-cols-4`; search results reflow from a single-column stack to `lg:grid-cols-2` of `WorkerCard`s |
+| `src/screens/BookingChat/BookingChat.jsx` (Piece C) | Doesn't use `Screen.jsx` (its own full-height layout) - its own hardcoded `max-w-md` header/message-list/composer containers gain `lg:max-w-2xl` directly, matching `Screen`'s `'default'` widening |
 
 ## packages/shared
 | File | Purpose |

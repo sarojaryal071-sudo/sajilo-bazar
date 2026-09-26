@@ -115,7 +115,7 @@ export function Home() {
   }
 
   return (
-    <Screen className="pb-4" fillHeight={false}>
+    <Screen className="pb-4" fillHeight={false} maxWidth="wide">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-text-muted">Good to see you,</p>
@@ -167,7 +167,7 @@ export function Home() {
             <p className="text-sm text-text-muted">No services available yet.</p>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {categories?.map(([category, services]) => (
               <Card
                 key={category}
@@ -232,22 +232,24 @@ export function Home() {
             ))}
           </div>
 
-          <div className="mt-6 flex flex-col gap-3">
-            {resultsError && <p className="text-sm text-danger">{resultsError}</p>}
-            {results === null && !resultsError && (
-              <p className="text-sm text-text-muted">Loading workers...</p>
-            )}
-            {results?.length === 0 && (
-              <p className="text-sm text-text-muted">No workers match yet.</p>
-            )}
-            {results?.map((worker) => (
-              <WorkerCard
-                key={worker.userId}
-                worker={worker}
-                onClick={() => navigate(`/worker/${worker.userId}`)}
-              />
-            ))}
-          </div>
+          {resultsError && <p className="mt-6 text-sm text-danger">{resultsError}</p>}
+          {results === null && !resultsError && (
+            <p className="mt-6 text-sm text-text-muted">Loading workers...</p>
+          )}
+          {results?.length === 0 && (
+            <p className="mt-6 text-sm text-text-muted">No workers match yet.</p>
+          )}
+          {results?.length > 0 && (
+            <div className="mt-6 grid grid-cols-1 gap-3 lg:grid-cols-2">
+              {results.map((worker) => (
+                <WorkerCard
+                  key={worker.userId}
+                  worker={worker}
+                  onClick={() => navigate(`/worker/${worker.userId}`)}
+                />
+              ))}
+            </div>
+          )}
         </motion.div>
       )}
     </Screen>
