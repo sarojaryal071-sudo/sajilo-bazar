@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ADMIN_DEPARTMENTS } from './enums.js';
 
 // Admin Users detail screen (Phase 6, Round A) - a single free-text note,
 // no authorship/history tracking (see DATA_MODEL.md's users.admin_notes).
@@ -64,6 +65,34 @@ export const AdminSupportTicketReplyInputSchema = z.object({
 
 export const AdminSupportTicketStatusInputSchema = z.object({
   status: z.enum(['open', 'in_progress', 'resolved', 'closed']),
+});
+
+// Manual escalation only (2026-09-27) - a support agent picks a new
+// department from a dropdown; no automatic/keyword-based routing. Shared
+// shape for both disputes and support tickets since the field is identical.
+export const AdminEscalateInputSchema = z.object({
+  department: z.enum(ADMIN_DEPARTMENTS),
+});
+
+// Admin Staff screen (Round E, 2026-09-27) - Super Admin creates a staff
+// account and assigns its department grants in one step. isSuperAdmin
+// bypasses department gating entirely; departments is ignored (but still
+// validated) when it's true, same as the server-side access check does.
+export const AdminStaffCreateInputSchema = z.object({
+  fullName: z.string().min(1).max(120),
+  phone: z.string().min(1),
+  email: z.string().email().nullable().optional(),
+  password: z.string().min(8),
+  departments: z.array(z.enum(ADMIN_DEPARTMENTS)).default([]),
+  isSuperAdmin: z.boolean().default(false),
+});
+
+// Editing an existing staff account's access only - name/phone/email/
+// password changes go through the same self-service Settings flow every
+// other account uses, not this screen.
+export const AdminStaffAccessInputSchema = z.object({
+  departments: z.array(z.enum(ADMIN_DEPARTMENTS)).default([]),
+  isSuperAdmin: z.boolean().default(false),
 });
 
 // Admin Policies screen (Round D). Announcements' input schema moved to

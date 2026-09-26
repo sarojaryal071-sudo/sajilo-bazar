@@ -1,5 +1,7 @@
+import bcrypt from 'bcryptjs';
 import { ApiError } from '../../middleware/error.middleware.js';
 import * as adminModel from './admin.model.js';
+import * as authModel from '../auth/auth.model.js';
 import * as workersModel from '../workers/workers.model.js';
 import * as bookingsModel from '../bookings/bookings.model.js';
 import * as chatModel from '../chat/chat.model.js';
@@ -7,8 +9,48 @@ import * as commissionLedgerModel from '../commissionLedger/commissionLedger.mod
 import { notify } from '../notifications/notifications.service.js';
 import * as trustScoreService from '../trustScore/trustScore.service.js';
 
+const SALT_ROUNDS = 10;
+
+// ---- Staff (Round E, 2026-09-27) ----
+
+export async function listStaff() {
+  return adminModel.listStaff();
+}
+
+export async function getStaffDetail(id) {
+  const staff = await adminModel.findStaffById(id);
+  if (!staff) throw new ApiError(404, 'Staff account not found');
+  return staff;
+}
+
+// Reuses authModel.createUser (role: 'admin') rather than a separate
+// insert path - same clientId assignment, same password hashing, one
+// source of truth for "how a user row comes into existence".
+export async function createStaff({ fullName, phone, email, password, departments, isSuperAdmin }) {
+  const existing = await authModel.findByPhone(phone);
+  if (existing) throw new ApiError(409, 'An account with this phone number already exists');
+
+  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+  const user = await authModel.createUser({ fullName, phone, email, passwordHash, role: 'admin' });
+  return adminModel.setStaffAccess(user.id, { departments, isSuperAdmin });
+}
+
+export async function updateStaffAccess(id, { departments, isSuperAdmin }) {
+  const staff = await adminModel.findStaffById(id);
+  if (!staff) throw new ApiError(404, 'Staff account not found');
+  return adminModel.setStaffAccess(id, { departments, isSuperAdmin });
+}
+
 export async function getDashboardStats() {
   return adminModel.getDashboardStats();
+}
+
+export async function getAnalytics() {
+  return adminModel.getAnalytics();
+}
+
+export async function getAccountingSummary() {
+  return adminModel.getAccountingSummary();
 }
 
 export async function getApprovalsQueue() {
@@ -243,8 +285,11 @@ export async function setServiceHighRisk(id, highRisk) {
 
 // ---- Disputes (Round C) ----
 
-export async function listDisputes(filters) {
-  return adminModel.listDisputes(filters);
+// access.departments is null for a Super Admin (sees every department's
+// queue); anyone else only sees disputes currently tagged with one of
+// their own granted departments - see admin.model.js's listDisputes.
+export async function listDisputes({ status }, access) {
+  return adminModel.listDisputes({ status, departments: access.isSuperAdmin ? null : access.departments });
 }
 
 // Reuses the booking's own chat transcript (the same conversation the
@@ -255,12 +300,13 @@ export async function getDisputeDetail(id) {
   const dispute = await adminModel.findDisputeById(id);
   if (!dispute) throw new ApiError(404, 'Dispute not found');
 
-  const [booking, messages] = await Promise.all([
+  const [booking, messages, escalations] = await Promise.all([
     bookingsModel.findById(dispute.bookingId),
     chatModel.listByBooking(dispute.bookingId),
+    adminModel.listEscalations('dispute', id),
   ]);
 
-  return { dispute, booking, messages };
+  return { dispute, booking, messages, escalations };
 }
 
 // No customer/worker self-service "raise a dispute" flow exists yet, so an
@@ -305,22 +351,46 @@ export async function resolveDispute(id, adminId, { status, resolutionNotes, atF
   return resolved;
 }
 
+// Manual only - a support agent picks the new department from a dropdown,
+// no automatic/keyword-based routing. Ownership fully transfers (the
+// dispute leaves the sender's queue entirely), so the log entry is the
+// only remaining trail of who moved it and when.
+export async function escalateDispute(id, adminId, department) {
+  const dispute = await adminModel.findDisputeById(id);
+  if (!dispute) throw new ApiError(404, 'Dispute not found');
+  const updated = await adminModel.setDisputeDepartment(id, department);
+  await adminModel.logEscalation({
+    entityType: 'dispute',
+    entityId: id,
+    fromDepartment: dispute.department,
+    toDepartment: department,
+    escalatedBy: adminId,
+  });
+  return updated;
+}
+
 // ---- Support tickets (Round C) ----
 
-export async function listSupportTickets(filters) {
-  return adminModel.listSupportTickets(filters);
+export async function listSupportTickets({ status, priority, q }, access) {
+  return adminModel.listSupportTickets({
+    status,
+    priority,
+    q,
+    departments: access.isSuperAdmin ? null : access.departments,
+  });
 }
 
 export async function getSupportTicketDetail(id) {
   const ticket = await adminModel.findSupportTicketById(id);
   if (!ticket) throw new ApiError(404, 'Support ticket not found');
 
-  const [messages, booking] = await Promise.all([
+  const [messages, booking, escalations] = await Promise.all([
     adminModel.listTicketMessages(id),
     ticket.bookingId ? bookingsModel.findById(ticket.bookingId) : null,
+    adminModel.listEscalations('support_ticket', id),
   ]);
 
-  return { ticket, messages, booking };
+  return { ticket, messages, booking, escalations };
 }
 
 export async function createSupportTicket({ userId, bookingId, subject, priority, message }) {
@@ -348,6 +418,20 @@ export async function setTicketStatus(id, status) {
   const ticket = await adminModel.setTicketStatus(id, status);
   if (!ticket) throw new ApiError(404, 'Support ticket not found');
   return ticket;
+}
+
+export async function escalateTicket(id, adminId, department) {
+  const ticket = await adminModel.findSupportTicketById(id);
+  if (!ticket) throw new ApiError(404, 'Support ticket not found');
+  const updated = await adminModel.setTicketDepartment(id, department);
+  await adminModel.logEscalation({
+    entityType: 'support_ticket',
+    entityId: id,
+    fromDepartment: ticket.department,
+    toDepartment: department,
+    escalatedBy: adminId,
+  });
+  return updated;
 }
 
 // ---- Publications (2026-09-25) ----

@@ -11,10 +11,22 @@ function toUser(row) {
     email: row.email,
     profileImageUrl: row.profile_image_url,
     moderationStatus: row.moderation_status,
+    isSuperAdmin: row.is_super_admin,
     deactivatedAt: row.deactivated_at,
     deletedAt: row.deleted_at,
     createdAt: row.created_at,
   };
+}
+
+// Only role='admin' accounts ever have department grants - attaching this
+// unconditionally for every login would be a wasted query for the
+// customer/worker majority of logins.
+async function attachAdminDepartments(user) {
+  if (user.role !== 'admin') return user;
+  const { rows } = await pool.query('SELECT department FROM admin_department_grants WHERE user_id = $1', [
+    user.id,
+  ]);
+  return { ...user, departments: rows.map((r) => r.department) };
 }
 
 export async function findByPhone(phone) {
@@ -25,7 +37,8 @@ export async function findByPhone(phone) {
 export async function findByPhoneWithPassword(phone) {
   const { rows } = await pool.query('SELECT * FROM users WHERE phone = $1', [phone]);
   if (!rows[0]) return null;
-  return { ...toUser(rows[0]), passwordHash: rows[0].password_hash };
+  const user = await attachAdminDepartments(toUser(rows[0]));
+  return { ...user, passwordHash: rows[0].password_hash };
 }
 
 export async function findById(id) {

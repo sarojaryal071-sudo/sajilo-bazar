@@ -209,14 +209,49 @@ parallel system (see `DATA_MODEL.md`'s "Scheduled booking + worker availability"
 - Admin: Policies (simple static content management, not a builder) — unaffected by the
   Publications rework above; still its own screen/table (`content_items`, `kind='policy'`)
 
+## Phase 6b — Admin RBAC + escalation (2026-09-27)
+
+Built from a founder product discussion (Piece B of the "Desktop scope, Admin RBAC +
+escalation, Customer responsive reflow, Fuel charge" round). Every admin/staff account is
+either a **Super Admin** (bypasses all of this - sees and can act on everything) or holds zero
+or more of four departments: `support`, `finance`, `operations`, `people_content`. Nav item
+visibility is cosmetic only; every route is also gated server-side, so a menu a staffer can't
+see is also a 403 if they call it directly.
+
+- **Grouped nav**: Overview (the Dashboard route - everyone sees it, no group header; Analytics
+  is now a tab on this same page rather than its own nav item, still Super-Admin-only even
+  though its location moved) / Operations (Bookings, Live Ops - `operations`) / Support
+  (Disputes, Support tickets, plus a read-only cross-access exception for Users - `support`) /
+  Finance (Accounting - standalone, `finance`) / People & Content (Users, Approvals, Staff,
+  Categories/Services, Publications, Policies - `people_content`) / Settings (standalone
+  top-level link below the groups, Super Admin only, no group wrapper).
+- **Admin: Staff** (`/admin/staff`, replaces the old `AdminComingSoon` stub) — Super-Admin-only.
+  Create a new staff account (name/phone/email/password, Super Admin toggle, department
+  checkboxes) and edit any existing staff account's department grants/Super-Admin flag. This
+  is the only place department access is granted or revoked.
+- **Read-only Users exception**: a Support-department staffer can view the Users list/detail
+  (customers + workers) the same as People & Content can, but cannot suspend/reinstate an
+  account or edit admin notes - those mutations stay People & Content-only. Enforced both in
+  the UI (buttons/inputs hidden or disabled) and, for real, server-side.
+- **Escalation**: Disputes and Support tickets each carry a `department` (defaults `support`)
+  and can be manually escalated to a different department from their detail view - a select +
+  button, no automatic/keyword routing. Escalating moves the item out of the old department's
+  queue entirely and into the new one's, and appends a row to a visible escalation log (who,
+  from → to, when) on that same detail view.
+- **Color-coding**: every dispute/ticket row, in every list view (including the Support
+  conversation list), shows a colored department badge reusing the existing `Badge.jsx`
+  tones - no new visual language needed, the 4 departments map 1:1 onto its 4 existing tones.
+
 ## Later phases — not built until their phase starts
 
 - Admin: full financial reporting (P&L, balance sheet, trial balance) — only once
   `commission_ledger` genuinely needs to grow into full accounting (see `DATA_MODEL.md`)
 - Admin: expenses/vendors/cost centers
-- Admin: staff management + granular roles/permissions (beyond the founder)
 - Admin: deeper analytics dashboards, live-ops monitoring, feature-flag management
 - Admin: audit log viewer
+- Admin: automatic/keyword-based escalation routing (Phase 6b's escalation is manual-only by
+  design; bargain/negotiation pricing is a separate, explicitly deferred backlog item - needs
+  its own design pass, not spec'd)
 
 ## Explicitly dropped — do not build
 

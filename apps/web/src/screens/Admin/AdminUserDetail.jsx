@@ -3,7 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Card } from '../../components/Card.jsx';
 import { Badge } from '../../components/Badge.jsx';
 import { Button } from '../../components/Button.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_TONE } from '../../lib/bookingStatus.js';
+import { canAccessDepartment } from '../../lib/adminDepartments.js';
 import * as adminApi from '../../api/admin.api.js';
 
 const MODERATION_TONE = { active: 'success', suspended: 'danger' };
@@ -18,6 +20,11 @@ function formatDate(iso) {
 export function AdminUserDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user: viewer } = useAuth();
+  const canEdit = canAccessDepartment(
+    { isSuperAdmin: viewer.isSuperAdmin, departments: viewer.departments ?? [] },
+    'people_content'
+  );
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState('');
   const [notesDraft, setNotesDraft] = useState('');
@@ -91,7 +98,7 @@ export function AdminUserDetail() {
         </div>
         <div className="flex items-center gap-3">
           <Badge tone={MODERATION_TONE[user.moderationStatus]}>{user.moderationStatus}</Badge>
-          {user.role !== 'admin' && (
+          {user.role !== 'admin' && canEdit && (
             <Button
               variant={user.moderationStatus === 'active' ? 'secondary' : 'primary'}
               disabled={togglingStatus}
@@ -192,19 +199,22 @@ export function AdminUserDetail() {
         <textarea
           rows={3}
           value={notesDraft}
+          disabled={!canEdit}
           onChange={(e) => {
             setNotesDraft(e.target.value);
             setNotesSaved(false);
           }}
-          placeholder="Internal notes about this user - not visible to them."
-          className="mt-3 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand-solid"
+          placeholder={canEdit ? 'Internal notes about this user - not visible to them.' : 'No notes.'}
+          className="mt-3 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand-solid disabled:opacity-60"
         />
-        <div className="mt-2 flex items-center gap-3">
-          <Button variant="secondary" disabled={savingNotes} onClick={handleSaveNotes}>
-            {savingNotes ? 'Saving...' : 'Save notes'}
-          </Button>
-          {notesSaved && <span className="text-sm text-success">Saved</span>}
-        </div>
+        {canEdit && (
+          <div className="mt-2 flex items-center gap-3">
+            <Button variant="secondary" disabled={savingNotes} onClick={handleSaveNotes}>
+              {savingNotes ? 'Saving...' : 'Save notes'}
+            </Button>
+            {notesSaved && <span className="text-sm text-success">Saved</span>}
+          </div>
+        )}
       </Card>
 
       <p className="mt-6 mb-3 text-sm font-semibold uppercase tracking-wide text-text-muted">Booking history</p>
