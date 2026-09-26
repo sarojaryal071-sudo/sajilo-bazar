@@ -4,11 +4,22 @@ import { Avatar } from '../../components/Avatar.jsx';
 import { Badge } from '../../components/Badge.jsx';
 import { Button } from '../../components/Button.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { ADMIN_DEPARTMENTS, DEPARTMENT_LABEL, DEPARTMENT_TONE } from '../../lib/adminDepartments.js';
 import * as adminApi from '../../api/admin.api.js';
 
 const STATUS_TONE = { open: 'warning', in_progress: 'warning', resolved: 'success', closed: 'neutral' };
 const PRIORITY_TONE = { low: 'neutral', normal: 'neutral', high: 'danger' };
 const EMPTY_FORM = { userId: '', bookingId: '', subject: '', priority: 'normal', message: '' };
+
+function formatDateTime(iso) {
+  return new Date(iso).toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
 
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
@@ -102,6 +113,9 @@ function TicketRow({ ticket, active, onClick }) {
         </div>
         <p className="truncate text-xs text-text-muted">{ticket.subject}</p>
         <div className="mt-1.5 flex items-center gap-1.5">
+          <Badge tone={DEPARTMENT_TONE[ticket.department]} className="!px-2 !py-0.5 !text-[10px]">
+            {DEPARTMENT_LABEL[ticket.department]}
+          </Badge>
           <Badge tone={STATUS_TONE[ticket.status]} className="!px-2 !py-0.5 !text-[10px]">
             {ticket.status.replace('_', ' ')}
           </Badge>
@@ -121,15 +135,16 @@ function TicketRow({ ticket, active, onClick }) {
 // other chat in this app - see BookingChat.jsx - the ticket owner's
 // messages bubble left), composer at the bottom. No attachment support -
 // support_ticket_messages has no attachment columns, unlike booking chat.
-function ChatPanel({ detail, adminId, onReply, onStatusChange, sending, savingStatus }) {
+function ChatPanel({ detail, adminId, onReply, onStatusChange, onEscalate, sending, savingStatus, escalating }) {
   const [reply, setReply] = useState('');
+  const [escalateTo, setEscalateTo] = useState('');
   const bottomRef = useRef(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: 'end' });
   }, [detail?.messages.length]);
 
-  const { ticket, messages, booking } = detail;
+  const { ticket, messages, booking, escalations } = detail;
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -137,6 +152,13 @@ function ChatPanel({ detail, adminId, onReply, onStatusChange, sending, savingSt
     if (!text) return;
     onReply(text);
     setReply('');
+  }
+
+  function handleEscalate(e) {
+    e.preventDefault();
+    if (!escalateTo) return;
+    onEscalate(escalateTo);
+    setEscalateTo('');
   }
 
   return (
@@ -152,6 +174,7 @@ function ChatPanel({ detail, adminId, onReply, onStatusChange, sending, savingSt
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <Badge tone={DEPARTMENT_TONE[ticket.department]}>{DEPARTMENT_LABEL[ticket.department]}</Badge>
           <Badge tone={PRIORITY_TONE[ticket.priority]}>{ticket.priority}</Badge>
           <select
             value={ticket.status}
@@ -173,6 +196,31 @@ function ChatPanel({ detail, adminId, onReply, onStatusChange, sending, savingSt
           &middot; <span className="capitalize">{booking.status}</span>
         </div>
       )}
+
+      <form onSubmit={handleEscalate} className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2">
+        <select
+          value={escalateTo}
+          onChange={(e) => setEscalateTo(e.target.value)}
+          className="rounded-md border border-border bg-surface px-2 py-1.5 text-xs outline-none focus:border-brand-solid"
+        >
+          <option value="">Escalate to...</option>
+          {ADMIN_DEPARTMENTS.filter((d) => d !== ticket.department).map((d) => (
+            <option key={d} value={d}>
+              {DEPARTMENT_LABEL[d]}
+            </option>
+          ))}
+        </select>
+        <Button type="submit" variant="secondary" disabled={!escalateTo || escalating} className="px-3 py-1.5 text-xs">
+          {escalating ? 'Escalating...' : 'Escalate'}
+        </Button>
+        {escalations?.length > 0 && (
+          <span className="text-[11px] text-text-muted">
+            Last: {formatDateTime(escalations[escalations.length - 1].createdAt)} &middot;{' '}
+            {escalations[escalations.length - 1].escalatedByName} moved this to{' '}
+            {DEPARTMENT_LABEL[escalations[escalations.length - 1].toDepartment]}
+          </span>
+        )}
+      </form>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         <div className="flex flex-col gap-3">
@@ -244,6 +292,7 @@ export function AdminSupportTickets() {
   const [detailError, setDetailError] = useState('');
   const [sending, setSending] = useState(false);
   const [savingStatus, setSavingStatus] = useState(false);
+  const [escalating, setEscalating] = useState(false);
 
   function loadList() {
     adminApi
@@ -315,6 +364,20 @@ export function AdminSupportTickets() {
       setDetailError(err.message);
     } finally {
       setSavingStatus(false);
+    }
+  }
+
+  async function handleEscalate(department) {
+    setEscalating(true);
+    setDetailError('');
+    try {
+      await adminApi.escalateTicket(id, department);
+      loadDetail(id);
+      loadList();
+    } catch (err) {
+      setDetailError(err.message);
+    } finally {
+      setEscalating(false);
     }
   }
 
@@ -403,8 +466,10 @@ export function AdminSupportTickets() {
               adminId={adminUser.id}
               onReply={handleReply}
               onStatusChange={handleStatusChange}
+              onEscalate={handleEscalate}
               sending={sending}
               savingStatus={savingStatus}
+              escalating={escalating}
             />
           )}
         </div>

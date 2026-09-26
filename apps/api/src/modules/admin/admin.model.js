@@ -18,6 +18,50 @@ export async function getDashboardStats() {
   };
 }
 
+// Analytics (Super-Admin-only tab on the universal Dashboard page) -
+// genuinely deeper than the Dashboard's summary tiles, not a duplicate of
+// them: a breakdown by booking status/user role plus month-over-month
+// commission, rather than just totals.
+export async function getAnalytics() {
+  const [byStatus, byRole, thisMonth, lastMonth] = await Promise.all([
+    pool.query('SELECT status, COUNT(*)::int AS count FROM bookings GROUP BY status'),
+    pool.query('SELECT role, COUNT(*)::int AS count FROM users GROUP BY role'),
+    pool.query(
+      "SELECT COALESCE(SUM(commission_amount), 0) AS total FROM commission_ledger WHERE created_at >= date_trunc('month', now())"
+    ),
+    pool.query(
+      "SELECT COALESCE(SUM(commission_amount), 0) AS total FROM commission_ledger WHERE created_at >= date_trunc('month', now() - interval '1 month') AND created_at < date_trunc('month', now())"
+    ),
+  ]);
+  return {
+    bookingsByStatus: byStatus.rows.map((r) => ({ status: r.status, count: r.count })),
+    usersByRole: byRole.rows.map((r) => ({ role: r.role, count: r.count })),
+    commissionThisMonth: Number(thisMonth.rows[0].total),
+    commissionLastMonth: Number(lastMonth.rows[0].total),
+  };
+}
+
+// Accounting (Finance-department screen) - deliberately thin today per the
+// decision doc ("it'll fill in once refunds/payouts exist"); this is real
+// content, not a placeholder, just a small one.
+export async function getAccountingSummary() {
+  const [totalCollected, outstanding] = await Promise.all([
+    pool.query('SELECT COALESCE(SUM(commission_amount), 0) AS total FROM commission_ledger'),
+    pool.query(
+      `SELECT COALESCE(SUM(CASE WHEN credit_balance_after < 0 THEN -credit_balance_after ELSE 0 END), 0) AS total
+       FROM (
+         SELECT DISTINCT ON (worker_id) worker_id, credit_balance_after
+         FROM commission_ledger
+         ORDER BY worker_id, created_at DESC
+       ) latest`
+    ),
+  ]);
+  return {
+    totalCommissionCollected: Number(totalCollected.rows[0].total),
+    totalCommissionOwedByWorkers: Number(outstanding.rows[0].total),
+  };
+}
+
 function toPendingDocument(row) {
   return {
     kind: 'document',
@@ -155,6 +199,82 @@ export async function decideWorkerService(id, { status, adminId, comment }) {
     );
   }
   return rows[0] || null;
+}
+
+// ---- Admin RBAC / Staff (Round E, 2026-09-27) ----
+
+// Looked up fresh per request by adminAccess.middleware.js, not cached in
+// the JWT - a department grant change from the Staff screen has to apply
+// immediately, not on the affected staffer's next login.
+export async function getAdminAccess(userId) {
+  const { rows } = await pool.query('SELECT is_super_admin FROM users WHERE id = $1', [userId]);
+  const isSuperAdmin = rows[0]?.is_super_admin ?? false;
+  const { rows: grantRows } = await pool.query(
+    'SELECT department FROM admin_department_grants WHERE user_id = $1',
+    [userId]
+  );
+  return { isSuperAdmin, departments: grantRows.map((r) => r.department) };
+}
+
+function toStaffSummary(row) {
+  return {
+    id: row.id,
+    clientId: row.client_id,
+    fullName: row.full_name,
+    phone: row.phone,
+    email: row.email,
+    isSuperAdmin: row.is_super_admin,
+    createdAt: row.created_at,
+  };
+}
+
+export async function listStaff() {
+  const { rows } = await pool.query(
+    "SELECT * FROM users WHERE role = 'admin' ORDER BY created_at ASC"
+  );
+  const staff = rows.map(toStaffSummary);
+  const { rows: grantRows } = await pool.query('SELECT user_id, department FROM admin_department_grants');
+  const byUser = new Map();
+  for (const g of grantRows) {
+    if (!byUser.has(g.user_id)) byUser.set(g.user_id, []);
+    byUser.get(g.user_id).push(g.department);
+  }
+  return staff.map((s) => ({ ...s, departments: byUser.get(s.id) ?? [] }));
+}
+
+export async function findStaffById(id) {
+  const { rows } = await pool.query("SELECT * FROM users WHERE id = $1 AND role = 'admin'", [id]);
+  if (!rows[0]) return null;
+  const { departments } = await getAdminAccess(id);
+  return { ...toStaffSummary(rows[0]), departments };
+}
+
+// Replaces the full grant set in one transaction (unset-then-set, same
+// pattern as addresses.model.js's setDefault) rather than diffing - the
+// Staff screen always submits the complete desired department list.
+export async function setStaffAccess(id, { departments, isSuperAdmin }) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('UPDATE users SET is_super_admin = $2, updated_at = now() WHERE id = $1', [
+      id,
+      isSuperAdmin,
+    ]);
+    await client.query('DELETE FROM admin_department_grants WHERE user_id = $1', [id]);
+    for (const department of departments) {
+      await client.query(
+        'INSERT INTO admin_department_grants (user_id, department) VALUES ($1, $2)',
+        [id, department]
+      );
+    }
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+  return findStaffById(id);
 }
 
 // ---- Users (Round A) ----
@@ -406,6 +526,7 @@ function toDisputeSummary(row) {
     reason: row.reason,
     status: row.status,
     atFault: row.at_fault,
+    department: row.department,
     createdAt: row.created_at,
     resolvedAt: row.resolved_at,
   };
@@ -413,7 +534,11 @@ function toDisputeSummary(row) {
 
 const DISPUTES_LIST_CAP = 200;
 
-export async function listDisputes({ status }) {
+// departments is null for a Super Admin (sees every department's queue,
+// per the decision doc) - any other caller passes their own granted
+// departments, and only disputes currently tagged with one of them show up
+// (escalating one moves it out of the sender's queue into the recipient's).
+export async function listDisputes({ status, departments }) {
   const { rows } = await pool.query(
     `SELECT d.*, cu.full_name AS customer_name, wu.full_name AS worker_name, ru.full_name AS raised_by_name
      FROM disputes d
@@ -422,9 +547,10 @@ export async function listDisputes({ status }) {
      LEFT JOIN users wu ON wu.id = b.worker_id
      JOIN users ru ON ru.id = d.raised_by
      WHERE ($1::text IS NULL OR d.status = $1)
+       AND ($2::text[] IS NULL OR d.department = ANY($2::text[]))
      ORDER BY d.created_at DESC
      LIMIT ${DISPUTES_LIST_CAP}`,
-    [status || null]
+    [status || null, departments ?? null]
   );
   return rows.map(toDisputeSummary);
 }
@@ -469,6 +595,11 @@ export async function resolveDispute(id, { status, resolutionNotes, atFault, adm
   return findDisputeById(id);
 }
 
+export async function setDisputeDepartment(id, department) {
+  await pool.query('UPDATE disputes SET department = $2 WHERE id = $1', [id, department]);
+  return findDisputeById(id);
+}
+
 // All-time count of disputes an admin resolved at-fault: worker - the basis
 // for the trust score's dispute-free-record deduction (§1 of the trust
 // score spec), distinct from the rolling-30-day count below used for the
@@ -504,6 +635,7 @@ function toTicketSummary(row) {
     subject: row.subject,
     priority: row.priority,
     status: row.status,
+    department: row.department,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -511,7 +643,9 @@ function toTicketSummary(row) {
 
 const TICKETS_LIST_CAP = 200;
 
-export async function listSupportTickets({ status, priority, q }) {
+// departments is null for a Super Admin (sees every department's queue) -
+// see listDisputes above for the identical convention.
+export async function listSupportTickets({ status, priority, q, departments }) {
   const { rows } = await pool.query(
     `SELECT t.*, u.full_name AS user_name
      FROM support_tickets t
@@ -519,9 +653,10 @@ export async function listSupportTickets({ status, priority, q }) {
      WHERE ($1::text IS NULL OR t.status = $1)
        AND ($2::text IS NULL OR t.priority = $2)
        AND ($3::text IS NULL OR t.subject ILIKE '%' || $3 || '%' OR u.full_name ILIKE '%' || $3 || '%')
+       AND ($4::text[] IS NULL OR t.department = ANY($4::text[]))
      ORDER BY t.created_at DESC
      LIMIT ${TICKETS_LIST_CAP}`,
-    [status || null, priority || null, q || null]
+    [status || null, priority || null, q || null, departments ?? null]
   );
   return rows.map(toTicketSummary);
 }
@@ -589,6 +724,49 @@ export async function setTicketStatus(id, status) {
     [id, status]
   );
   return rows[0] ? findSupportTicketById(id) : null;
+}
+
+export async function setTicketDepartment(id, department) {
+  await pool.query('UPDATE support_tickets SET department = $2, updated_at = now() WHERE id = $1', [
+    id,
+    department,
+  ]);
+  return findSupportTicketById(id);
+}
+
+// ---- Department escalation log (shared by disputes + support tickets) ----
+
+function toEscalation(row) {
+  return {
+    id: row.id,
+    entityType: row.entity_type,
+    entityId: row.entity_id,
+    fromDepartment: row.from_department,
+    toDepartment: row.to_department,
+    escalatedBy: row.escalated_by,
+    escalatedByName: row.escalated_by_name,
+    createdAt: row.created_at,
+  };
+}
+
+export async function logEscalation({ entityType, entityId, fromDepartment, toDepartment, escalatedBy }) {
+  await pool.query(
+    `INSERT INTO department_escalations (entity_type, entity_id, from_department, to_department, escalated_by)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [entityType, entityId, fromDepartment, toDepartment, escalatedBy]
+  );
+}
+
+export async function listEscalations(entityType, entityId) {
+  const { rows } = await pool.query(
+    `SELECT e.*, u.full_name AS escalated_by_name
+     FROM department_escalations e
+     JOIN users u ON u.id = e.escalated_by
+     WHERE e.entity_type = $1 AND e.entity_id = $2
+     ORDER BY e.created_at ASC`,
+    [entityType, entityId]
+  );
+  return rows.map(toEscalation);
 }
 
 // ---- Publications (2026-09-25, replaces the old Announcements half of

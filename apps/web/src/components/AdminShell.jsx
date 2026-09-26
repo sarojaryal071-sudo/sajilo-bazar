@@ -1,6 +1,7 @@
 import { Navigate, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useIsDesktop } from '../hooks/useIsDesktop.js';
+import { canAccessDepartment } from '../lib/adminDepartments.js';
 import { FullScreenSpinner } from './Skeleton.jsx';
 
 function DashboardIcon() {
@@ -128,26 +129,78 @@ function SettingsIcon() {
   );
 }
 
-// Every section from the full admin scope gets a nav entry now, even ones
-// built much later - unbuilt ones route to AdminComingSoon (see App.jsx)
-// so the sidebar's structure is complete and navigable from round one,
-// rather than growing piecemeal as each section ships.
-const NAV_ITEMS = [
-  { to: '/admin/dashboard', label: 'Dashboard', icon: DashboardIcon },
-  { to: '/admin/approvals', label: 'Approvals', icon: ApprovalsIcon },
-  { to: '/admin/users', label: 'Users', icon: UsersIcon },
-  { to: '/admin/bookings', label: 'Bookings', icon: BookingsIcon },
-  { to: '/admin/categories', label: 'Categories/Services', icon: CategoriesIcon },
-  { to: '/admin/staff', label: 'Staff', icon: StaffIcon },
-  { to: '/admin/analytics', label: 'Analytics', icon: AnalyticsIcon },
-  { to: '/admin/live-ops', label: 'Live Ops', icon: LiveOpsIcon },
-  { to: '/admin/accounting', label: 'Accounting', icon: AccountingIcon },
-  { to: '/admin/disputes', label: 'Disputes', icon: DisputesIcon },
-  { to: '/admin/support', label: 'Support tickets', icon: SupportIcon },
-  { to: '/admin/publications', label: 'Publications', icon: PublicationsIcon },
-  { to: '/admin/policies', label: 'Policies', icon: PoliciesIcon },
-  { to: '/admin/settings', label: 'Settings', icon: SettingsIcon },
+// Admin RBAC (2026-09-27) - the flat list above became grouped sections,
+// each gated by the department that owns it. Overview has no department
+// (everyone with any admin access sees Dashboard) and no group header,
+// same treatment as before. Users appears in both Support (its one
+// deliberate read-only cross-department exception) and People & Content
+// (its real home) - resolved below so it never renders twice.
+const USERS_ITEM = { to: '/admin/users', label: 'Users', icon: UsersIcon };
+
+const NAV_GROUPS = [
+  {
+    key: 'overview',
+    label: null,
+    department: null,
+    items: [{ to: '/admin/dashboard', label: 'Dashboard', icon: DashboardIcon }],
+  },
+  {
+    key: 'operations',
+    label: 'Operations',
+    department: 'operations',
+    items: [
+      { to: '/admin/bookings', label: 'Bookings', icon: BookingsIcon },
+      { to: '/admin/live-ops', label: 'Live Ops', icon: LiveOpsIcon },
+    ],
+  },
+  {
+    key: 'support',
+    label: 'Support',
+    department: 'support',
+    items: [
+      { to: '/admin/disputes', label: 'Disputes', icon: DisputesIcon },
+      { to: '/admin/support', label: 'Support tickets', icon: SupportIcon },
+    ],
+  },
+  {
+    // Deliberately standalone even though it's thin today - it's the one
+    // place access control matters most, and it'll fill in once refunds/
+    // payouts exist.
+    key: 'finance',
+    label: 'Finance',
+    department: 'finance',
+    items: [{ to: '/admin/accounting', label: 'Accounting', icon: AccountingIcon }],
+  },
+  {
+    key: 'people_content',
+    label: 'People & Content',
+    department: 'people_content',
+    items: [
+      USERS_ITEM,
+      { to: '/admin/approvals', label: 'Approvals', icon: ApprovalsIcon },
+      { to: '/admin/staff', label: 'Staff', icon: StaffIcon },
+      { to: '/admin/categories', label: 'Categories/Services', icon: CategoriesIcon },
+      { to: '/admin/publications', label: 'Publications', icon: PublicationsIcon },
+      { to: '/admin/policies', label: 'Policies', icon: PoliciesIcon },
+    ],
+  },
 ];
+
+// Settings is a plain standalone top-level link, Super Admin only - no
+// group/dropdown wrapper (a section header with one lonely child).
+const SETTINGS_ITEM = { to: '/admin/settings', label: 'Settings', icon: SettingsIcon };
+
+function getVisibleNavGroups(access) {
+  const groups = NAV_GROUPS.filter((g) => !g.department || canAccessDepartment(access, g.department));
+  const hasPeopleContent = groups.some((g) => g.key === 'people_content');
+  // Support's read-only Users exception only surfaces here when People &
+  // Content isn't already showing it - a Support+People&Content staffer
+  // sees Users once, under its real home. Builds a new group object rather
+  // than mutating NAV_GROUPS, which is shared module-level state.
+  return groups.map((g) =>
+    g.key === 'support' && !hasPeopleContent ? { ...g, items: [...g.items, USERS_ITEM] } : g
+  );
+}
 
 function DesktopOnlyMessage() {
   return (
@@ -176,6 +229,22 @@ function DesktopOnlyMessage() {
 // so no admin data fetch ever fires there. Since it's desktop-only, the
 // sidebar is simple and fixed - no collapse/toggle affordance needed, same
 // as any other desktop app's sidebar.
+function NavItemLink({ to, label, icon: Icon }) {
+  return (
+    <NavLink
+      to={to}
+      className={({ isActive }) =>
+        `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+          isActive ? 'bg-brand text-text-onBrand' : 'text-text-muted hover:bg-surface-alt'
+        }`
+      }
+    >
+      <Icon />
+      {label}
+    </NavLink>
+  );
+}
+
 export function AdminShell() {
   const { user, loading, logout } = useAuth();
   const isDesktop = useIsDesktop();
@@ -185,25 +254,31 @@ export function AdminShell() {
   if (user.role !== 'admin') return <Navigate to="/home" replace />;
   if (!isDesktop) return <DesktopOnlyMessage />;
 
+  const access = { isSuperAdmin: user.isSuperAdmin, departments: user.departments ?? [] };
+  const visibleGroups = getVisibleNavGroups(access);
+
   return (
     <div className="flex min-h-dvh">
       <aside className="flex w-56 shrink-0 flex-col overflow-y-auto border-r border-border bg-surface-raised px-3 py-6">
         <p className="px-3 pb-6 text-lg font-bold">Sajilo Bazar</p>
-        <nav className="flex flex-1 flex-col gap-1">
-          {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                  isActive ? 'bg-brand text-text-onBrand' : 'text-text-muted hover:bg-surface-alt'
-                }`
-              }
-            >
-              <Icon />
-              {label}
-            </NavLink>
+        <nav className="flex flex-1 flex-col gap-4">
+          {visibleGroups.map((group) => (
+            <div key={group.key} className="flex flex-col gap-1">
+              {group.label && (
+                <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-text-muted">
+                  {group.label}
+                </p>
+              )}
+              {group.items.map((item) => (
+                <NavItemLink key={item.to} {...item} />
+              ))}
+            </div>
           ))}
+          {access.isSuperAdmin && (
+            <div className="mt-2 border-t border-border pt-3">
+              <NavItemLink {...SETTINGS_ITEM} />
+            </div>
+          )}
         </nav>
         <button
           onClick={logout}

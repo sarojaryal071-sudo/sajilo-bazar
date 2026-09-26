@@ -52,6 +52,12 @@ export const TRUST_TIERS = ['building_trust', 'trusted', 'highly_trusted'];
 // a routing branch, never a new admin screen.
 export const PUBLICATION_TYPES = ['notification', 'promotion'];
 
+// Admin RBAC (2026-09-27) - the four assignable staff departments. Super
+// Admin is a separate boolean flag (users.is_super_admin), not a fifth
+// value here - Analytics and Settings are Super-Admin-only, never
+// department-gated, so they never appear in this list.
+export const ADMIN_DEPARTMENTS = ['support', 'finance', 'operations', 'people_content'];
+
 export const NOTIFICATION_TYPES = [
   'booking_requested',
   'booking_accepted',

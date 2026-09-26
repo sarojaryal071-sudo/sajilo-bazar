@@ -11,6 +11,9 @@ import {
   AdminPublicationInputSchema,
   AdminPolicyInputSchema,
   AdminDocumentRejectInputSchema,
+  AdminStaffCreateInputSchema,
+  AdminStaffAccessInputSchema,
+  AdminEscalateInputSchema,
 } from '@sajilo-bazar/shared';
 import { ApiError } from '../../middleware/error.middleware.js';
 import * as adminService from './admin.service.js';
@@ -21,6 +24,64 @@ export async function getDashboardStats(req, res, next) {
     res.json(stats);
   } catch (err) {
     next(err);
+  }
+}
+
+export async function getAnalytics(req, res, next) {
+  try {
+    const analytics = await adminService.getAnalytics();
+    res.json(analytics);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getAccountingSummary(req, res, next) {
+  try {
+    const summary = await adminService.getAccountingSummary();
+    res.json(summary);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ---- Staff ----
+
+export async function listStaff(req, res, next) {
+  try {
+    const staff = await adminService.listStaff();
+    res.json({ staff });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getStaffDetail(req, res, next) {
+  try {
+    const staff = await adminService.getStaffDetail(parseId(req));
+    res.json({ staff });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function createStaff(req, res, next) {
+  try {
+    const input = AdminStaffCreateInputSchema.parse(req.body);
+    const staff = await adminService.createStaff(input);
+    res.status(201).json({ staff });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid staff input', err.issues) : err);
+  }
+}
+
+export async function updateStaffAccess(req, res, next) {
+  try {
+    const input = AdminStaffAccessInputSchema.parse(req.body);
+    const staff = await adminService.updateStaffAccess(parseId(req), input);
+    res.json({ staff });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid access input', err.issues) : err);
   }
 }
 
@@ -239,7 +300,7 @@ export async function unmarkServiceHighRisk(req, res, next) {
 export async function listDisputes(req, res, next) {
   try {
     const { status } = req.query;
-    const disputes = await adminService.listDisputes({ status });
+    const disputes = await adminService.listDisputes({ status }, req.adminAccess);
     res.json({ disputes });
   } catch (err) {
     next(err);
@@ -275,12 +336,22 @@ export async function resolveDispute(req, res, next) {
   }
 }
 
+export async function escalateDispute(req, res, next) {
+  try {
+    const { department } = AdminEscalateInputSchema.parse(req.body);
+    const dispute = await adminService.escalateDispute(parseId(req), req.user.id, department);
+    res.json({ dispute });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid escalation input', err.issues) : err);
+  }
+}
+
 // ---- Support tickets ----
 
 export async function listSupportTickets(req, res, next) {
   try {
     const { status, priority, q } = req.query;
-    const tickets = await adminService.listSupportTickets({ status, priority, q });
+    const tickets = await adminService.listSupportTickets({ status, priority, q }, req.adminAccess);
     res.json({ tickets });
   } catch (err) {
     next(err);
@@ -323,6 +394,16 @@ export async function setTicketStatus(req, res, next) {
     res.json({ ticket });
   } catch (err) {
     next(err.issues ? new ApiError(400, 'Invalid status', err.issues) : err);
+  }
+}
+
+export async function escalateTicket(req, res, next) {
+  try {
+    const { department } = AdminEscalateInputSchema.parse(req.body);
+    const ticket = await adminService.escalateTicket(parseId(req), req.user.id, department);
+    res.json({ ticket });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid escalation input', err.issues) : err);
   }
 }
 

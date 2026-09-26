@@ -13,15 +13,28 @@ function toUser(row) {
     moderationStatus: row.moderation_status,
     googleId: row.google_id,
     hasPassword: row.password_hash != null,
+    isSuperAdmin: row.is_super_admin,
     deactivatedAt: row.deactivated_at,
     deletedAt: row.deleted_at,
     createdAt: row.created_at,
   };
 }
 
+// Only role='admin' accounts ever have department grants - attaching this
+// unconditionally for every getMe() would be a wasted query for the
+// customer/worker majority of calls.
+async function attachAdminDepartments(user) {
+  if (user.role !== 'admin') return user;
+  const { rows } = await pool.query('SELECT department FROM admin_department_grants WHERE user_id = $1', [
+    user.id,
+  ]);
+  return { ...user, departments: rows.map((r) => r.department) };
+}
+
 export async function findById(id) {
   const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
-  return rows[0] ? toUser(rows[0]) : null;
+  if (!rows[0]) return null;
+  return attachAdminDepartments(toUser(rows[0]));
 }
 
 export async function updateProfile(id, { fullName, email, profileImageUrl }) {

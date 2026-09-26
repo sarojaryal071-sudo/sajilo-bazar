@@ -40,6 +40,7 @@ import { AdminCategories } from './screens/Admin/AdminCategories.jsx';
 import { AdminDisputes } from './screens/Admin/AdminDisputes.jsx';
 import { AdminDisputeDetail } from './screens/Admin/AdminDisputeDetail.jsx';
 import { AdminSupportTickets } from './screens/Admin/AdminSupportTickets.jsx';
+import { AdminStaff } from './screens/Admin/AdminStaff.jsx';
 import { AdminPublications } from './screens/Admin/AdminPublications.jsx';
 import { AdminPolicies } from './screens/Admin/AdminPolicies.jsx';
 import { AdminComingSoon } from './screens/Admin/AdminComingSoon.jsx';
@@ -77,7 +78,7 @@ export default function App() {
             <Route path="/admin/bookings" element={<AdminBookings />} />
             <Route path="/admin/bookings/:id" element={<AdminBookingDetail />} />
             <Route path="/admin/categories" element={<AdminCategories />} />
-            <Route path="/admin/staff" element={<AdminComingSoon title="Staff" />} />
+            <Route path="/admin/staff" element={<AdminStaff />} />
             <Route path="/admin/analytics" element={<AdminComingSoon title="Analytics" />} />
             <Route path="/admin/live-ops" element={<AdminComingSoon title="Live Ops" />} />
             <Route path="/admin/accounting" element={<AdminComingSoon title="Accounting" />} />

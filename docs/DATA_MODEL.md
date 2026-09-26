@@ -347,6 +347,52 @@ branch, not a new admin screen.
 | created_by | fk → users | |
 | created_at / updated_at | timestamptz | |
 
+## 15. Admin RBAC (departments, Super Admin, escalation)
+
+Added 2026-09-27 (Piece B of the "Desktop scope, Admin RBAC + escalation, Customer responsive
+reflow, Fuel charge" round). Before this, every `role='admin'` user could reach every admin
+endpoint - this migration splits that into a Super Admin flag (bypasses all department gating
+entirely) plus a many-to-many department grant, and backfills every pre-existing admin account
+to Super Admin so nobody is locked out by the migration itself. Department membership is looked
+up fresh per-request in `adminAccess.middleware.js` (`requireDepartment(...)` / `requireSuperAdmin`),
+never baked into the JWT, so a grant change from the Staff screen takes effect immediately - not
+on next login or token refresh.
+
+| Column (`users`, added) | Type | Notes |
+|---|---|---|
+| is_super_admin | boolean | default `false`; bypasses every department check |
+
+| Column (`admin_department_grants`) | Type | Notes |
+|---|---|---|
+| user_id | fk → users | part of composite pk |
+| department | text | `CHECK IN ('support', 'finance', 'operations', 'people_content')`; part of composite pk |
+
+A staff account can hold any number of department grants. `analytics` and `settings` are
+deliberately **not** members of this enum - both are Super-Admin-only regardless of department
+grants, so they never need a row here.
+
+| Column (`disputes` / `support_tickets`, added) | Type | Notes |
+|---|---|---|
+| department | text | same 4-value `CHECK`, default `'support'`; which department's queue currently owns this item |
+
+| Column (`department_escalations`) | Type | Notes |
+|---|---|---|
+| id | serial pk | |
+| entity_type | text | `CHECK IN ('dispute', 'support_ticket')` |
+| entity_id | integer | id within that entity's own table - polymorphic, no FK |
+| from_department | text | |
+| to_department | text | |
+| escalated_by | fk → users | |
+| created_at | timestamptz | |
+
+One shared log table for both entity types since the shape is identical apart from which table
+`entity_id` points into. Escalating a dispute or ticket is manual only (no keyword/automatic
+routing) and simply overwrites that row's `department` column while appending one row here -
+the full log renders on the item's detail view. Support has a standing read-only exception to
+`people_content`'s otherwise-exclusive ownership of `users`: `GET /admin/users*` accepts either
+department, but the three mutating routes (suspend, reinstate, notes) require `people_content`
+specifically.
+
 ## Trust score
 
 Worker-facing 0-100 score (`worker_profiles.trust_score`), computed and persisted by

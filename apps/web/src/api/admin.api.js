@@ -4,6 +4,30 @@ export function getDashboardStats() {
   return apiFetch('/admin/dashboard/stats');
 }
 
+export function getAnalytics() {
+  return apiFetch('/admin/analytics');
+}
+
+export function getAccountingSummary() {
+  return apiFetch('/admin/accounting/summary');
+}
+
+export function listStaff() {
+  return apiFetch('/admin/staff');
+}
+
+export function getStaffDetail(id) {
+  return apiFetch(`/admin/staff/${id}`);
+}
+
+export function createStaff(input) {
+  return apiFetch('/admin/staff', { method: 'POST', body: input });
+}
+
+export function updateStaffAccess(id, input) {
+  return apiFetch(`/admin/staff/${id}/access`, { method: 'PATCH', body: input });
+}
+
 export function getApprovalsQueue() {
   return apiFetch('/admin/approvals');
 }
@@ -118,6 +142,10 @@ export function resolveDispute(id, { status, atFault, resolutionNotes }) {
   return apiFetch(`/admin/disputes/${id}/resolve`, { method: 'PATCH', body: { status, atFault, resolutionNotes } });
 }
 
+export function escalateDispute(id, department) {
+  return apiFetch(`/admin/disputes/${id}/escalate`, { method: 'PATCH', body: { department } });
+}
+
 export function listSupportTickets({ status, priority, q } = {}) {
   const params = new URLSearchParams();
   if (status) params.set('status', status);
@@ -144,6 +172,10 @@ export function replyToTicket(id, message) {
 
 export function setTicketStatus(id, status) {
   return apiFetch(`/admin/support-tickets/${id}/status`, { method: 'PATCH', body: { status } });
+}
+
+export function escalateTicket(id, department) {
+  return apiFetch(`/admin/support-tickets/${id}/escalate`, { method: 'PATCH', body: { department } });
 }
 
 export function listPublications({ type, status, audience } = {}) {

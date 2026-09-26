@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '../../components/Badge.jsx';
 import { Button } from '../../components/Button.jsx';
+import { DEPARTMENT_LABEL, DEPARTMENT_TONE } from '../../lib/adminDepartments.js';
 import * as adminApi from '../../api/admin.api.js';
 
 const STATUS_TONE = { open: 'warning', resolved: 'success', dismissed: 'neutral' };
@@ -129,6 +130,7 @@ export function AdminDisputes() {
                 <th className="px-4 py-3 font-medium">Customer</th>
                 <th className="px-4 py-3 font-medium">Worker</th>
                 <th className="px-4 py-3 font-medium">Raised by</th>
+                <th className="px-4 py-3 font-medium">Department</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Opened</th>
               </tr>
@@ -144,6 +146,9 @@ export function AdminDisputes() {
                   <td className="px-4 py-3 text-text-muted">{d.customerName}</td>
                   <td className="px-4 py-3 text-text-muted">{d.workerName || '—'}</td>
                   <td className="px-4 py-3 text-text-muted">{d.raisedByName}</td>
+                  <td className="px-4 py-3">
+                    <Badge tone={DEPARTMENT_TONE[d.department]}>{DEPARTMENT_LABEL[d.department]}</Badge>
+                  </td>
                   <td className="px-4 py-3">
                     <Badge tone={STATUS_TONE[d.status]}>{d.status}</Badge>
                   </td>
