@@ -3,7 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Avatar } from '../../components/Avatar.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useIsDesktop } from '../../hooks/useIsDesktop.js';
 import * as bookingsApi from '../../api/bookings.api.js';
+import { WORKER_DESKTOP_BLOCK_MESSAGE, WORKER_ACTIVE_BOOKING_STATUSES } from '../../lib/workerDesktopBlock.js';
 
 const POLL_MS = 3000;
 const NEAR_BOTTOM_PX = 48;
@@ -144,6 +146,7 @@ export function BookingChat() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isDesktop = useIsDesktop();
   const [booking, setBooking] = useState(null);
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
@@ -284,6 +287,24 @@ export function BookingChat() {
   const otherImage = booking && (user.role === 'worker' ? booking.customerImageUrl : booking.workerImageUrl);
   const otherHandle = booking && user.role !== 'worker' ? booking.workerHandle : null;
   const hasDraft = draft.trim().length > 0;
+
+  // Chat during an active job is mobile-only for a worker - same rule and
+  // status set as BookingDetail.jsx's block (this screen is reachable
+  // directly by URL, not just through that screen's Chat button, so it
+  // needs its own guard rather than relying on that one).
+  if (user.role === 'worker' && isDesktop && booking && WORKER_ACTIVE_BOOKING_STATUSES.includes(booking.status)) {
+    return (
+      <div className="relative flex h-dvh flex-col items-center justify-center gap-4 bg-surface-alt px-5 text-center">
+        <button
+          onClick={() => navigate(-1)}
+          className="absolute left-5 top-5 text-sm text-text-muted"
+        >
+          &larr; Back
+        </button>
+        <p className="max-w-sm text-base font-medium text-text-muted">{WORKER_DESKTOP_BLOCK_MESSAGE}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-dvh flex-col bg-surface-alt">

@@ -8,7 +8,7 @@ This index is filled in incrementally - only files touched by a task get an entr
 here as part of that task. A file with no entry yet doesn't mean it's undocumented
 forever, just that no session has touched it since this index was introduced.
 
-_Last updated: 2026-09-25 — Publications round: admin "Announcement" and "Promo banner" unified into one Publications flow with a `type` selector (`notification` | `promotion`) driving all routing; `content_items` restricted to `kind='policy'` only; Home/Dashboard's `NotificationSummaryCard` removed (the bottom-nav bell badge is sufficient signaling on its own); Home/Dashboard gains a `PromotionCarousel` (0/1/2+ live-promotion rules)_
+_Last updated: 2026-09-27 — Piece A (Desktop scope round): worker operational actions (go online, accept/decline, active in-progress job screen, chat during a job, mark complete) actively intercepted on a desktop-width viewport, reusing `useIsDesktop` (same hook/breakpoint as `AdminShell.jsx`); Earnings/Profile/Settings/Availability/booking history stay desktop-usable_
 
 ## apps/api
 | File | Purpose |
@@ -95,6 +95,11 @@ _Last updated: 2026-09-25 — Publications round: admin "Announcement" and "Prom
 ## apps/web
 | File | Purpose |
 |---|---|
+| `src/lib/workerDesktopBlock.js` | New (2026-09-27) - `WORKER_DESKTOP_BLOCK_MESSAGE` (the shared redirect-to-mobile copy) and `WORKER_ACTIVE_BOOKING_STATUSES = ['requested','accepted','in_progress']` (the booking statuses `BookingDetail.jsx`/`BookingChat.jsx` block entirely for a worker on desktop - a completed/cancelled/declined booking is just history and stays desktop-usable) |
+| `src/screens/WorkerDashboard/WorkerDashboard.jsx` (desktop lockout) | `OnlineToggle`'s `handleChange` now checks `useIsDesktop()` first and shows the block message via its existing local `error` state instead of calling `onToggle` - no new UI element, reuses the toggle's own inline error text |
+| `src/components/IncomingRequestPopup.jsx` | `handleAccept`/`handleDecline` short-circuit on `useIsDesktop()`; the Accept/Decline button row is replaced with the block message on desktop (the popup itself still shows and still counts down - only acting on it is blocked) |
+| `src/screens/BookingDetail/BookingDetail.jsx` (desktop lockout) | New early return: for a worker on desktop viewing a booking in `WORKER_ACTIVE_BOOKING_STATUSES`, the whole screen renders just a Back button + the block message instead of the normal detail view - this single gate covers accept/decline, start job, and mark-complete all at once, since they're all buttons on this one shared screen |
+| `src/screens/BookingChat/BookingChat.jsx` (desktop lockout) | Same block, gated separately (this screen is reachable directly by URL, not only via BookingDetail's Chat button) - full-screen block message in place of the header/message list/composer when a worker on desktop opens an active-status booking's chat |
 | `src/components/PromotionCarousel.jsx` | New (2026-09-25) - Home/Dashboard's `type='promotion'` publications, fetched from `GET /publications/active`. Never touches notifications/Alerts. 0 live promotions renders nothing; exactly 1 is a single full-width card; 2+ is a horizontally scrollable row (`overflow-x-auto` + scroll-snap), cards floating side by side. Replaces `PromoBanner.jsx` (deleted) |
 | `src/components/NotificationSummaryCard.jsx` | **Deleted** (2026-09-25) - the founder decided the existing bottom-nav bell/Alerts unread-count badge is sufficient signaling on its own; Home/Dashboard shows no notification-related card of any kind any more. Its render calls in `Home.jsx`/`WorkerDashboard.jsx` were removed, not replaced |
 | `src/screens/Home/Home.jsx` / `src/screens/WorkerDashboard/WorkerDashboard.jsx` | Both render `PromotionCarousel` in place of the old `PromoBanner`/`AnnouncementModal`/`NotificationSummaryCard` trio |

@@ -174,6 +174,18 @@ parallel system (see `DATA_MODEL.md`'s "Scheduled booking + worker availability"
 - Booking flow / request screen (Phase 2, extended above) — Now/"Schedule for later" toggle.
 - Booking detail / tracking screen (Phase 2, extended) — shows the scheduled date/time and,
   while still awaiting a response, the "Respond by" deadline.
+- Worker desktop lockout (2026-09-27) — worker screens stay mobile-only for the
+  *operational* flow specifically, not the whole worker experience: going online (the
+  Dashboard toggle), accepting/declining an instant request (`IncomingRequestPopup`) or a
+  scheduled request, the active in-progress job screen, chat during a job, and marking a job
+  complete are all actively intercepted on a desktop-width viewport (reusing `useIsDesktop`,
+  the same hook/breakpoint `AdminShell.jsx` uses) with a message directing the worker to
+  their mobile device, rather than silently failing or just omitting a desktop layout.
+  `BookingDetail`/`BookingChat` block entirely (full-screen message) only while the
+  booking's status is `requested`/`accepted`/`in_progress` - a completed/cancelled/declined
+  booking is just history and stays fully desktop-usable. Earnings, Profile, Settings, the
+  Availability schedule, and booking history are unaffected - only the operational actions
+  above are blocked.
 
 ## Phase 6 — Admin (minimal, no theming)
 
