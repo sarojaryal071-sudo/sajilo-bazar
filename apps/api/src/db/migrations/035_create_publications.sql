@@ -35,10 +35,19 @@ CREATE INDEX idx_publications_type ON publications(type);
 
 -- content_items no longer accepts 'announcement' rows - the admin
 -- Publications screen (publications table above) replaces that half of
--- the old Announcements screen. Existing announcement rows, if any, are
--- left as-is - the founder is separately removing the stale seeded one
--- by hand before this ships, per the 2026-09-25 decision doc ("no
--- migration needs to touch it"). Any environment that still has an
--- announcement-kind row when this runs needs that row cleared first.
+-- the old Announcements screen. This migration originally assumed the
+-- founder would clear any stale announcement-kind row by hand before it
+-- ran ("no migration needs to touch it") - that didn't happen everywhere,
+-- and the CHECK below then fails against real pre-existing rows wherever
+-- it wasn't (2026-09-27 prod incident: Render deploys failing on this
+-- exact constraint for ~2 days). Fixed here by clearing any non-'policy'
+-- row before tightening the CHECK, rather than relying on manual cleanup.
+-- Those rows are fully superseded by the publications table above
+-- (seedPromotion/seedNotificationPublication cover this going forward),
+-- so DELETE is fine - no backfill needed. Safe to run whether or not any
+-- such rows still exist (0-row DELETE is a no-op); the whole file already
+-- runs inside one transaction (see migrate.js), so this and the CHECK
+-- below either both land or neither does.
+DELETE FROM content_items WHERE kind NOT IN ('policy');
 ALTER TABLE content_items DROP CONSTRAINT content_items_kind_check;
 ALTER TABLE content_items ADD CONSTRAINT content_items_kind_check CHECK (kind = 'policy');
