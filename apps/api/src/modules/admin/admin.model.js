@@ -817,6 +817,7 @@ function toPublication(row) {
     imageUrl: row.image_url,
     ctaLabel: row.cta_label,
     ctaLink: row.cta_link,
+    promoCode: row.promo_code,
     audience: row.audience,
     status: row.status,
     isLive,
@@ -870,6 +871,7 @@ export async function createPublication({
   imageUrl,
   ctaLabel,
   ctaLink,
+  promoCode,
   audience,
   scheduledAt,
   expiresAt,
@@ -878,8 +880,8 @@ export async function createPublication({
 }) {
   const { rows } = await pool.query(
     `INSERT INTO publications
-       (type, title, body, image_url, cta_label, cta_link, audience, scheduled_at, expires_at, display_order, created_by)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+       (type, title, body, image_url, cta_label, cta_link, promo_code, audience, scheduled_at, expires_at, display_order, created_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
     [
       type,
       title,
@@ -887,6 +889,7 @@ export async function createPublication({
       imageUrl ?? null,
       ctaLabel ?? null,
       ctaLink ?? null,
+      promoCode ?? null,
       audience,
       scheduledAt ?? null,
       expiresAt ?? null,
@@ -899,12 +902,12 @@ export async function createPublication({
 
 export async function updatePublication(
   id,
-  { title, body, imageUrl, ctaLabel, ctaLink, audience, scheduledAt, expiresAt, displayOrder }
+  { title, body, imageUrl, ctaLabel, ctaLink, promoCode, audience, scheduledAt, expiresAt, displayOrder }
 ) {
   const { rows } = await pool.query(
     `UPDATE publications
      SET title = $2, body = $3, image_url = $4, cta_label = $5, cta_link = $6,
-         audience = $7, scheduled_at = $8, expires_at = $9, display_order = $10, updated_at = now()
+         promo_code = $7, audience = $8, scheduled_at = $9, expires_at = $10, display_order = $11, updated_at = now()
      WHERE id = $1
      RETURNING *`,
     [
@@ -914,6 +917,7 @@ export async function updatePublication(
       imageUrl ?? null,
       ctaLabel ?? null,
       ctaLink ?? null,
+      promoCode ?? null,
       audience,
       scheduledAt ?? null,
       expiresAt ?? null,

@@ -13,6 +13,7 @@ const EMPTY_FORM = {
   imageUrl: '',
   ctaLabel: '',
   ctaLink: '',
+  promoCode: '',
   audience: 'all',
   scheduledAt: '',
   expiresAt: '',
@@ -62,6 +63,7 @@ function PublicationForm({ initial, submitLabel, busy, onSubmit, onCancel }) {
           imageUrl: isPromotion && form.imageUrl.trim() ? form.imageUrl.trim() : null,
           ctaLabel: isPromotion && form.ctaLabel.trim() ? form.ctaLabel.trim() : null,
           ctaLink: isPromotion && form.ctaLink.trim() ? form.ctaLink.trim() : null,
+          promoCode: isPromotion && form.promoCode.trim() ? form.promoCode.trim() : null,
           audience: form.audience,
           scheduledAt: toIsoOrNull(form.scheduledAt),
           expiresAt: toIsoOrNull(form.expiresAt),
@@ -122,6 +124,12 @@ function PublicationForm({ initial, submitLabel, busy, onSubmit, onCancel }) {
               className="flex-1 rounded-md border border-border bg-surface-raised px-2 py-1.5 text-sm outline-none focus:border-brand-solid"
             />
           </div>
+          <input
+            value={form.promoCode}
+            onChange={(e) => setForm((f) => ({ ...f, promoCode: e.target.value }))}
+            placeholder="Promo code (optional)"
+            className="rounded-md border border-border bg-surface-raised px-2 py-1.5 text-sm outline-none focus:border-brand-solid"
+          />
         </>
       )}
       <div className="flex flex-wrap items-center gap-2">
@@ -290,6 +298,7 @@ export function AdminPublications() {
                 imageUrl: p.imageUrl ?? '',
                 ctaLabel: p.ctaLabel ?? '',
                 ctaLink: p.ctaLink ?? '',
+                promoCode: p.promoCode ?? '',
                 audience: p.audience,
                 scheduledAt: toLocalInputValue(p.scheduledAt),
                 expiresAt: toLocalInputValue(p.expiresAt),

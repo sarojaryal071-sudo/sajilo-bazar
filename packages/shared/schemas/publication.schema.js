@@ -14,6 +14,7 @@ export const AdminPublicationInputSchema = z.object({
   imageUrl: z.string().url().nullable().optional(),
   ctaLabel: z.string().max(60).nullable().optional(),
   ctaLink: z.string().url().nullable().optional(),
+  promoCode: z.string().max(40).nullable().optional(),
   audience: z.enum(['all', 'customers', 'workers']),
   scheduledAt: z.string().datetime().nullable().optional(),
   expiresAt: z.string().datetime().nullable().optional(),

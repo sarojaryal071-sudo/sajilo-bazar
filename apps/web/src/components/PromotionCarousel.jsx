@@ -15,6 +15,9 @@ function PromotionCard({ promotion, full }) {
       )}
       <p className="mt-2 font-semibold">{promotion.title}</p>
       {promotion.body && <p className="mt-0.5 text-sm text-text-onBrand/90">{promotion.body}</p>}
+      {promotion.promoCode && (
+        <p className="mt-2 text-xs font-semibold">Use code: {promotion.promoCode}</p>
+      )}
       {promotion.ctaLabel && <p className="mt-2 text-sm font-semibold underline">{promotion.ctaLabel}</p>}
     </>
   );

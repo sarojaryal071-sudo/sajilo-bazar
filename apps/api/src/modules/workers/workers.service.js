@@ -26,6 +26,17 @@ export async function search({ category, serviceId, q }) {
   return results.map(withTrustTier);
 }
 
+// pool is pre-validated by the controller (one of 'top_rated'/'new_workers') -
+// same withTrustTier scrub as search/detail, so a New Worker card's
+// (always-null, in-grace-period) score never leaks either.
+export async function getFeatured(pool) {
+  const rows =
+    pool === 'new_workers'
+      ? await workersModel.listFeaturedNewWorkers()
+      : await workersModel.listFeaturedTopRated();
+  return rows.map(withTrustTier);
+}
+
 export async function getWorkerDetail(userId) {
   const detail = await workersModel.findApprovedWorkerDetail(userId);
   if (!detail) throw new ApiError(404, 'Worker not found');
