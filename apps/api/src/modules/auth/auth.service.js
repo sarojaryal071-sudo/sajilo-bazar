@@ -47,9 +47,19 @@ async function assertLoginAllowedAndReactivate(user) {
   return user;
 }
 
+// Full name is deliberately NOT checked - multiple accounts can share a
+// name. Phone/email uniqueness is also enforced at the DB level (see
+// migration 001), but checking explicitly here is what turns a raw
+// constraint violation into the friendly message a customer/worker
+// actually sees, instead of a 500 with SQL error text.
 export async function signup({ fullName, phone, email, password, role }) {
-  const existing = await authModel.findByPhone(phone);
-  if (existing) throw new ApiError(409, 'An account with this phone number already exists');
+  const existingPhone = await authModel.findByPhone(phone);
+  if (existingPhone) throw new ApiError(409, 'An account with this phone number already exists');
+
+  if (email) {
+    const existingEmail = await authModel.findByEmail(email);
+    if (existingEmail) throw new ApiError(409, 'An account with this email already exists');
+  }
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
   const user = await authModel.createUser({ fullName, phone, email, passwordHash, role });

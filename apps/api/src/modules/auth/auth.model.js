@@ -92,29 +92,36 @@ export async function updatePasswordByPhone(phone, passwordHash) {
 // practice): a phone+password signup passes passwordHash and no googleId,
 // a Google signup passes googleId and no passwordHash (password_hash stays
 // NULL until the user later sets one via "Forgot password").
+//
+// client_id is derived from the row's own id ("U0042"), which isn't known
+// until the row exists - previously handled by inserting a hardcoded
+// 'PENDING' placeholder and updating it to the real value right after.
+// That placeholder was the SAME literal string across every signup, so
+// two signups whose INSERTs overlapped (even briefly, before either had
+// reached its UPDATE) collided on users_client_id_key - the bug this
+// replaces. Pulling the id from the sequence up front (via a CTE, in one
+// statement) and writing the real client_id directly means no signup ever
+// touches a shared placeholder value, so there's nothing left to collide.
 export async function createUser({ fullName, phone, email, passwordHash = null, role, googleId = null }) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const insert = await client.query(
-      `INSERT INTO users (client_id, role, full_name, phone, email, password_hash, google_id)
-       VALUES ('PENDING', $1, $2, $3, $4, $5, $6)
+      `WITH new_id AS (SELECT nextval(pg_get_serial_sequence('users', 'id')) AS id)
+       INSERT INTO users (id, client_id, role, full_name, phone, email, password_hash, google_id)
+       SELECT id, 'U' || lpad(id::text, 4, '0'), $1, $2, $3, $4, $5, $6
+       FROM new_id
        RETURNING *`,
       [role, fullName, phone, email ?? null, passwordHash, googleId]
     );
     const row = insert.rows[0];
-    const clientId = `U${String(row.id).padStart(4, '0')}`;
-    const updated = await client.query(
-      'UPDATE users SET client_id = $1 WHERE id = $2 RETURNING *',
-      [clientId, row.id]
-    );
 
     if (role === 'worker') {
       await client.query('INSERT INTO worker_profiles (user_id) VALUES ($1)', [row.id]);
     }
 
     await client.query('COMMIT');
-    return toUser(updated.rows[0]);
+    return toUser(row);
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
