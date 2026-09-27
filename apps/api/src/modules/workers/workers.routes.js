@@ -21,6 +21,29 @@ workersRoutes.post(
   upload.single('document'),
   workersController.addService
 );
+workersRoutes.patch('/me/description', requireAuth, requireApprovedWorker, workersController.updateDescription);
+workersRoutes.get('/me/portfolio', requireAuth, requireApprovedWorker, workersController.listPortfolio);
+workersRoutes.post(
+  '/me/portfolio',
+  requireAuth,
+  requireApprovedWorker,
+  upload.array('images', 6),
+  workersController.createPortfolioItem
+);
+workersRoutes.patch(
+  '/me/portfolio/:id',
+  requireAuth,
+  requireApprovedWorker,
+  upload.array('images', 6),
+  workersController.updatePortfolioItem
+);
+workersRoutes.delete('/me/portfolio/:id', requireAuth, requireApprovedWorker, workersController.deletePortfolioItem);
+workersRoutes.put(
+  '/me/portfolio/reorder',
+  requireAuth,
+  requireApprovedWorker,
+  workersController.reorderPortfolio
+);
 workersRoutes.patch('/me/online', requireAuth, requireApprovedWorker, workersController.setOnline);
 workersRoutes.get('/me/availability', requireAuth, requireApprovedWorker, workersController.getAvailability);
 workersRoutes.put('/me/availability', requireAuth, requireApprovedWorker, workersController.setAvailability);

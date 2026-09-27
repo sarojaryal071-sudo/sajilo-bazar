@@ -4,6 +4,9 @@ import {
   WorkerAddServiceInputSchema,
   AvailabilityReplaceInputSchema,
   TypicalResponseHoursInputSchema,
+  WorkerDescriptionInputSchema,
+  WorkerPortfolioItemInputSchema,
+  WorkerPortfolioReorderInputSchema,
 } from '@sajilo-bazar/shared';
 import { ApiError } from '../../middleware/error.middleware.js';
 import * as workersService from './workers.service.js';
@@ -98,6 +101,82 @@ export async function setTypicalResponseHours(req, res, next) {
     res.json({ profile });
   } catch (err) {
     next(err.issues ? new ApiError(400, 'Invalid response time', err.issues) : err);
+  }
+}
+
+export async function updateDescription(req, res, next) {
+  try {
+    const { description } = WorkerDescriptionInputSchema.parse({ description: req.body.description ?? null });
+    const profile = await workersService.updateDescription(req.user.id, description);
+    res.json({ profile });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid description', err.issues) : err);
+  }
+}
+
+export async function listPortfolio(req, res, next) {
+  try {
+    const items = await workersService.listPortfolio(req.user.id);
+    res.json({ items });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// multipart form - non-file fields arrive as strings, images ride
+// alongside as files (see workers.routes.js's upload.array('images', ...)).
+function parsePortfolioItemInput(body) {
+  return WorkerPortfolioItemInputSchema.parse({
+    title: body.title,
+    description: body.description || null,
+    link: body.link || null,
+    category: body.category,
+    workDate: body.workDate || null,
+  });
+}
+
+export async function createPortfolioItem(req, res, next) {
+  try {
+    const input = parsePortfolioItemInput(req.body);
+    const item = await workersService.createPortfolioItem(req.user.id, input, req.files);
+    res.status(201).json({ item });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid portfolio item', err.issues) : err);
+  }
+}
+
+export async function updatePortfolioItem(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return next(new ApiError(400, 'Invalid portfolio item id'));
+    const input = parsePortfolioItemInput(req.body);
+    const existingImageUrls = req.body.existingImageUrls ? JSON.parse(req.body.existingImageUrls) : [];
+    const item = await workersService.updatePortfolioItem(req.user.id, id, { ...input, existingImageUrls }, req.files);
+    res.json({ item });
+  } catch (err) {
+    if (err instanceof SyntaxError) return next(new ApiError(400, 'existingImageUrls must be valid JSON'));
+    next(err.issues ? new ApiError(400, 'Invalid portfolio item', err.issues) : err);
+  }
+}
+
+export async function deletePortfolioItem(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return next(new ApiError(400, 'Invalid portfolio item id'));
+    await workersService.deletePortfolioItem(req.user.id, id);
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function reorderPortfolio(req, res, next) {
+  try {
+    const { orderedIds } = WorkerPortfolioReorderInputSchema.parse(req.body);
+    const items = await workersService.reorderPortfolio(req.user.id, orderedIds);
+    res.json({ items });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid order', err.issues) : err);
   }
 }
 

@@ -35,6 +35,7 @@ One row per user with `role = worker`.
 |---|---|---|
 | user_id | integer pk | fk → users - the row's own primary key (there is no separate `id` column, unlike most other tables here) |
 | bio | text | nullable |
+| description | text | nullable (2026-09-27) - free-text, unstructured, sits alongside `bio` rather than replacing it. Rendered as-is (line breaks preserved) on the public profile, directly above a fixed disclaimer that's UI copy only, never stored per-worker. See "Worker portfolio" below |
 | is_online | boolean | default false — drives instant-request matching. See "Scheduled booking + worker availability" below - with availability blocks set, this is kept in sync with the worker's schedule rather than being purely manual |
 | current_lat / current_lng | numeric | nullable — last known location |
 | verification_status | text | `pending` \| `approved` \| `rejected`, default `pending` |
@@ -431,6 +432,36 @@ none saved) fall back to distance `0` - base fee only, rather than refusing to p
 booking. A pass-through to the worker, worker keeps 100% of it - never folded into
 `bookings.price`, which stays service-charge-only and is what `commission_ledger`'s 15% is
 calculated against (see §11).
+
+## 17. `worker_portfolio_items`
+
+Added 2026-09-27 ("Richer worker profile - Description + Portfolio") - foundation for a future
+multi-vertical expansion (digital services alongside today's household trades), so `category`
+reuses `services.category`'s existing free-text convention (see §3 - that table has no separate
+category table/enum either) rather than a new enum scoped to household categories only. No
+moderation/status field - items are self-serve and go live immediately on save, same trust
+model as reviews (§9). Admin's existing suspend/moderation tools remain the safety net if
+something's reported; this doesn't need its own review queue.
+
+| Column | Type | Notes |
+|---|---|---|
+| id | serial pk | |
+| worker_id | fk → users | `ON DELETE CASCADE` |
+| title | varchar(120) | |
+| description | text | nullable |
+| image_urls | jsonb | array of Cloudinary URLs, default `[]`. Uploaded to `sajilo-bazar/workers/{workerId}/portfolio` - a worker-scoped Cloudinary folder keyed to the internal user id (the app has no username field), same `sajilo-bazar/` namespace prefix every other upload already uses |
+| link | text | nullable - a plain URL (e.g. a live site the worker built); rendered as an external "View project" link only when set |
+| category | varchar(60) | reuses `services.category`'s values, not a new enum |
+| work_date | date | nullable - worker-entered, purely informational, never used in date arithmetic |
+| display_order | integer | default 0 - a new item is appended (current max + 1); reordering is replace-all (the full desired id order is resubmitted, each id's index becomes its new `display_order`), same idiom as `worker_availability_blocks`/`worker_services` |
+| created_at / updated_at | timestamptz | |
+
+On the public worker-detail response, the display order is: existing public data + bio ->
+Services -> Description (worker's free-text `worker_profiles.description`, rendered as-is with
+line breaks preserved, directly above a fixed one-line disclaimer that's UI copy only, never
+stored per-worker) -> Portfolio (0 items renders no section at all; 1 is a single full-width
+card; 2+ is a horizontally scrollable row - same display rule `PromotionCarousel.jsx` already
+uses) -> Reviews, last.
 
 ## Trust score
 

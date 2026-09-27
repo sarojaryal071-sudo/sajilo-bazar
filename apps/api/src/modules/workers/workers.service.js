@@ -42,12 +42,65 @@ export async function getMyWorkerData(userId) {
   const synced = await syncEffectiveOnline(userId, profile);
   if (synced) profile = synced;
 
-  const [services, documents, { reviewsCount, reviews }] = await Promise.all([
+  const [services, documents, { reviewsCount, reviews }, portfolioItems] = await Promise.all([
     workersModel.listWorkerServices(userId),
     workersModel.listDocuments(userId),
     workersModel.findReviewsForWorker(userId),
+    workersModel.listPortfolioItems(userId),
   ]);
-  return { profile, services, documents, reviewsCount, reviews };
+  return { profile, services, documents, reviewsCount, reviews, portfolioItems };
+}
+
+export async function updateDescription(userId, description) {
+  const profile = await workersModel.updateDescription(userId, description);
+  if (!profile) throw new ApiError(404, 'Worker profile not found');
+  return profile;
+}
+
+// Cloudinary folder keyed to the worker's internal id, not a username (the
+// app has no username field) - workers/{workerId}/portfolio, namespaced
+// under the same sajilo-bazar/ prefix every other upload uses.
+const MAX_PORTFOLIO_IMAGES = 6;
+
+async function uploadPortfolioImages(workerId, files) {
+  if (!files || files.length === 0) return [];
+  const uploads = await Promise.all(
+    files
+      .slice(0, MAX_PORTFOLIO_IMAGES)
+      .map((file) => uploadBuffer(file.buffer, { folder: `sajilo-bazar/workers/${workerId}/portfolio` }))
+  );
+  return uploads.map((u) => u.secure_url);
+}
+
+export async function listPortfolio(workerId) {
+  return workersModel.listPortfolioItems(workerId);
+}
+
+export async function createPortfolioItem(workerId, input, files) {
+  const imageUrls = await uploadPortfolioImages(workerId, files);
+  return workersModel.createPortfolioItem(workerId, { ...input, imageUrls });
+}
+
+// existingImageUrls (already-uploaded URLs the worker chose to keep,
+// sent by the client) + any newly uploaded files together become the
+// item's full image list - the client is the source of truth for removals
+// (dropping a URL from that list is how an image gets removed), and this
+// just appends whatever's freshly uploaded.
+export async function updatePortfolioItem(workerId, itemId, { existingImageUrls, ...input }, files) {
+  const existing = await workersModel.findPortfolioItem(itemId, workerId);
+  if (!existing) throw new ApiError(404, 'Portfolio item not found');
+  const newUrls = await uploadPortfolioImages(workerId, files);
+  const imageUrls = [...(existingImageUrls ?? []), ...newUrls];
+  return workersModel.updatePortfolioItem(itemId, workerId, { ...input, imageUrls });
+}
+
+export async function deletePortfolioItem(workerId, itemId) {
+  const deleted = await workersModel.deletePortfolioItem(itemId, workerId);
+  if (!deleted) throw new ApiError(404, 'Portfolio item not found');
+}
+
+export async function reorderPortfolio(workerId, orderedIds) {
+  return workersModel.reorderPortfolioItems(workerId, orderedIds);
 }
 
 // Controlled expansion: a worker can add more services beyond what they
