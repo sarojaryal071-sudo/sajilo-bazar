@@ -216,6 +216,8 @@ as evidence (business plan §7) retrieve them the same way as regular messages.
 | attachment_url | text | nullable - Cloudinary `secure_url` |
 | attachment_type | varchar(10) | nullable - `image` \| `pdf` |
 | attachment_name | varchar(255) | nullable - original filename (shown on the PDF file chip) |
+| delivered_at | timestamptz | nullable (2026-09-27) - set when the recipient's socket is in this booking's chat room at send time, or the moment they next join it if they weren't; see `realtime/socket.js` `isUserInBookingRoom` and `chat.socket.js`'s `chat:join` handler |
+| read_at | timestamptz | nullable (2026-09-27) - set while the recipient's chat screen is actually open/visible (`chat:read`, emitted by `BookingChat.jsx`); implies `delivered_at` is also set (backfilled if it somehow wasn't already) |
 | created_at | timestamptz | |
 
 ## 9. `reviews`

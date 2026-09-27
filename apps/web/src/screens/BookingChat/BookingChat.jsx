@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Avatar } from '../../components/Avatar.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useSocket } from '../../context/SocketContext.jsx';
 import { useIsDesktop } from '../../hooks/useIsDesktop.js';
 import * as bookingsApi from '../../api/bookings.api.js';
 import { WORKER_DESKTOP_BLOCK_MESSAGE, WORKER_ACTIVE_BOOKING_STATUSES } from '../../lib/workerDesktopBlock.js';
@@ -11,6 +12,14 @@ const POLL_MS = 3000;
 const NEAR_BOTTOM_PX = 48;
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 const ALLOWED_ATTACHMENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf']);
+// Typing indicator timing (Messenger/WhatsApp-style, 2026-09-27) - start is
+// throttled so a keystroke burst doesn't spam the socket, stop fires
+// immediately on send or after a short pause, and the safety-net timeout
+// clears a stuck "typing..." if a stop event is ever missed (dropped
+// connection, tab closed mid-type, etc).
+const TYPING_THROTTLE_MS = 2000;
+const TYPING_STOP_DEBOUNCE_MS = 3000;
+const TYPING_SAFETY_MS = 5000;
 
 function BackIcon() {
   return (
@@ -95,6 +104,50 @@ function CloseIcon() {
   );
 }
 
+function CheckIcon({ className = '' }) {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="3"
+      className={className}
+    >
+      <path d="M4 12l5 5L20 6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// Messenger/WhatsApp-style ticks, own sent messages only - single = sent,
+// double gray = delivered, double brand-colored = seen. Read implies
+// delivered (chat.model.js backfills deliveredAt when readAt is set), so
+// checking readAt first is enough to pick the right state.
+function MessageTicks({ message }) {
+  if (message.readAt) {
+    return (
+      <span className="inline-flex text-brand-solid" aria-label="Seen">
+        <CheckIcon />
+        <CheckIcon className="-ml-2" />
+      </span>
+    );
+  }
+  if (message.deliveredAt) {
+    return (
+      <span className="inline-flex text-text-muted" aria-label="Delivered">
+        <CheckIcon />
+        <CheckIcon className="-ml-2" />
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex text-text-muted" aria-label="Sent">
+      <CheckIcon />
+    </span>
+  );
+}
+
 function formatTime(iso) {
   if (!iso) return '';
   return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -144,8 +197,10 @@ function AttachMenu({ onCamera, onFile, onClose }) {
 // header/scroll/composer layout rather than using the shared Screen shell.
 export function BookingChat() {
   const { id } = useParams();
+  const bookingId = Number(id);
   const navigate = useNavigate();
   const { user } = useAuth();
+  const socket = useSocket();
   const isDesktop = useIsDesktop();
   const [booking, setBooking] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -156,6 +211,7 @@ export function BookingChat() {
   const [uploading, setUploading] = useState(false);
   const [viewerUrl, setViewerUrl] = useState(null);
   const [toast, setToast] = useState('');
+  const [otherTyping, setOtherTyping] = useState(false);
 
   const scrollRef = useRef(null);
   const bottomRef = useRef(null);
@@ -163,6 +219,9 @@ export function BookingChat() {
   const prevCountRef = useRef(0);
   const cameraInputRef = useRef(null);
   const fileInputRef = useRef(null);
+  const typingThrottleRef = useRef(0);
+  const typingStopTimerRef = useRef(null);
+  const typingSafetyTimerRef = useRef(null);
 
   useEffect(() => {
     bookingsApi
@@ -171,8 +230,9 @@ export function BookingChat() {
       .catch((err) => setError(err.message));
   }, [id]);
 
-  // Polling, not sockets - real-time chat is Phase 3's socket.io work
-  // (see PROJECT_BRIEF.md); this just needs messages to show up promptly.
+  // Message content itself still travels over plain HTTP + polling, not a
+  // socket push - only the delivered/seen ticks and typing indicator ride
+  // the socket (see below). This just needs messages to show up promptly.
   useEffect(() => {
     let cancelled = false;
     function poll() {
@@ -190,6 +250,88 @@ export function BookingChat() {
       clearInterval(interval);
     };
   }, [id]);
+
+  // Joining is how the server knows this socket is "present" in this
+  // booking's chat, for the delivered-tick proxy (see chat.service.js) -
+  // rejoins on every reconnect too, since a dropped/re-established socket
+  // gets a fresh server-side session with no memory of prior room joins.
+  useEffect(() => {
+    if (!socket) return;
+    function join() {
+      socket.emit('chat:join', { bookingId });
+    }
+    join();
+    socket.on('connect', join);
+    return () => {
+      socket.off('connect', join);
+      socket.emit('chat:leave', { bookingId });
+    };
+  }, [socket, bookingId]);
+
+  // Delivered/seen ticks pushed live from the other party's connection -
+  // merges into whatever the poll above already has, so a tick can flip
+  // mid-poll-interval without waiting for the next 3s cycle.
+  useEffect(() => {
+    if (!socket) return;
+    function applyStatus(field) {
+      return (payload) => {
+        if (payload.bookingId !== bookingId) return;
+        const ids = new Set(payload.messageIds);
+        setMessages((prev) => prev.map((m) => (ids.has(m.id) ? { ...m, [field]: payload[field] } : m)));
+      };
+    }
+    const onDelivered = applyStatus('deliveredAt');
+    const onRead = applyStatus('readAt');
+    socket.on('chat:delivered', onDelivered);
+    socket.on('chat:read', onRead);
+    return () => {
+      socket.off('chat:delivered', onDelivered);
+      socket.off('chat:read', onRead);
+    };
+  }, [socket, bookingId]);
+
+  // Marks the other party's messages read while this screen is genuinely
+  // open and visible - re-fires on every poll tick (cheap no-op server-side
+  // if nothing's actually unread) and whenever the tab regains focus, so a
+  // backgrounded tab doesn't mark messages "seen" the user never looked at.
+  useEffect(() => {
+    if (!socket || document.visibilityState !== 'visible') return;
+    socket.emit('chat:read', { bookingId });
+  }, [socket, bookingId, messages]);
+
+  useEffect(() => {
+    if (!socket) return;
+    function onVisibilityChange() {
+      if (document.visibilityState === 'visible') socket.emit('chat:read', { bookingId });
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [socket, bookingId]);
+
+  // "X is typing..." indicator - the safety-net timeout clears a stuck
+  // indicator if a 'typing:stop' is ever missed (dropped connection, tab
+  // closed mid-type), independent of whichever stop path actually fires.
+  useEffect(() => {
+    if (!socket) return;
+    function onStart(payload) {
+      if (payload.bookingId !== bookingId) return;
+      setOtherTyping(true);
+      clearTimeout(typingSafetyTimerRef.current);
+      typingSafetyTimerRef.current = setTimeout(() => setOtherTyping(false), TYPING_SAFETY_MS);
+    }
+    function onStop(payload) {
+      if (payload.bookingId !== bookingId) return;
+      clearTimeout(typingSafetyTimerRef.current);
+      setOtherTyping(false);
+    }
+    socket.on('chat:typing:start', onStart);
+    socket.on('chat:typing:stop', onStop);
+    return () => {
+      socket.off('chat:typing:start', onStart);
+      socket.off('chat:typing:stop', onStop);
+      clearTimeout(typingSafetyTimerRef.current);
+    };
+  }, [socket, bookingId]);
 
   // Anchors the view to the newest message on first load, and on any new
   // message while the user is already at (or near) the bottom. If they've
@@ -212,6 +354,12 @@ export function BookingChat() {
     return () => clearTimeout(t);
   }, [toast]);
 
+  // handleDraftChange's debounce timer is a bare setTimeout tied to input
+  // events, not to an effect of its own - clear it on unmount so it can't
+  // fire (and emit on a socket the component no longer cares about) after
+  // the user has already navigated away.
+  useEffect(() => () => clearTimeout(typingStopTimerRef.current), []);
+
   function handleScroll() {
     const el = scrollRef.current;
     if (!el) return;
@@ -227,12 +375,32 @@ export function BookingChat() {
     setShowJump(false);
   }
 
+  // Throttled start (at most once per TYPING_THROTTLE_MS while the user
+  // keeps typing) + a debounced stop that fires after a pause in input.
+  function handleDraftChange(e) {
+    const value = e.target.value;
+    setDraft(value);
+    if (!socket) return;
+
+    const now = Date.now();
+    if (now - typingThrottleRef.current >= TYPING_THROTTLE_MS) {
+      socket.emit('chat:typing:start', { bookingId });
+      typingThrottleRef.current = now;
+    }
+    clearTimeout(typingStopTimerRef.current);
+    typingStopTimerRef.current = setTimeout(() => {
+      socket.emit('chat:typing:stop', { bookingId });
+    }, TYPING_STOP_DEBOUNCE_MS);
+  }
+
   async function handleSend(e) {
     e.preventDefault();
     const text = draft.trim();
     if (!text) return;
     setDraft('');
     setError('');
+    clearTimeout(typingStopTimerRef.current);
+    socket?.emit('chat:typing:stop', { bookingId });
     try {
       const { message } = await bookingsApi.sendMessage(id, text);
       atBottomRef.current = true;
@@ -363,10 +531,22 @@ export function BookingChat() {
                       {m.message}
                     </div>
                   )}
-                  <span className="mt-1 px-1 text-[11px] text-text-muted">{formatTime(m.createdAt)}</span>
+                  <span className="mt-1 flex items-center gap-1 px-1 text-[11px] text-text-muted">
+                    {formatTime(m.createdAt)}
+                    {isMine && <MessageTicks message={m} />}
+                  </span>
                 </div>
               );
             })}
+            {otherTyping && (
+              <div className="flex flex-col items-start">
+                <div className="flex items-center gap-1 rounded-2xl bg-surface-raised px-4 py-2.5 shadow-resting">
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-text-muted [animation-delay:-0.3s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-text-muted [animation-delay:-0.15s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-text-muted" />
+                </div>
+              </div>
+            )}
             <div ref={bottomRef} />
           </div>
         </div>
@@ -452,7 +632,7 @@ export function BookingChat() {
 
             <input
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={handleDraftChange}
               placeholder="Type a message"
               className="min-w-0 flex-1 bg-transparent px-1 py-2.5 text-base text-text outline-none placeholder:text-text-muted"
             />

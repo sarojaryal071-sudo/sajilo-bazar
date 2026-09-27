@@ -10,6 +10,10 @@ export const ChatMessageSchema = z.object({
   attachmentUrl: z.string().url().nullable().optional(),
   attachmentType: z.enum(['image', 'pdf']).nullable().optional(),
   attachmentName: z.string().nullable().optional(),
+  // Delivered/seen ticks (2026-09-27) - null/null is "sent", deliveredAt
+  // set is "delivered", readAt set is "seen" (read implies delivered).
+  deliveredAt: z.string().datetime().nullable().optional(),
+  readAt: z.string().datetime().nullable().optional(),
   createdAt: z.string().datetime().optional(),
 });
 

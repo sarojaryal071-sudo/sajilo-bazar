@@ -12,6 +12,20 @@ function userRoom(userId) {
   return `user:${userId}`;
 }
 
+export function bookingRoom(bookingId) {
+  return `booking:${bookingId}`;
+}
+
+// Other modules (chat.socket.js) register additional per-connection setup
+// here rather than this file importing them directly - keeps this the one
+// place that owns the actual `io.on('connection', ...)` wiring, without a
+// circular import back from here into a feature module.
+const connectionHandlers = [];
+
+export function onConnection(handler) {
+  connectionHandlers.push(handler);
+}
+
 export function initSocket(httpServer) {
   io = new Server(httpServer, {
     cors: { origin: process.env.WEB_ORIGIN || true },
@@ -31,9 +45,25 @@ export function initSocket(httpServer) {
 
   io.on('connection', (socket) => {
     socket.join(userRoom(socket.userId));
+    for (const handler of connectionHandlers) handler(socket);
   });
 
   return io;
+}
+
+// Whether any of userId's open sockets is currently sitting in this
+// booking's chat room - chat.service.js's proxy for "delivered" (message
+// content itself still only reaches a client via its own poll, not a
+// push, but "connected to this room right now" is a reasonable stand-in
+// for "will see it imminently").
+export function isUserInBookingRoom(userId, bookingId) {
+  if (!io) return false;
+  const room = io.sockets.adapter.rooms.get(bookingRoom(bookingId));
+  if (!room) return false;
+  for (const socketId of room) {
+    if (io.sockets.sockets.get(socketId)?.userId === userId) return true;
+  }
+  return false;
 }
 
 // Pushes a real-time event to every open connection a user has (they may
