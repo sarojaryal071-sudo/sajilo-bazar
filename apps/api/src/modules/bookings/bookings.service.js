@@ -1,12 +1,15 @@
 import { ApiError } from '../../middleware/error.middleware.js';
 import { emitToUser } from '../../realtime/socket.js';
+import { haversineDistanceKm } from '../../lib/geo.js';
 import { notify } from '../notifications/notifications.service.js';
 import * as commissionLedgerService from '../commissionLedger/commissionLedger.service.js';
 import * as bookingsModel from './bookings.model.js';
 import * as adminModel from '../admin/admin.model.js';
 import * as trustScoreService from '../trustScore/trustScore.service.js';
 import * as workersService from '../workers/workers.service.js';
+import * as workersModel from '../workers/workers.model.js';
 import * as usersModel from '../users/users.model.js';
+import * as platformSettingsService from '../platformSettings/platformSettings.service.js';
 
 // Hard cutoff (Part 3 of the trust-score spec) - a dispute can only be
 // filed within this many hours of the booking's completion, enforced here
@@ -33,6 +36,28 @@ async function requireWorkerOwned(bookingId, workerId) {
 
 function serviceNames(booking) {
   return booking.services.map((s) => s.name).join(', ');
+}
+
+function round2(n) {
+  return Math.round(n * 100) / 100;
+}
+
+// Piece D (fuel/travel charge, 2026-09-27): one platform-wide formula -
+// base fee + per-km rate, both admin-editable via platform_settings (see
+// AdminSettings.jsx) and read fresh on every call, so a change takes
+// effect on the very next booking, no redeploy. A pass-through to the
+// worker - the result is stored on bookings.fuel_charge, never folded into
+// bookings.price, which is what commissionLedgerService calculates the 15%
+// commission against. Missing coordinates (a worker who's never gone
+// online, or a coordinate-less saved address) fall back to distance 0 -
+// base fee only, rather than refusing to price the booking at all.
+async function computeFuelCharge(workerLat, workerLng, customerLat, customerLng) {
+  const { baseFee, ratePerKm } = await platformSettingsService.getFuelPricing();
+  if (workerLat == null || workerLng == null || customerLat == null || customerLng == null) {
+    return round2(baseFee);
+  }
+  const distanceKm = haversineDistanceKm(workerLat, workerLng, customerLat, customerLng);
+  return round2(baseFee + ratePerKm * distanceKm);
 }
 
 // Settings -> Deactivate account: "customer can't create new bookings"
@@ -82,6 +107,9 @@ export async function createBooking(
     }
   }
 
+  const workerProfile = await workersModel.findProfile(workerId);
+  const fuelCharge = await computeFuelCharge(workerProfile?.latitude, workerProfile?.longitude, latitude, longitude);
+
   const booking = await bookingsModel.create({
     customerId,
     workerId,
@@ -91,6 +119,7 @@ export async function createBooking(
     longitude,
     scheduledFor: scheduledFor ?? null,
     responseDeadlineHours: responseDeadlineHours ?? null,
+    fuelCharge,
   });
 
   await notify(workerId, 'booking_requested', {
@@ -101,6 +130,18 @@ export async function createBooking(
   });
 
   return booking;
+}
+
+// BookingRequest.jsx's pre-booking price breakdown (Piece D) - a customer
+// has picked a worker and an address but hasn't submitted yet. Returns just
+// the computed charge, never the worker's raw saved coordinates (same
+// privacy principle as the phone-scoping/trust-score raw-score rules
+// elsewhere in this codebase - workers.model.js's public-facing queries
+// never select a worker's lat/lng at all).
+export async function quoteFuelCharge(workerId, latitude, longitude) {
+  const workerProfile = await workersModel.findProfile(workerId);
+  if (!workerProfile) throw new ApiError(404, 'Worker not found');
+  return computeFuelCharge(workerProfile.latitude, workerProfile.longitude, latitude, longitude);
 }
 
 // Creates the booking, finds online/approved workers who offer EVERY
@@ -144,7 +185,19 @@ export async function claimInstantBooking(bookingId, workerId) {
     throw new ApiError(404, 'No pending offer found for this booking');
   }
 
-  const { booking, reason } = await bookingsModel.claimInstant(bookingId, workerId);
+  // Computed before the atomic claim below - a pure read/computation off
+  // data already committed (this worker's saved location, the booking's
+  // own address), so it doesn't need to be inside that transaction.
+  const bookingBeforeClaim = await bookingsModel.findById(bookingId);
+  const workerProfile = await workersModel.findProfile(workerId);
+  const fuelCharge = await computeFuelCharge(
+    workerProfile?.latitude,
+    workerProfile?.longitude,
+    bookingBeforeClaim?.latitude,
+    bookingBeforeClaim?.longitude
+  );
+
+  const { booking, reason } = await bookingsModel.claimInstant(bookingId, workerId, fuelCharge);
   if (!booking) {
     throw new ApiError(
       409,

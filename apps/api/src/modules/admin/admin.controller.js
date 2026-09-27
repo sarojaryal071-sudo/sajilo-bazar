@@ -14,6 +14,7 @@ import {
   AdminStaffCreateInputSchema,
   AdminStaffAccessInputSchema,
   AdminEscalateInputSchema,
+  AdminPlatformSettingUpdateInputSchema,
 } from '@sajilo-bazar/shared';
 import { ApiError } from '../../middleware/error.middleware.js';
 import * as adminService from './admin.service.js';
@@ -42,6 +43,25 @@ export async function getAccountingSummary(req, res, next) {
     res.json(summary);
   } catch (err) {
     next(err);
+  }
+}
+
+export async function listPlatformSettings(req, res, next) {
+  try {
+    const settings = await adminService.listPlatformSettings();
+    res.json({ settings });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updatePlatformSetting(req, res, next) {
+  try {
+    const { value } = AdminPlatformSettingUpdateInputSchema.parse(req.body);
+    const setting = await adminService.updatePlatformSetting(req.params.key, value, req.user.id);
+    res.json({ setting });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid setting value', err.issues) : err);
   }
 }
 

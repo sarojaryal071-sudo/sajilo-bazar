@@ -9,6 +9,7 @@ export const bookingsRoutes = Router();
 bookingsRoutes.use(requireAuth);
 
 bookingsRoutes.post('/', requireRole('customer'), bookingsController.create);
+bookingsRoutes.post('/fuel-quote', requireRole('customer'), bookingsController.quoteFuelCharge);
 bookingsRoutes.post('/instant', requireRole('customer'), bookingsController.createInstant);
 bookingsRoutes.get('/', bookingsController.list);
 bookingsRoutes.get('/:id', bookingsController.detail);

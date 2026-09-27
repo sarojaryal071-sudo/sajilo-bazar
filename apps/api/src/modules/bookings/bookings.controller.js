@@ -4,6 +4,7 @@ import {
   InstantBookingCreateInputSchema,
   BookingDisputeInputSchema,
   CompleteBookingInputSchema,
+  FuelChargeQuoteInputSchema,
 } from '@sajilo-bazar/shared';
 import { ApiError } from '../../middleware/error.middleware.js';
 import * as bookingsService from './bookings.service.js';
@@ -15,6 +16,16 @@ export async function create(req, res, next) {
     res.status(201).json({ booking });
   } catch (err) {
     next(err.issues ? new ApiError(400, 'Invalid booking data', err.issues) : err);
+  }
+}
+
+export async function quoteFuelCharge(req, res, next) {
+  try {
+    const { workerId, latitude, longitude } = FuelChargeQuoteInputSchema.parse(req.body);
+    const fuelCharge = await bookingsService.quoteFuelCharge(workerId, latitude, longitude);
+    res.json({ fuelCharge });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid quote request', err.issues) : err);
   }
 }
 

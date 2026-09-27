@@ -150,6 +150,7 @@ final price, which may differ from the original estimate.
 | response_deadline_hours | smallint | nullable - one of `1`\|`6`\|`24` (a preset, never freeform), null for an urgent booking |
 | respond_by | timestamptz | nullable - computed once at creation (`created_at + response_deadline_hours`) and stored; an unanswered `requested` scheduled booking past this auto-expires to `declined` |
 | payment_method | text | `cash` (default) \| `esewa` - chosen by the worker at completion (business plan §6); only meaningful once `status = 'completed'`. `esewa` is a disabled UI placeholder only - `CompleteBookingInputSchema` rejects it server-side until the gateway actually exists |
+| fuel_charge | numeric | default `0` (2026-09-27, Piece D) - base fee + per-km rate (both admin-editable, see `platform_settings` below), computed from the assigned worker's saved location and this booking's own address once the worker is known: at creation for a manual booking, at claim time for an instant one. A pass-through to the worker - never folded into `price`, which stays service-charge-only and is what `commission_ledger`'s 15% is calculated against |
 | created_at / completed_at | timestamptz | |
 
 ## 6a. `booking_services`
@@ -260,8 +261,8 @@ skips anything already backfilled.
 | id | serial pk | |
 | worker_id | fk → users | |
 | booking_id | fk → bookings | unique - one entry per completed booking |
-| job_price | numeric | worker-confirmed final price |
-| commission_amount | numeric | platform's cut |
+| job_price | numeric | worker-confirmed final price - `bookings.price` (service charge only, never `bookings.fuel_charge` - see Piece D, 2026-09-27) |
+| commission_amount | numeric | platform's cut - 15% of `job_price` only; the fuel/travel charge is a pass-through the worker keeps 100% of, so it's never included in this calculation |
 | credit_balance_after | numeric | worker's running balance after this entry; negative = owed to the platform |
 | created_at | timestamptz | |
 
@@ -392,6 +393,44 @@ the full log renders on the item's detail view. Support has a standing read-only
 `people_content`'s otherwise-exclusive ownership of `users`: `GET /admin/users*` accepts either
 department, but the three mutating routes (suspend, reinstate, notes) require `people_content`
 specifically.
+
+## 16. `platform_settings`
+
+Added 2026-09-27 (Piece D of the "Desktop scope, Admin RBAC + escalation, Customer responsive
+reflow, Fuel charge" round). Before this, an admin-editable numeric platform value had no
+pattern anywhere in this codebase - `COMMISSION_RATE` and the trust-score thresholds are
+hardcoded JS constants, changeable only by editing code and redeploying. This is a generic
+key/value config table instead: `value` is JSONB so a future setting can be any shape, not
+just a number, but the API only ever lets an admin edit a key it already recognizes (see
+`platformSettings.service.js`'s `EDITABLE_KEYS`) - a future setting is a migration seed row +
+one addition to that allowlist, not a schema change anywhere else. Read fresh on every call
+(`platformSettingsModel.getValue`), never cached, so an edit on the Admin Settings screen takes
+effect on the very next booking, no redeploy or restart needed.
+
+| Column | Type | Notes |
+|---|---|---|
+| key | text pk | |
+| value | jsonb | |
+| updated_at | timestamptz | default `now()` |
+| updated_by | fk → users | nullable - null for the migration's own seed insert |
+
+Seeded with the two values this round's fuel/travel-charge formula needs:
+
+- `fuel_base_fee` (seed default `20`) - flat amount added regardless of distance.
+- `fuel_rate_per_km` (seed default `5`) - added per km of distance between the customer's
+  booking address and the assigned worker's saved location, computed via a plain-JS Haversine
+  helper (`apps/api/src/lib/geo.js` `haversineDistanceKm`) factored out for this reuse - the
+  existing nearby-worker matching query (`bookings.model.js` `findNearbyOnlineWorkers`) still
+  computes the same formula inline in raw SQL, since it has to run per-row across every online
+  worker in one query, not something this one-pair-of-coordinates JS function replaces.
+
+The result (`fuel_base_fee + fuel_rate_per_km × distanceKm`) is stored on `bookings.fuel_charge`
+(see §6) once the worker is known - at creation for a manual booking, at claim time for an
+instant one. Missing coordinates (a worker who's never gone online, or a customer address with
+none saved) fall back to distance `0` - base fee only, rather than refusing to price the
+booking. A pass-through to the worker, worker keeps 100% of it - never folded into
+`bookings.price`, which stays service-charge-only and is what `commission_ledger`'s 15% is
+calculated against (see §11).
 
 ## Trust score
 

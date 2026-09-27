@@ -35,6 +35,13 @@ export const BookingSchema = z.object({
   workerPhone: z.string().nullable().optional(),
   services: z.array(BookingServiceSchema).min(1),
   price: z.number().positive().nullable(), // denormalized sum of services[].price - null until every service is priced
+  // Base fee + per-km rate (both admin-editable, see platformSettings
+  // module), computed once the worker is known (manual booking: at
+  // creation; instant: at claim) from that worker's saved location and
+  // this booking's own address. A pass-through to the worker - never
+  // folded into price, which is what the 15% commission is calculated
+  // against. Defaults to 0 (DB-level default) until a worker is assigned.
+  fuelCharge: z.number().nonnegative(),
   addressLabel: z.string().max(200),
   latitude: z.number().nullable().optional(),
   longitude: z.number().nullable().optional(),
@@ -127,6 +134,17 @@ export const InstantBookingCreateInputSchema = z.object({
 // the body, since the reporter can only ever be reporting themselves.
 export const BookingDisputeInputSchema = z.object({
   reason: z.string().min(1).max(1000),
+});
+
+// BookingRequest.jsx's pre-booking price breakdown (Piece D, 2026-09-27) -
+// a customer has picked a worker and an address but hasn't submitted yet,
+// so the fuel charge is quoted without ever exposing the worker's raw
+// saved coordinates back to the client (same privacy principle as the
+// phone-scoping/trust-score raw-score rules elsewhere in this codebase).
+export const FuelChargeQuoteInputSchema = z.object({
+  workerId: z.number().int().positive(),
+  latitude: z.number(),
+  longitude: z.number(),
 });
 
 export const BookingOfferSchema = z.object({

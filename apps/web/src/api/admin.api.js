@@ -12,6 +12,14 @@ export function getAccountingSummary() {
   return apiFetch('/admin/accounting/summary');
 }
 
+export function listPlatformSettings() {
+  return apiFetch('/admin/settings');
+}
+
+export function updatePlatformSetting(key, value) {
+  return apiFetch(`/admin/settings/${key}`, { method: 'PATCH', body: { value } });
+}
+
 export function listStaff() {
   return apiFetch('/admin/staff');
 }
