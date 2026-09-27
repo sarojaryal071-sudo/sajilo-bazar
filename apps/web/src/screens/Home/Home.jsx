@@ -125,10 +125,6 @@ export function Home() {
         <Avatar name={user.fullName} imageUrl={user.profileImageUrl} size={48} />
       </div>
 
-      <PromotionCarousel promotions={promotions} />
-      <FeaturedWorkersRow title="Top Rated Workers" pool="top_rated" badge="trust" />
-      <FeaturedWorkersRow title="New to Sajilo Bazar" pool="new_workers" badge="new" />
-
       {!searchActive ? (
         <motion.div
           key="resting"
@@ -255,6 +251,10 @@ export function Home() {
           )}
         </motion.div>
       )}
+
+      <PromotionCarousel promotions={promotions} />
+      <FeaturedWorkersRow title="Top Rated Workers" pool="top_rated" badge="trust" />
+      <FeaturedWorkersRow title="New to Sajilo Bazar" pool="new_workers" badge="new" />
     </Screen>
   );
 }

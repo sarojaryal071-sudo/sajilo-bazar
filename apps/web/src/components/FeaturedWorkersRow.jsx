@@ -12,13 +12,13 @@ function FeaturedWorkerCard({ worker, badge, full, onClick }) {
     <button
       onClick={onClick}
       className={`${
-        full ? 'w-full' : 'w-36 shrink-0 snap-start'
-      } flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-surface p-3 text-center shadow-resting`}
+        full ? 'w-full' : 'w-24 shrink-0 snap-start'
+      } flex flex-col items-center gap-1 rounded-xl border border-border bg-surface p-2 text-center shadow-resting`}
     >
-      <Avatar name={worker.fullName} imageUrl={worker.profileImageUrl} size={56} />
-      <p className="w-full truncate text-sm font-semibold">{worker.fullName}</p>
+      <Avatar name={worker.fullName} imageUrl={worker.profileImageUrl} size={40} />
+      <p className="w-full truncate text-xs font-semibold">{worker.fullName}</p>
       {worker.category && (
-        <p className="w-full truncate text-xs capitalize text-text-muted">{worker.category}</p>
+        <p className="w-full truncate text-[11px] capitalize text-text-muted">{worker.category}</p>
       )}
       {badge === 'new' ? (
         <span className="inline-flex items-center rounded-full bg-brand-solid/10 px-3 py-1 text-xs font-semibold text-brand-solid">
@@ -103,7 +103,7 @@ export function FeaturedWorkersRow({ title, pool, badge }) {
           onPointerDown={pause}
           onPointerUp={resume}
           onPointerCancel={resume}
-          className={workers.length === 1 ? '' : 'flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1'}
+          className={workers.length === 1 ? '' : 'flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1'}
         >
           {workers.map((worker) => (
             <FeaturedWorkerCard
