@@ -8,6 +8,7 @@ function toAddress(row) {
     addressLabel: row.address_label,
     latitude: row.latitude,
     longitude: row.longitude,
+    district: row.district,
     isDefault: row.is_default,
     createdAt: row.created_at,
   };
@@ -31,7 +32,7 @@ export async function countForUser(userId) {
   return rows[0].count;
 }
 
-export async function create(userId, { label, addressLabel, latitude, longitude, isDefault }) {
+export async function create(userId, { label, addressLabel, latitude, longitude, district, isDefault }) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -39,9 +40,9 @@ export async function create(userId, { label, addressLabel, latitude, longitude,
       await client.query('UPDATE addresses SET is_default = false WHERE user_id = $1', [userId]);
     }
     const { rows } = await client.query(
-      `INSERT INTO addresses (user_id, label, address_label, latitude, longitude, is_default)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [userId, label, addressLabel, latitude ?? null, longitude ?? null, Boolean(isDefault)]
+      `INSERT INTO addresses (user_id, label, address_label, latitude, longitude, district, is_default)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [userId, label, addressLabel, latitude ?? null, longitude ?? null, district, Boolean(isDefault)]
     );
     await client.query('COMMIT');
     return toAddress(rows[0]);
@@ -53,16 +54,17 @@ export async function create(userId, { label, addressLabel, latitude, longitude,
   }
 }
 
-export async function update(id, userId, { label, addressLabel, latitude, longitude }) {
+export async function update(id, userId, { label, addressLabel, latitude, longitude, district }) {
   const { rows } = await pool.query(
     `UPDATE addresses SET
        label = COALESCE($1, label),
        address_label = COALESCE($2, address_label),
        latitude = COALESCE($3, latitude),
-       longitude = COALESCE($4, longitude)
-     WHERE id = $5 AND user_id = $6
+       longitude = COALESCE($4, longitude),
+       district = COALESCE($5, district)
+     WHERE id = $6 AND user_id = $7
      RETURNING *`,
-    [label ?? null, addressLabel ?? null, latitude ?? null, longitude ?? null, id, userId]
+    [label ?? null, addressLabel ?? null, latitude ?? null, longitude ?? null, district ?? null, id, userId]
   );
   return rows[0] ? toAddress(rows[0]) : null;
 }

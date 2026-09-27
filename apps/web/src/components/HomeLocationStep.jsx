@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Input } from './Input.jsx';
 import { Button } from './Button.jsx';
 import * as addressesApi from '../api/addresses.api.js';
+import * as workersApi from '../api/workers.api.js';
 import { getCurrentLocation, getGeolocationPermissionState, getLocationBlockedMessage } from '../lib/geolocation.js';
 
 // Signup's final step for a new customer only (workers have no addresses -
@@ -12,11 +13,23 @@ import { getCurrentLocation, getGeolocationPermissionState, getLocationBlockedMe
 // friction, and a customer can always add one later from Settings.
 export function HomeLocationStep({ onDone }) {
   const [addressLabel, setAddressLabel] = useState('');
+  const [districts, setDistricts] = useState([]);
+  const [district, setDistrict] = useState('');
   const [coords, setCoords] = useState(null);
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    workersApi
+      .getDistricts()
+      .then(({ districts }) => {
+        setDistricts(districts);
+        setDistrict((current) => current || districts[0]?.name || '');
+      })
+      .catch(() => {});
+  }, []);
 
   async function handleUseCurrentLocation() {
     setLocateError('');
@@ -42,6 +55,10 @@ export function HomeLocationStep({ onDone }) {
       setError('Enter your address, or skip for now.');
       return;
     }
+    if (!district) {
+      setError('Choose your district.');
+      return;
+    }
     setError('');
     setSaving(true);
     try {
@@ -50,6 +67,7 @@ export function HomeLocationStep({ onDone }) {
         addressLabel: addressLabel.trim(),
         latitude: coords?.latitude ?? null,
         longitude: coords?.longitude ?? null,
+        district,
         isDefault: true,
       });
       onDone();
@@ -74,6 +92,20 @@ export function HomeLocationStep({ onDone }) {
           value={addressLabel}
           onChange={(e) => setAddressLabel(e.target.value)}
         />
+        <label className="flex flex-col gap-1.5 text-sm font-medium text-text-muted">
+          District
+          <select
+            value={district}
+            onChange={(e) => setDistrict(e.target.value)}
+            className="rounded-md border border-border bg-surface px-3 py-2.5 text-base text-text outline-none focus:border-brand-solid"
+          >
+            {districts.map((d) => (
+              <option key={d.id} value={d.name}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <button
           type="button"
           onClick={handleUseCurrentLocation}

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Card } from './Card.jsx';
 import { Badge } from './Badge.jsx';
 import { CategoryIcon } from './CategoryIcon.jsx';
+import { humanizeCategory } from '../lib/humanize.js';
 
 function CloseIcon() {
   return (
@@ -32,7 +33,7 @@ function PortfolioCard({ item, full, onOpenImage }) {
       <div className="p-4">
         <div className="flex items-center justify-between gap-2">
           <p className="min-w-0 truncate font-semibold">{item.title}</p>
-          <Badge className="shrink-0 capitalize">{item.category}</Badge>
+          <Badge className="shrink-0">{humanizeCategory(item.category)}</Badge>
         </div>
         {item.description && <p className="mt-1 text-sm text-text-muted">{item.description}</p>}
         {formatWorkDate(item.workDate) && (

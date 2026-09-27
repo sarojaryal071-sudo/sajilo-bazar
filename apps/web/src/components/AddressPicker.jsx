@@ -4,6 +4,7 @@ import { Button } from './Button.jsx';
 import { Input } from './Input.jsx';
 import { Badge } from './Badge.jsx';
 import * as addressesApi from '../api/addresses.api.js';
+import * as workersApi from '../api/workers.api.js';
 import { getCurrentLocation, getGeolocationPermissionState, getLocationBlockedMessage } from '../lib/geolocation.js';
 
 function PinIcon() {
@@ -23,9 +24,11 @@ function PinIcon() {
 // unconditionally on every submit.
 export function AddressPicker({ value, onChange }) {
   const [addresses, setAddresses] = useState(null);
+  const [districts, setDistricts] = useState([]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [oneOffMode, setOneOffMode] = useState(false);
   const [oneOffText, setOneOffText] = useState('');
+  const [oneOffDistrict, setOneOffDistrict] = useState('');
   const [oneOffCoords, setOneOffCoords] = useState(null);
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState('');
@@ -41,6 +44,10 @@ export function AddressPicker({ value, onChange }) {
         }
       })
       .catch(() => setAddresses([]));
+    workersApi
+      .getDistricts()
+      .then(({ districts }) => setDistricts(districts))
+      .catch(() => setDistricts([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -49,12 +56,17 @@ export function AddressPicker({ value, onChange }) {
       addressLabel: address.addressLabel,
       latitude: address.latitude,
       longitude: address.longitude,
+      // Booking-matching filters by district before radius (Part B) - a
+      // saved address always has one (see addresses.schema.js), a one-off
+      // entry only if the customer picked one below.
+      district: address.district,
     };
   }
 
   function openSheet() {
     setOneOffMode(false);
     setOneOffText('');
+    setOneOffDistrict('');
     setOneOffCoords(null);
     setLocateError('');
     setSheetOpen(true);
@@ -89,6 +101,10 @@ export function AddressPicker({ value, onChange }) {
       addressLabel: oneOffText.trim(),
       latitude: oneOffCoords?.latitude ?? null,
       longitude: oneOffCoords?.longitude ?? null,
+      // Optional here (unlike a saved address, where it's required) - left
+      // unset, matching just falls back to distance-only for this booking
+      // rather than blocking submission over it.
+      district: oneOffDistrict || null,
     });
     setSheetOpen(false);
   }
@@ -162,6 +178,21 @@ export function AddressPicker({ value, onChange }) {
                   value={oneOffText}
                   onChange={(e) => setOneOffText(e.target.value)}
                 />
+                <label className="flex flex-col gap-1.5 text-sm font-medium text-text-muted">
+                  District (optional)
+                  <select
+                    value={oneOffDistrict}
+                    onChange={(e) => setOneOffDistrict(e.target.value)}
+                    className="rounded-md border border-border bg-surface px-3 py-2.5 text-base text-text outline-none focus:border-brand-solid"
+                  >
+                    <option value="">Not sure</option>
+                    {districts.map((d) => (
+                      <option key={d.id} value={d.name}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <button
                   type="button"
                   onClick={handleUseCurrentLocation}

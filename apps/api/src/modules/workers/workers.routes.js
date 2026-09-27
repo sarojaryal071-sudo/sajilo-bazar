@@ -11,6 +11,8 @@ const upload = multer({
 export const workersRoutes = Router();
 
 workersRoutes.get('/catalog/services', workersController.getServiceCatalog);
+workersRoutes.get('/catalog/categories', workersController.getCategories);
+workersRoutes.get('/catalog/districts', workersController.getDistrictCatalog);
 workersRoutes.get('/search', workersController.search);
 workersRoutes.get('/featured', requireAuth, workersController.getFeatured);
 workersRoutes.get('/me', requireAuth, requireRole('worker'), workersController.getMe);
@@ -54,13 +56,24 @@ workersRoutes.patch(
   requireApprovedWorker,
   workersController.setTypicalResponseHours
 );
+// Onboarding Step 2's early-save - not gated by requireApprovedWorker
+// (the worker isn't approved yet, that's the whole point), just that
+// they're an authenticated worker.
+workersRoutes.patch(
+  '/me/onboarding/work',
+  requireAuth,
+  requireRole('worker'),
+  workersController.saveOnboardingWork
+);
 workersRoutes.post(
   '/apply',
   requireAuth,
   requireRole('worker'),
   upload.fields([
-    { name: 'citizenship', maxCount: 1 },
-    { name: 'certificate', maxCount: 1 },
+    { name: 'citizenshipFront', maxCount: 1 },
+    { name: 'citizenshipBack', maxCount: 1 },
+    { name: 'profilePhoto', maxCount: 1 },
+    { name: 'skillCertificate', maxCount: 1 },
   ]),
   workersController.apply
 );

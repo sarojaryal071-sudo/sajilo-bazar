@@ -92,7 +92,7 @@ async function sweepExpiredScheduledRequests() {
 // client's clock).
 export async function createBooking(
   customerId,
-  { workerId, serviceIds, addressLabel, latitude, longitude, scheduledFor, responseDeadlineHours }
+  { workerId, serviceIds, addressLabel, latitude, longitude, district, scheduledFor, responseDeadlineHours }
 ) {
   await assertCanBook(customerId);
   const available = await bookingsModel.findActiveWorkerServices(workerId, serviceIds);
@@ -117,6 +117,7 @@ export async function createBooking(
     addressLabel,
     latitude,
     longitude,
+    district: district ?? null,
     scheduledFor: scheduledFor ?? null,
     responseDeadlineHours: responseDeadlineHours ?? null,
     fuelCharge,
@@ -149,9 +150,16 @@ export async function quoteFuelCharge(workerId, latitude, longitude) {
 // each - the socket push is best-effort (see emitToUser), the
 // booking_offers rows are the durable record a worker sees the next time
 // they poll/open the app either way.
-export async function createInstantBooking(customerId, { serviceIds, addressLabel, latitude, longitude }) {
+export async function createInstantBooking(customerId, { serviceIds, addressLabel, latitude, longitude, district }) {
   await assertCanBook(customerId);
-  const booking = await bookingsModel.createInstant({ customerId, serviceIds, addressLabel, latitude, longitude });
+  const booking = await bookingsModel.createInstant({
+    customerId,
+    serviceIds,
+    addressLabel,
+    latitude,
+    longitude,
+    district: district ?? null,
+  });
 
   // Resync every scheduled worker's effective online status against their
   // availability blocks right before matching, so a worker whose block
@@ -161,7 +169,13 @@ export async function createInstantBooking(customerId, { serviceIds, addressLabe
   // needs to run eagerly rather than lazily.
   await workersService.syncAllWorkersWithAvailability();
 
-  const workerIds = await bookingsModel.findNearbyOnlineWorkers(serviceIds, latitude, longitude, DEFAULT_RADIUS_KM);
+  const workerIds = await bookingsModel.findNearbyOnlineWorkers(
+    serviceIds,
+    latitude,
+    longitude,
+    DEFAULT_RADIUS_KM,
+    booking.district
+  );
   const offers = await bookingsModel.createOffers(booking.id, workerIds);
 
   for (const offer of offers) {

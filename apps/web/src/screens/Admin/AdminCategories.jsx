@@ -4,6 +4,7 @@ import { Card } from '../../components/Card.jsx';
 import { Badge } from '../../components/Badge.jsx';
 import { Button } from '../../components/Button.jsx';
 import * as adminApi from '../../api/admin.api.js';
+import { humanizeCategory } from '../../lib/humanize.js';
 
 const EMPTY_FORM = { category: '', name: '', description: '' };
 
@@ -54,6 +55,45 @@ function ServiceForm({ initial, submitLabel, busy, onSubmit, onCancel }) {
   );
 }
 
+function PriceBandEditor({ serviceId, band, busy, onSave }) {
+  const [min, setMin] = useState(band?.min ?? '');
+  const [max, setMax] = useState(band?.max ?? '');
+  const dirty =
+    min !== '' && max !== '' && Number(min) >= 0 && Number(max) >= Number(min) &&
+    (Number(min) !== band?.min || Number(max) !== band?.max);
+
+  return (
+    <div className="flex items-center gap-1.5 text-xs text-text-muted">
+      <span>Typical Rs.</span>
+      <input
+        type="number"
+        min="0"
+        value={min}
+        onChange={(e) => setMin(e.target.value)}
+        className="w-16 rounded-md border border-border bg-surface px-1.5 py-1 text-xs outline-none focus:border-brand-solid"
+      />
+      <span>&ndash;</span>
+      <input
+        type="number"
+        min="0"
+        value={max}
+        onChange={(e) => setMax(e.target.value)}
+        className="w-16 rounded-md border border-border bg-surface px-1.5 py-1 text-xs outline-none focus:border-brand-solid"
+      />
+      {dirty && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => onSave(serviceId, Number(min), Number(max))}
+          className="font-medium text-brand-solid disabled:opacity-50"
+        >
+          {busy ? 'Saving...' : 'Save'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function AdminCategories() {
   const navigate = useNavigate();
   const [categories, setCategories] = useState(null);
@@ -61,15 +101,42 @@ export function AdminCategories() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [busyId, setBusyId] = useState(null);
+  // Per-service min/max price band (platform_settings key
+  // 'service_price_bands', same admin-editable pattern as fuel pricing -
+  // see platformSettings.service.js). One JSONB map for every service, not
+  // a row-per-service setting, so editing here never needs a migration.
+  const [priceBands, setPriceBands] = useState({});
+  const [bandBusyId, setBandBusyId] = useState(null);
 
   function load() {
     adminApi
       .getCategoriesOverview()
       .then(({ categories }) => setCategories(categories))
       .catch((err) => setError(err.message));
+    adminApi
+      .listPlatformSettings()
+      .then(({ settings }) => {
+        const row = settings.find((s) => s.key === 'service_price_bands');
+        setPriceBands(row?.value ?? {});
+      })
+      .catch(() => {});
   }
 
   useEffect(load, []);
+
+  async function handleSavePriceBand(serviceId, min, max) {
+    setBandBusyId(serviceId);
+    setError('');
+    try {
+      const nextBands = { ...priceBands, [serviceId]: { min, max } };
+      await adminApi.updatePlatformSetting('service_price_bands', nextBands);
+      setPriceBands(nextBands);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBandBusyId(null);
+    }
+  }
 
   async function handleCreate(input) {
     setBusyId('new');
@@ -168,7 +235,7 @@ export function AdminCategories() {
         {categories?.map((cat) => (
           <Card key={cat.category}>
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold capitalize">{cat.category}</h2>
+              <h2 className="text-lg font-semibold">{humanizeCategory(cat.category)}</h2>
               {cat.pendingRequestCount > 0 && (
                 <button
                   onClick={() => navigate('/admin/approvals')}
@@ -201,6 +268,14 @@ export function AdminCategories() {
                       {service.description && (
                         <p className="text-xs text-text-muted">{service.description}</p>
                       )}
+                      <div className="mt-1.5">
+                        <PriceBandEditor
+                          serviceId={service.id}
+                          band={priceBands[String(service.id)]}
+                          busy={bandBusyId === service.id}
+                          onSave={handleSavePriceBand}
+                        />
+                      </div>
                     </div>
                     <div className="flex flex-wrap items-center justify-end gap-2">
                       {service.highRisk && <Badge tone="danger">High risk</Badge>}

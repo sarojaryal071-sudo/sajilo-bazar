@@ -20,6 +20,7 @@ function toBooking(row) {
     addressLabel: row.address_label,
     latitude: row.latitude,
     longitude: row.longitude,
+    district: row.district,
     cancelledBy: row.cancelled_by,
     cancelReason: row.cancel_reason,
     initiatedBy: row.initiated_by,
@@ -109,6 +110,7 @@ export async function create({
   addressLabel,
   latitude,
   longitude,
+  district = null,
   scheduledFor = null,
   responseDeadlineHours = null,
   fuelCharge = 0,
@@ -118,11 +120,11 @@ export async function create({
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `INSERT INTO bookings (customer_id, worker_id, price, address_label, latitude, longitude,
+      `INSERT INTO bookings (customer_id, worker_id, price, address_label, latitude, longitude, district,
                               scheduled_for, response_deadline_hours, respond_by, fuel_charge)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8,
-               CASE WHEN $8::smallint IS NOT NULL THEN now() + ($8::text || ' hours')::interval ELSE NULL END,
-               $9)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
+               CASE WHEN $9::smallint IS NOT NULL THEN now() + ($9::text || ' hours')::interval ELSE NULL END,
+               $10)
        RETURNING id`,
       [
         customerId,
@@ -131,6 +133,7 @@ export async function create({
         addressLabel,
         latitude ?? null,
         longitude ?? null,
+        district,
         scheduledFor,
         responseDeadlineHours,
         fuelCharge,
@@ -156,14 +159,14 @@ export async function create({
 // No worker yet - that's the whole point of the instant flow. Each
 // requested service is recorded with price = null; it's only priced once
 // a worker claims the booking (see claimInstant).
-export async function createInstant({ customerId, serviceIds, addressLabel, latitude, longitude }) {
+export async function createInstant({ customerId, serviceIds, addressLabel, latitude, longitude, district = null }) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `INSERT INTO bookings (type, customer_id, address_label, latitude, longitude)
-       VALUES ('instant', $1, $2, $3, $4) RETURNING id`,
-      [customerId, addressLabel, latitude, longitude]
+      `INSERT INTO bookings (type, customer_id, address_label, latitude, longitude, district)
+       VALUES ('instant', $1, $2, $3, $4, $5) RETURNING id`,
+      [customerId, addressLabel, latitude, longitude, district]
     );
     const bookingId = rows[0].id;
     for (const serviceId of serviceIds) {
@@ -182,11 +185,17 @@ export async function createInstant({ customerId, serviceIds, addressLabel, lati
   }
 }
 
-// Plain Haversine in SQL (no PostGIS/earthdistance extension - keeps this
-// working on any Postgres, including Neon, with no extra setup). Only
-// online, approved workers with a saved location who offer EVERY requested
-// service are candidates - not just one of them.
-export async function findNearbyOnlineWorkers(serviceIds, latitude, longitude, radiusKm) {
+// District match FIRST, then the existing Haversine radius (no PostGIS/
+// earthdistance extension - keeps this working on any Postgres, including
+// Neon, with no extra setup) within that district. A worker never appears
+// for a booking outside their own registered district, regardless of
+// physical distance (Part B). district is nullable: a booking whose
+// address never resolved to one (e.g. AddressPicker's freeform "one-off"
+// entry with no district chosen) falls back to distance-only, exactly
+// today's behavior, rather than matching zero workers over an unknown
+// comparison. Only online, approved workers with a saved location who
+// offer EVERY requested service are candidates - not just one of them.
+export async function findNearbyOnlineWorkers(serviceIds, latitude, longitude, radiusKm, district = null) {
   const { rows } = await pool.query(
     `SELECT u.id AS worker_id
      FROM users u
@@ -195,6 +204,7 @@ export async function findNearbyOnlineWorkers(serviceIds, latitude, longitude, r
        AND u.deactivated_at IS NULL AND u.deleted_at IS NULL
        AND wp.is_online = true
        AND wp.latitude IS NOT NULL AND wp.longitude IS NOT NULL
+       AND ($6::text IS NULL OR wp.district = $6)
        AND 6371 * acos(LEAST(1, GREATEST(-1,
              cos(radians($1)) * cos(radians(wp.latitude)) * cos(radians(wp.longitude) - radians($2))
              + sin(radians($1)) * sin(radians(wp.latitude))
@@ -204,7 +214,7 @@ export async function findNearbyOnlineWorkers(serviceIds, latitude, longitude, r
          WHERE ws.worker_id = u.id AND ws.is_active = true AND ws.approval_status = 'approved'
            AND ws.service_id = ANY($4::int[])
        ) = $5`,
-    [latitude, longitude, radiusKm, serviceIds, serviceIds.length]
+    [latitude, longitude, radiusKm, serviceIds, serviceIds.length, district]
   );
   return rows.map((r) => r.worker_id);
 }

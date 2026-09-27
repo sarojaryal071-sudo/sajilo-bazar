@@ -10,6 +10,11 @@ export const AddressSchema = z.object({
   addressLabel: z.string().min(3).max(200),
   latitude: z.number().nullable().optional(),
   longitude: z.number().nullable().optional(),
+  // Chosen from the fixed, DB-seeded districts list (see districts table /
+  // GET /districts) - what lets booking-matching compare a booking's
+  // district against a worker's own registered district without any
+  // geocoding/reverse-lookup service.
+  district: z.string().min(2).max(60),
   isDefault: z.boolean().default(false),
   createdAt: z.string().datetime().optional(),
 });
@@ -19,6 +24,7 @@ export const AddressCreateInputSchema = z.object({
   addressLabel: z.string().min(3).max(200),
   latitude: z.number().nullable().optional(),
   longitude: z.number().nullable().optional(),
+  district: z.string().min(2).max(60),
   // The first address a customer ever saves becomes the default
   // automatically (see addresses.service.js) - this only matters for
   // explicitly requesting default status on a later, additional address.
@@ -30,4 +36,5 @@ export const AddressUpdateInputSchema = z.object({
   addressLabel: z.string().min(3).max(200).optional(),
   latitude: z.number().nullable().optional(),
   longitude: z.number().nullable().optional(),
+  district: z.string().min(2).max(60).optional(),
 });

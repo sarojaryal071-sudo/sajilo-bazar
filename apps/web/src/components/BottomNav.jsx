@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useUnreadNotificationCount } from '../hooks/useUnreadNotificationCount.js';
 import { useLanguage } from '../context/LanguageContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const ICONS = {
   home: <path d="M3 11.5 12 4l9 7.5M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9" />,
@@ -18,6 +19,19 @@ const ICONS = {
     </>
   ),
   menu: <path d="M4 7h16M4 12h16M4 17h16" />,
+  help: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.9.4-1.5 1-1.5 2.2" />
+      <path d="M12 17.5h.01" />
+    </>
+  ),
+  logout: (
+    <>
+      <path d="M15 17v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1" />
+      <path d="M9 12h12M17 8l4 4-4 4" />
+    </>
+  ),
 };
 
 // Routes reachable only through the hamburger menu - the tab highlights as
@@ -51,12 +65,45 @@ export const WORKER_TABS = [
 // (which left an unwanted gap above the content). They're appended here
 // rather than baked into CUSTOMER_TABS/WORKER_TABS since the bell carries a
 // live badge and the hamburger opens an overlay instead of navigating.
-export function BottomNav({ role, onOpenMenu }) {
+//
+// restricted: true during worker onboarding (unverified worker on
+// /worker/apply) - Home/Bookings/Alerts/Menu don't apply pre-verification,
+// so this swaps in just Help (the existing Support/contact flow) and
+// Logout, same component/position as everywhere else in the app.
+export function BottomNav({ role, onOpenMenu, restricted }) {
   const tabs = role === 'worker' ? WORKER_TABS : CUSTOMER_TABS;
   const unreadCount = useUnreadNotificationCount();
   const location = useLocation();
   const { t } = useLanguage();
+  const { logout } = useAuth();
   const menuActive = MENU_ROUTES.some((route) => location.pathname.startsWith(route));
+
+  if (restricted) {
+    return (
+      <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-surface-raised shadow-raised lg:hidden">
+        <div className="mx-auto flex max-w-md items-center justify-around px-2 py-2">
+          <NavLink
+            to="/help"
+            className={({ isActive }) =>
+              `flex flex-col items-center gap-1 rounded-lg px-4 py-1.5 text-xs font-medium transition-colors ${
+                isActive ? 'text-brand-solid' : 'text-text-muted'
+              }`
+            }
+          >
+            <NavIcon name="help" />
+            Help
+          </NavLink>
+          <button
+            onClick={logout}
+            className="flex flex-col items-center gap-1 rounded-lg px-4 py-1.5 text-xs font-medium text-text-muted transition-colors"
+          >
+            <NavIcon name="logout" />
+            Logout
+          </button>
+        </div>
+      </nav>
+    );
+  }
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-border bg-surface-raised shadow-raised lg:hidden">

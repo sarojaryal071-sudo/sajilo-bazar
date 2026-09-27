@@ -7,14 +7,39 @@ import {
   WorkerDescriptionInputSchema,
   WorkerPortfolioItemInputSchema,
   WorkerPortfolioReorderInputSchema,
+  WorkerOnboardingWorkInputSchema,
 } from '@sajilo-bazar/shared';
 import { ApiError } from '../../middleware/error.middleware.js';
 import * as workersService from './workers.service.js';
 
+// Onboarding Step 2c passes ?category=<x> to get just that category's
+// services (with price-band hints) - the plain no-filter call (search's
+// service-picker dropdown, admin catalog, etc.) is unchanged.
 export async function getServiceCatalog(req, res, next) {
   try {
-    const services = await workersService.getServiceCatalog();
+    const { category } = req.query;
+    const services = category
+      ? await workersService.getServicesByCategory(category)
+      : await workersService.getServiceCatalog();
     res.json({ services });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getCategories(req, res, next) {
+  try {
+    const categories = await workersService.getCategories();
+    res.json({ categories });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getDistrictCatalog(req, res, next) {
+  try {
+    const districts = await workersService.getDistricts();
+    res.json({ districts });
   } catch (err) {
     next(err);
   }
@@ -22,8 +47,8 @@ export async function getServiceCatalog(req, res, next) {
 
 export async function search(req, res, next) {
   try {
-    const { category, serviceId, q } = req.query;
-    const results = await workersService.search({ category, serviceId, q });
+    const { category, serviceId, q, district } = req.query;
+    const results = await workersService.search({ category, serviceId, q, district });
     res.json({ results });
   } catch (err) {
     next(err);
@@ -204,23 +229,31 @@ export async function ackWelcome(req, res, next) {
   }
 }
 
+export async function saveOnboardingWork(req, res, next) {
+  try {
+    const input = WorkerOnboardingWorkInputSchema.parse(req.body);
+    const data = await workersService.saveOnboardingWork(req.user.id, input);
+    res.json(data);
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid onboarding data', err.issues) : err);
+  }
+}
+
 export async function apply(req, res, next) {
   try {
-    // multipart form: non-file fields arrive as strings, services as a JSON string.
-    const raw = {
-      bio: req.body.bio || undefined,
-      services: req.body.services ? JSON.parse(req.body.services) : [],
-    };
-    const input = WorkerApplyInputSchema.parse(raw);
+    const input = WorkerApplyInputSchema.parse({ bio: req.body.bio || undefined });
 
-    const files = Object.entries(req.files || {}).flatMap(([docType, fileList]) =>
-      fileList.map((file) => ({ ...file, docType }))
+    // multipart form: profilePhoto rides separately (goes to users.profile_image_url,
+    // not verification_documents) - everything else under req.files becomes a
+    // doc_type-tagged verification document (citizenshipFront -> citizenship_front, etc).
+    const { profilePhoto, ...documentFields } = req.files || {};
+    const files = Object.entries(documentFields).flatMap(([field, fileList]) =>
+      fileList.map((file) => ({ ...file, docType: field.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase() }))
     );
 
-    const result = await workersService.apply(req.user.id, input, files);
+    const result = await workersService.apply(req.user.id, input, files, profilePhoto?.[0]);
     res.status(201).json(result);
   } catch (err) {
-    if (err instanceof SyntaxError) return next(new ApiError(400, 'services must be valid JSON'));
     next(err.issues ? new ApiError(400, 'Invalid worker apply data', err.issues) : err);
   }
 }

@@ -13,6 +13,7 @@ import { useLanguage } from '../../context/LanguageContext.jsx';
 import * as usersApi from '../../api/users.api.js';
 import * as notificationsApi from '../../api/notifications.api.js';
 import * as addressesApi from '../../api/addresses.api.js';
+import * as workersApi from '../../api/workers.api.js';
 import { getCurrentLocation, getGeolocationPermissionState, getLocationBlockedMessage } from '../../lib/geolocation.js';
 
 const GOOGLE_CONFIGURED = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
@@ -200,8 +201,21 @@ function AddressFormDialog({ initial, onSave, onDelete, onCancel, busy, error })
   const [coords, setCoords] = useState(
     initial?.latitude != null ? { latitude: initial.latitude, longitude: initial.longitude } : null
   );
+  const [districts, setDistricts] = useState([]);
+  const [district, setDistrict] = useState(initial?.district ?? '');
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState('');
+
+  useEffect(() => {
+    workersApi
+      .getDistricts()
+      .then(({ districts }) => {
+        setDistricts(districts);
+        setDistrict((current) => current || districts[0]?.name || '');
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleUseCurrentLocation() {
     setLocateError('');
@@ -223,12 +237,13 @@ function AddressFormDialog({ initial, onSave, onDelete, onCancel, busy, error })
 
   function handleSubmit(e) {
     e.preventDefault();
-    if (addressLabel.trim().length < 3) return;
+    if (addressLabel.trim().length < 3 || !district) return;
     onSave({
       label: label.trim() || 'Home',
       addressLabel: addressLabel.trim(),
       latitude: coords?.latitude ?? null,
       longitude: coords?.longitude ?? null,
+      district,
     });
   }
 
@@ -248,6 +263,20 @@ function AddressFormDialog({ initial, onSave, onDelete, onCancel, busy, error })
             value={addressLabel}
             onChange={(e) => setAddressLabel(e.target.value)}
           />
+          <label className="flex flex-col gap-1.5 text-sm font-medium text-text-muted">
+            District
+            <select
+              value={district}
+              onChange={(e) => setDistrict(e.target.value)}
+              className="rounded-md border border-border bg-surface px-3 py-2.5 text-base text-text outline-none focus:border-brand-solid"
+            >
+              {districts.map((d) => (
+                <option key={d.id} value={d.name}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <button
             type="button"
             onClick={handleUseCurrentLocation}
@@ -268,7 +297,7 @@ function AddressFormDialog({ initial, onSave, onDelete, onCancel, busy, error })
               <Button type="button" variant="ghost" onClick={onCancel} disabled={busy}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={busy || addressLabel.trim().length < 3}>
+              <Button type="submit" disabled={busy || addressLabel.trim().length < 3 || !district}>
                 {busy ? 'Saving...' : 'Save'}
               </Button>
             </div>

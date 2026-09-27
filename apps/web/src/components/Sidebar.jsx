@@ -20,12 +20,35 @@ function linkClass({ isActive }) {
   }`;
 }
 
-export function Sidebar({ role }) {
+export function Sidebar({ role, restricted }) {
   const tabs = role === 'worker' ? WORKER_TABS : CUSTOMER_TABS;
   const unreadCount = useUnreadNotificationCount();
   const { t } = useLanguage();
   const { logout } = useAuth();
   const isWorker = role === 'worker';
+
+  if (restricted) {
+    return (
+      <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-border bg-surface-raised px-4 py-6 lg:flex">
+        <div className="px-2">
+          <Wordmark />
+        </div>
+        <nav className="mt-8 flex flex-1 flex-col gap-1">
+          <NavLink to="/help" className={linkClass}>
+            <NavIcon name="help" />
+            Help
+          </NavLink>
+        </nav>
+        <button
+          onClick={logout}
+          className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-danger hover:bg-surface-alt"
+        >
+          <LogoutIcon />
+          Logout
+        </button>
+      </aside>
+    );
+  }
 
   return (
     <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-border bg-surface-raised px-4 py-6 lg:flex">

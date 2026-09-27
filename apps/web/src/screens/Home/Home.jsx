@@ -11,6 +11,8 @@ import { FeaturedWorkersRow } from '../../components/FeaturedWorkersRow.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import * as workersApi from '../../api/workers.api.js';
 import * as publicationsApi from '../../api/publications.api.js';
+import * as addressesApi from '../../api/addresses.api.js';
+import { humanizeCategory } from '../../lib/humanize.js';
 
 const SEARCH_DEBOUNCE_MS = 175;
 
@@ -54,6 +56,10 @@ export function Home() {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [results, setResults] = useState(null);
   const [resultsError, setResultsError] = useState('');
+  // The customer's own default saved address's district, if any (Part B) -
+  // an additive filter only: no default address yet means district stays
+  // null and search behaves exactly as it always has (no location filter).
+  const [defaultDistrict, setDefaultDistrict] = useState(null);
 
   // Service catalog, for both the resting-state category grid and the
   // active-state filter chips.
@@ -73,6 +79,11 @@ export function Home() {
       .getActivePromotions('customers')
       .then(({ promotions }) => setPromotions(promotions))
       .catch(() => {});
+
+    addressesApi
+      .list()
+      .then(({ addresses }) => setDefaultDistrict(addresses.find((a) => a.isDefault)?.district ?? null))
+      .catch(() => {});
   }, []);
 
   // Debounce typed input only - category taps and activation itself stay
@@ -90,10 +101,10 @@ export function Home() {
     if (!searchActive) return;
     setResultsError('');
     workersApi
-      .search({ q: debouncedQuery, category: activeCategory })
+      .search({ q: debouncedQuery, category: activeCategory, district: defaultDistrict })
       .then(({ results }) => setResults(results))
       .catch(() => setResultsError('Could not load workers right now.'));
-  }, [searchActive, activeCategory, debouncedQuery]);
+  }, [searchActive, activeCategory, debouncedQuery, defaultDistrict]);
 
   function activateSearch() {
     setSearchActive(true);
@@ -175,7 +186,7 @@ export function Home() {
                 className="cursor-pointer"
               >
                 <CategoryIcon category={category} />
-                <p className="mt-2 font-semibold capitalize">{category}</p>
+                <p className="mt-2 font-semibold">{humanizeCategory(category)}</p>
                 <p className="text-xs text-text-muted">
                   {services.length} service{services.length === 1 ? '' : 's'}
                 </p>
@@ -210,7 +221,7 @@ export function Home() {
           <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
             <button
               onClick={() => setActiveCategory('')}
-              className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium capitalize transition-colors ${
+              className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                 !activeCategory ? 'bg-brand text-text-onBrand' : 'bg-surface-alt text-text-muted'
               }`}
             >
@@ -220,13 +231,13 @@ export function Home() {
               <button
                 key={category}
                 onClick={() => setActiveCategory(category)}
-                className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium capitalize transition-colors ${
+                className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                   activeCategory === category
                     ? 'bg-brand text-text-onBrand'
                     : 'bg-surface-alt text-text-muted'
                 }`}
               >
-                {category}
+                {humanizeCategory(category)}
               </button>
             ))}
           </div>

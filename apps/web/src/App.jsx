@@ -69,6 +69,14 @@ export default function App() {
                 <Route path="/worker/jobs" element={<WorkerJobs />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/help" element={<HelpSupport />} />
+                <Route
+                  path="/worker/apply"
+                  element={
+                    <ProtectedRoute role="worker">
+                      <WorkerApply />
+                    </ProtectedRoute>
+                  }
+                />
           </Route>
 
           <Route element={<AdminShell />}>
@@ -97,14 +105,6 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <WorkerDetail />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/worker/apply"
-            element={
-              <ProtectedRoute role="worker">
-                <WorkerApply />
               </ProtectedRoute>
             }
           />

@@ -4,12 +4,18 @@ export function list() {
   return apiFetch('/addresses/me');
 }
 
-export function create({ label, addressLabel, latitude, longitude, isDefault }) {
-  return apiFetch('/addresses/me', { method: 'POST', body: { label, addressLabel, latitude, longitude, isDefault } });
+export function create({ label, addressLabel, latitude, longitude, district, isDefault }) {
+  return apiFetch('/addresses/me', {
+    method: 'POST',
+    body: { label, addressLabel, latitude, longitude, district, isDefault },
+  });
 }
 
-export function update(id, { label, addressLabel, latitude, longitude }) {
-  return apiFetch(`/addresses/me/${id}`, { method: 'PATCH', body: { label, addressLabel, latitude, longitude } });
+export function update(id, { label, addressLabel, latitude, longitude, district }) {
+  return apiFetch(`/addresses/me/${id}`, {
+    method: 'PATCH',
+    body: { label, addressLabel, latitude, longitude, district },
+  });
 }
 
 export function remove(id) {

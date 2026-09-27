@@ -45,6 +45,7 @@ One row per user with `role = worker`.
 | trust_score | numeric | nullable - the stored raw 0-100 trust score (see "Trust score" below); null while the worker is within the 30-day grace period after `approved_at` or otherwise not yet scoreable |
 | typical_response_hours | smallint | nullable - self-reported only ("usually replies within Xh" on the profile), not computed/derived |
 | online_overridden_at | timestamptz | nullable - when the worker last manually toggled `is_online` via the explicit toggle (as opposed to the schedule auto-setting it). See "Scheduled booking + worker availability" below |
+| district | varchar(60) | nullable (2026-09-27, worker signup rework) - chosen at onboarding Step 2a from the `districts` table. Null until then (the row is created at signup, before onboarding runs) - never backfilled to a default for new rows, only for pre-existing seeded workers (migration 041). See "District-based matching" below |
 
 ## 3. `services`
 
@@ -152,6 +153,7 @@ final price, which may differ from the original estimate.
 | respond_by | timestamptz | nullable - computed once at creation (`created_at + response_deadline_hours`) and stored; an unanswered `requested` scheduled booking past this auto-expires to `declined` |
 | payment_method | text | `cash` (default) \| `esewa` - chosen by the worker at completion (business plan §6); only meaningful once `status = 'completed'`. `esewa` is a disabled UI placeholder only - `CompleteBookingInputSchema` rejects it server-side until the gateway actually exists |
 | fuel_charge | numeric | default `0` (2026-09-27, Piece D) - base fee + per-km rate (both admin-editable, see `platform_settings` below), computed from the assigned worker's saved location and this booking's own address once the worker is known: at creation for a manual booking, at claim time for an instant one. A pass-through to the worker - never folded into `price`, which stays service-charge-only and is what `commission_ledger`'s 15% is calculated against |
+| district | varchar(60) | nullable (2026-09-27, worker signup rework) - snapshotted from the picked address's district at booking time, same idiom as `address`/`lat`/`lng`. Null when the address never resolved to one (a freeform "one-off" `AddressPicker` entry with no district chosen) - matching then falls back to distance-only for that booking rather than matching zero workers. See "District-based matching" below |
 | created_at / completed_at | timestamptz | |
 
 ## 6a. `booking_services`
@@ -435,6 +437,16 @@ booking. A pass-through to the worker, worker keeps 100% of it - never folded in
 `bookings.price`, which stays service-charge-only and is what `commission_ledger`'s 15% is
 calculated against (see §11).
 
+Also seeded (2026-09-27, worker signup rework) with `service_price_bands` - one JSONB map
+`{ "<serviceId>": { "min": n, "max": n } }` rather than one row per service, so a new service
+never needs a migration to get a band, just an admin edit through this same key (from the
+Categories/Services admin screen, next to the service it belongs to - not the generic numeric
+Admin Settings editor, since this value isn't a scalar). Shown to a worker at onboarding Step 2c
+as a "Typical: Rs. X-Y" hint; a submitted price outside the band is still accepted (never
+hard-blocked client-side), it just saves that `worker_services` row as `approval_status =
+'pending'` instead of the default `approved`, landing it in the same admin document-review
+queue a cross-category `addService()` request already uses.
+
 ## 17. `worker_portfolio_items`
 
 Added 2026-09-27 ("Richer worker profile - Description + Portfolio") - foundation for a future
@@ -542,6 +554,34 @@ This is only synced at real touchpoints, not continuously: `workers.service.js`
 right before instant-request matching (`bookings.service.js` `createInstantBooking`) - the one
 place effective online status genuinely has to be correct at the moment it's read, not just
 eventually consistent.
+
+## `districts` / district-based matching
+
+Added 2026-09-27 (worker signup rework). A fixed, expandable list of supported districts,
+seeded in the DB (`districts: id, name unique`) rather than a hardcoded enum - the same
+extensibility pattern `services.category` already uses (free-text, admin-extensible by adding a
+row, no schema change). Seeded with just `Chitwan` for now.
+
+`worker_profiles.district` (§2), `addresses.district` (customer saved addresses - see
+`AddressSchema`), and `bookings.district` (§6) are all plain `varchar(60)`, not FK'd to
+`districts.id` - matching is a simple string compare, no join required, same as
+`services.category`. `addresses.district` is `NOT NULL` (a customer always picks one on the
+address form); `worker_profiles.district` stays nullable even for brand-new rows, since a
+worker's profile row is created at signup (`auth.model.js` `createUser`), before onboarding's
+Step 2a (district picker) ever runs - the application layer treats a null district there as
+"onboarding not yet at Step 2a," not a data gap. Migration 041 backfilled every pre-existing
+seeded worker/address to `Chitwan` (all seed data is Chitwan-based) so no existing row silently
+dropped out of matching once the filter went live.
+
+Both manual-booking worker search (`workers.model.js` `searchWorkers`) and instant-request
+broadcast (`bookings.model.js` `findNearbyOnlineWorkers`) filter by district match FIRST, then
+apply the existing radius/text logic within that district - a worker never appears for a
+booking outside their own registered district, regardless of physical distance. Both take
+district as an optional/nullable parameter: null skips the filter entirely (falls back to the
+prior radius-or-unfiltered behavior) rather than ever matching zero workers over an unknown
+comparison - this covers a customer with no resolvable district (no saved/default address yet)
+and a booking whose address never resolved to a district (`AddressPicker`'s freeform "one-off"
+entry, which optionally lets the customer pick one but doesn't require it).
 
 ## Phone-number visibility scoping
 

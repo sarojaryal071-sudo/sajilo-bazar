@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Avatar } from './Avatar.jsx';
 import { TrustBadge } from './TrustBadge.jsx';
 import * as workersApi from '../api/workers.api.js';
+import { humanizeCategory } from '../lib/humanize.js';
 
 const REFRESH_MS = 30000;
 
@@ -18,7 +19,7 @@ function FeaturedWorkerCard({ worker, badge, full, onClick }) {
       <Avatar name={worker.fullName} imageUrl={worker.profileImageUrl} size={40} />
       <p className="w-full truncate text-xs font-semibold">{worker.fullName}</p>
       {worker.category && (
-        <p className="w-full truncate text-[11px] capitalize text-text-muted">{worker.category}</p>
+        <p className="w-full truncate text-[11px] text-text-muted">{humanizeCategory(worker.category)}</p>
       )}
       {badge === 'new' ? (
         <span className="inline-flex items-center rounded-full bg-brand-solid/10 px-3 py-1 text-xs font-semibold text-brand-solid">

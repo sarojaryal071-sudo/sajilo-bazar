@@ -8,10 +8,11 @@ export function create({
   addressLabel,
   latitude,
   longitude,
+  district,
   scheduledFor,
   responseDeadlineHours,
 }) {
-  const body = { workerId, serviceIds, addressLabel, latitude, longitude };
+  const body = { workerId, serviceIds, addressLabel, latitude, longitude, district };
   if (scheduledFor) {
     body.scheduledFor = scheduledFor;
     body.responseDeadlineHours = responseDeadlineHours;
@@ -26,10 +27,10 @@ export function quoteFuelCharge(workerId, latitude, longitude) {
   return apiFetch('/bookings/fuel-quote', { method: 'POST', body: { workerId, latitude, longitude } });
 }
 
-export function createInstant({ serviceIds, addressLabel, latitude, longitude }) {
+export function createInstant({ serviceIds, addressLabel, latitude, longitude, district }) {
   return apiFetch('/bookings/instant', {
     method: 'POST',
-    body: { serviceIds, addressLabel, latitude, longitude },
+    body: { serviceIds, addressLabel, latitude, longitude, district },
   });
 }
 

@@ -208,11 +208,11 @@ unchanged.
   since those are mobile navigation patterns that stop making sense once there's a whole
   sidebar's worth of width. `AppShell.jsx` renders `Sidebar` alongside the existing
   `BottomNav`/`HamburgerMenu` (`lg:flex` / `lg:hidden` on the right elements so exactly one nav
-  pattern ever shows). Only affects the 7 screens actually wrapped by `AppShell` (Home,
-  Bookings, Profile, WorkerDashboard, WorkerJobs, Settings, HelpSupport) - the rest of the app
-  (WorkerDetail, BookingRequest, BookingDetail, BookingChat, Notifications, Earnings,
-  WorkerAvailability, WorkerApply) is drill-in screens with their own back button, by design,
-  on both mobile and desktop.
+  pattern ever shows). Affects the 8 screens actually wrapped by `AppShell` (Home,
+  Bookings, Profile, WorkerDashboard, WorkerJobs, Settings, HelpSupport, and - since the worker
+  signup rework, 2026-09-27 - WorkerApply, see below) - the rest of the app (WorkerDetail,
+  BookingRequest, BookingDetail, BookingChat, Notifications, Earnings, WorkerAvailability) is
+  drill-in screens with their own back button, by design, on both mobile and desktop.
 - **`Screen.jsx`'s shared phone-width column widens at `lg:`** - the `max-w-md` mobile
   baseline is unchanged, but a new `maxWidth` prop (`'default'`: `lg:max-w-2xl`, `'wide'`:
   `lg:max-w-5xl`) means every screen built on `Screen` (14 of them) gets a wider column on
@@ -223,9 +223,10 @@ unchanged.
   the resting-state category grid goes `grid-cols-2` -> `sm:grid-cols-3 lg:grid-cols-4`, and
   the active-state worker search results go from a single-column stack to `lg:grid-cols-2` of
   `WorkerCard`s.
-- Auth/onboarding screens (Login, Signup, ForgotPassword, WorkerApply) are unaffected - they
-  use the separate `AuthScreen.jsx` shell, not `Screen.jsx`, and stay a fixed-width centered
-  card at every viewport (a login form shouldn't stretch edge to edge on desktop).
+- Login/Signup/ForgotPassword are unaffected - they use the separate `AuthScreen.jsx` shell,
+  not `Screen.jsx`, and stay a fixed-width centered card at every viewport (a login form
+  shouldn't stretch edge to edge on desktop). WorkerApply moved off `AuthScreen` entirely as
+  part of the worker signup rework below.
 
 ## Phase 6 — Admin (minimal, no theming)
 
@@ -344,6 +345,47 @@ convention rather than a new enum).
 - Admin: automatic/keyword-based escalation routing (Phase 6b's escalation is manual-only by
   design; bargain/negotiation pricing is a separate, explicitly deferred backlog item - needs
   its own design pass, not spec'd)
+
+## Worker signup rework (2026-09-27)
+
+`WorkerApply.jsx` was rebuilt end-to-end and moved from the standalone `AuthScreen` shell into
+`AppShell` (nested alongside `/help`, `/worker/dashboard`, etc. in `App.jsx`), so onboarding
+gets the same persistent nav chrome as the rest of the app - just restricted: `BottomNav`/
+`Sidebar` take a `restricted` prop (set by `AppShell` whenever `location.pathname` starts with
+`/worker/apply`) that swaps Home/Bookings/Alerts/Menu for just Help + Logout, since those
+destinations don't apply to a not-yet-verified worker. The in-card header (back arrow + "Step X
+of 4" + sub-progress dots for the 3-part "Your work" step) is separate from that nav chrome and
+lives inside `WorkerApply.jsx` itself.
+
+Step 1 (personal details) is unchanged - it's the existing Signup screen. `WorkerApply.jsx`
+itself covers:
+
+- **Step 2 "Your work"** - three tap-and-auto-advance sub-screens, one decision each: 2a
+  district (single-select list, from the `districts` table), 2b category (single-select tile
+  grid, reusing Home's category-grid visual style + `humanizeCategory`), 2c services & pricing
+  (checkboxes scoped to just the chosen category, each with a price input and a "Typical: Rs.
+  X-Y" band hint from `service_price_bands`). 2c ends with a real save
+  (`PATCH /workers/me/onboarding/work`), not just local state - a price outside the band is
+  still accepted client-side, just flagged into the admin review queue server-side.
+- **Step 3 Documents** - citizenship front + back (required), a profile photo with both a
+  "Take photo" (`capture="user"`) and a "Choose from gallery" input (no face-matching against
+  the ID - logged as a backlog idea, out of scope), and a skill certificate shown only when the
+  chosen category is `high_risk`.
+- **Step 4 Review & submit** - one summary screen, each section (District/Category/
+  Services & pricing/Documents) with its own "Edit" button that jumps straight back to that
+  step/sub-step, not a tap-anywhere card. Submit calls `POST /workers/apply` (district/services
+  already saved at Step 2; this call just uploads documents, sets the profile photo, and flips
+  `verification_status` to `pending`).
+- **Step 5 Application status** - shown right after submit, and also where a still-pending
+  worker lands on every future login (`postAuthRedirect.js` routes `'pending'` here, not just
+  `'unsubmitted'`/`'rejected'`).
+
+**Resume behavior**: on load, `WorkerApply.jsx` calls `GET /workers/me` and decides where to
+land - `'pending'` goes straight to Step 5; no `district` or zero saved services means Step 2
+hasn't been completed yet, so it starts fresh at 2a; anything else (Step 2 already saved,
+including a `'rejected'` worker retrying) resumes directly at Step 3. Step 3/4 are never
+resumed into directly - file-picker state can't survive a refresh on any platform, so a worker
+who left mid-documents just re-collects them, same total effort as before.
 
 ## Explicitly dropped — do not build
 
