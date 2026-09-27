@@ -1,13 +1,39 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Screen } from '../../components/Screen.jsx';
+import { motion } from 'framer-motion';
 import { Card } from '../../components/Card.jsx';
 import { Button } from '../../components/Button.jsx';
 import { Badge } from '../../components/Badge.jsx';
 import { CategoryIcon } from '../../components/CategoryIcon.jsx';
 import { SkeletonBlock } from '../../components/Skeleton.jsx';
+import { AuthBackdrop } from '../../components/AuthBackdrop.jsx';
+import { Wordmark } from '../../components/Wordmark.jsx';
 import { humanizeCategory } from '../../lib/humanize.js';
 import * as workersApi from '../../api/workers.api.js';
+
+// Same photo/overlay/fade + glass-card look AuthScreen.jsx uses for Login/
+// Signup/ForgotPassword (worker onboarding is a direct continuation of
+// signup - see postAuthRedirect.js) - deliberately NOT AuthScreen itself
+// though, since that owns the whole viewport with no nav chrome, and
+// onboarding needs AppShell's restricted (Help+Logout) nav still visible
+// around it. `flex-1` fills the height AppShell's wrapper already owns,
+// same sizing contract Screen.jsx's fillHeight={false} uses.
+function OnboardingBackdrop({ children }) {
+  return (
+    <div className="relative isolate flex flex-1 items-center justify-center overflow-hidden px-5 py-8">
+      <AuthBackdrop />
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2 }}
+        className="relative z-10 flex w-full max-w-lg flex-col rounded-3xl border border-glass-border bg-glass-surface p-6 shadow-neu-card backdrop-blur-xl sm:p-8"
+      >
+        <Wordmark className="mx-auto mb-6" />
+        {children}
+      </motion.div>
+    </div>
+  );
+}
 
 // Local step numbering for the header only - Step 1 ("Personal details")
 // already happened at Signup, so this flow starts numbering at 1 for
@@ -224,24 +250,24 @@ export function WorkerApply() {
 
   if (loading) {
     return (
-      <Screen fillHeight={false} className="max-w-lg">
+      <OnboardingBackdrop>
         <SkeletonBlock className="h-6 w-40" />
         <SkeletonBlock className="mt-4 h-40 w-full rounded-2xl" />
         <SkeletonBlock className="mt-3 h-40 w-full rounded-2xl" />
-      </Screen>
+      </OnboardingBackdrop>
     );
   }
 
   if (loadError) {
     return (
-      <Screen fillHeight={false} className="max-w-lg">
+      <OnboardingBackdrop>
         <p className="text-sm text-danger">{loadError}</p>
-      </Screen>
+      </OnboardingBackdrop>
     );
   }
 
   return (
-    <Screen fillHeight={false} className="max-w-lg">
+    <OnboardingBackdrop>
       <OnboardingHeader
         stepIndex={step}
         subStepIndex={WORK_SUBSTEPS.indexOf(subStep)}
@@ -434,7 +460,7 @@ export function WorkerApply() {
       )}
 
       {step === 3 && <PendingStatus justSubmitted={submitted} onOpenHelp={() => navigate('/help')} />}
-    </Screen>
+    </OnboardingBackdrop>
   );
 }
 

@@ -558,9 +558,11 @@ eventually consistent.
 ## `districts` / district-based matching
 
 Added 2026-09-27 (worker signup rework). A fixed, expandable list of supported districts,
-seeded in the DB (`districts: id, name unique`) rather than a hardcoded enum - the same
+seeded in the DB (`districts: id, name unique, is_active default true`) rather than a hardcoded enum - the same
 extensibility pattern `services.category` already uses (free-text, admin-extensible by adding a
-row, no schema change). Seeded with just `Chitwan` for now.
+row, no schema change). Seeded with just `Chitwan` for now. `GET /workers/catalog/districts`
+only returns `is_active = true` rows (migration 042) - a district can be seeded ahead of a
+launch without being selectable yet; no admin UI to toggle it exists, just the column.
 
 `worker_profiles.district` (§2), `addresses.district` (customer saved addresses - see
 `AddressSchema`), and `bookings.district` (§6) are all plain `varchar(60)`, not FK'd to

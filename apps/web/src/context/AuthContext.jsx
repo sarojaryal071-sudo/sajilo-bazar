@@ -66,6 +66,9 @@ export function AuthProvider({ children }) {
     return user;
   }, []);
 
+  // Doesn't navigate itself - clearing `user` makes AppShell/ProtectedRoute
+  // fall through to their own `!user` redirect, which lands on "/" (the
+  // landing page), not straight into the login form.
   const logout = useCallback(() => {
     setToken(null);
     setUser(null);

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { USER_ROLES, MODERATION_STATUSES } from './enums.js';
+import { USER_ROLES, MODERATION_STATUSES, VERIFICATION_STATUSES } from './enums.js';
 
 // What a User looks like, everywhere: the backend validates requests
 // against this, and the frontend uses it to shape mock data before the
@@ -29,6 +29,10 @@ export const UserSchema = z.object({
   moderationStatus: z.enum(MODERATION_STATUSES).default('active'),
   googleId: z.string().nullable().optional(),
   hasPassword: z.boolean().optional(),
+  // Only present for role='worker' (see users.model.js
+  // attachWorkerVerificationStatus) - what AppShell.jsx keys the
+  // restricted (Help+Logout only) onboarding nav off of.
+  verificationStatus: z.enum(VERIFICATION_STATUSES).nullable().optional(),
   // Reversible (Settings -> Deactivate account, cleared automatically the
   // next time this user logs in) vs. deletedAt, which never clears - see
   // users.model.js anonymize.

@@ -300,6 +300,26 @@ _Last updated: 2026-09-27 — Signup bug fix: `auth.model.js` `createUser` no lo
 | `schemas/verificationDocument.schema.js` | `WorkerApplyInputSchema` shrunk to just `{bio}` - district/services now save earlier via `WorkerOnboardingWorkInputSchema`, documents ride as multipart files, not JSON |
 | `schemas/service.schema.js` | `ServiceSchema` gains `minPrice`/`maxPrice` (nullable - the admin-set price-band hint); new `DistrictSchema` |
 | `schemas/booking.schema.js` | `BookingSchema`/`BookingCreateInputSchema`/`InstantBookingCreateInputSchema` all gain nullable `district` |
+| `schemas/user.schema.js` | `UserSchema` gains `verificationStatus` (nullable, worker-only - see `users.model.js attachWorkerVerificationStatus`) |
+
+## apps/api (worker signup polish round, 2026-09-27)
+| File | Purpose |
+|---|---|
+| `src/db/migrations/042_districts_is_active.sql` | New - `districts.is_active` (default true), so a district row can be seeded ahead of launch without appearing in `GET /workers/catalog/districts` until an admin flips it on (no admin UI for that yet - just the data model) |
+| `src/modules/workers/workers.model.js` (`listDistricts`) | Filters to `is_active = true` |
+| `src/modules/users/users.model.js` (`attachWorkerVerificationStatus`) | New - same conditional-join pattern `attachAdminDepartments` already uses, joining `worker_profiles.verification_status` onto every worker's `findById`/`getMe` response. What `AppShell.jsx` keys its restricted-nav decision off of, instead of a route check |
+
+## apps/web (worker signup polish round, 2026-09-27)
+| File | Purpose |
+|---|---|
+| `src/components/AuthBackdrop.jsx` | New - the photo/gradient-wash/bottom-fade background layers factored out of `AuthScreen.jsx`, so the worker-onboarding flow (`WorkerApply.jsx`) can reuse the exact same visual treatment while still living inside `AppShell` (unlike `AuthScreen`, which owns the whole viewport with no nav chrome) |
+| `src/components/AuthScreen.jsx` | Now renders the Sajilo Bazar wordmark at the top of the card (tappable, navigates to `/`) and uses `AuthBackdrop` |
+| `src/components/Reveal.jsx` | New - gentle scroll-in-view fade+slide wrapper (`framer-motion`'s `whileInView`, `viewport={{once:true}}`, skips entirely under `prefers-reduced-motion`) used by the Landing page's sections |
+| `src/screens/Landing/Landing.jsx` | Hero's mobile crop (`object-position`) fixed so both people in the photo are visible (was cropping the second person off almost entirely); hero gains the same bottom gradient-fade treatment; `IdeaSection`/`HowItWorks`/`TrustSafety`/`About` each wrapped in `Reveal` |
+| `src/screens/WorkerApply/WorkerApply.jsx` | Onboarding Steps 2-5 now render on the same photo/gradient/glass-card background as Login/Signup (via `AuthBackdrop`, inside a local `OnboardingBackdrop` wrapper) instead of a plain surface, plus the wordmark at the top of the card - `AppShell`'s nav chrome stays visible around it |
+| `src/components/AppShell.jsx` | Restricted (Help+Logout-only) nav during onboarding now keyed off `user.verificationStatus !== 'approved'` instead of `location.pathname.startsWith('/worker/apply')` - fixes a leak where opening Help from the restricted nav showed the full Dashboard/Jobs/Alerts/Menu bar, since `/help` itself doesn't match that route prefix. Also: `!user` now redirects to `/` (was `/login`) |
+| `src/components/ProtectedRoute.jsx` | Same `!user` → `/` change, for every non-AppShell protected route |
+| `src/context/AuthContext.jsx` | `logout()` comment clarifies it doesn't navigate itself - clearing `user` is what triggers AppShell/ProtectedRoute's own `/` redirect |
 
 ## docs
 | File | Purpose |

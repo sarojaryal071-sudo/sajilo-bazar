@@ -5,6 +5,7 @@ import { Card } from '../../components/Card.jsx';
 import { Button } from '../../components/Button.jsx';
 import { FullScreenSpinner } from '../../components/Skeleton.jsx';
 import { Wordmark } from '../../components/Wordmark.jsx';
+import { Reveal } from '../../components/Reveal.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 
 const NAV_LINKS = [
@@ -181,10 +182,13 @@ function Hero() {
           src="/images/hero-mobile.webp"
           alt="A Sajilo Bazar worker and customer looking at a booking together on a phone"
           fetchpriority="high"
-          className="absolute inset-0 h-full w-full object-cover object-[50%_35%] sm:object-center"
+          className="absolute inset-0 h-full w-full object-cover object-[85%_35%] sm:object-center"
         />
       </picture>
       <div className="pointer-events-none absolute inset-0" style={HERO_OVERLAY} />
+      {/* Fades the bottom of the hero into the page's own background color
+          instead of a hard cutoff where the section ends. */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-b from-transparent to-surface" />
 
       <div className="relative z-10 mx-auto flex max-w-3xl flex-col items-center gap-6 px-5 py-20 text-center">
         <motion.h1
@@ -218,12 +222,14 @@ function Hero() {
 function IdeaSection() {
   return (
     <section className="mx-auto max-w-2xl px-5 py-16 text-center">
-      <p className="text-lg leading-relaxed text-text-muted">
-        Getting help done has always relied on word-of-mouth and waiting
-        around. And the people with the skills to help rarely have a steady
-        way to be found. Sajilo Bazar is the bridge between the two —
-        one place to post, get matched, and get it done.
-      </p>
+      <Reveal>
+        <p className="text-lg leading-relaxed text-text-muted">
+          Getting help done has always relied on word-of-mouth and waiting
+          around. And the people with the skills to help rarely have a steady
+          way to be found. Sajilo Bazar is the bridge between the two —
+          one place to post, get matched, and get it done.
+        </p>
+      </Reveal>
     </section>
   );
 }
@@ -232,18 +238,20 @@ function HowItWorks() {
   return (
     <section id="how-it-works" className="bg-surface-alt px-5 py-16">
       <div className="mx-auto max-w-5xl">
-        <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">How it works</h2>
-        <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {STEPS.map((step, i) => (
-            <Card key={step.text} className="flex flex-col items-start gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-brand text-text-onBrand">
-                {step.icon}
-              </div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Step {i + 1}</p>
-              <p className="font-semibold leading-snug">{step.text}</p>
-            </Card>
-          ))}
-        </div>
+        <Reveal>
+          <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">How it works</h2>
+          <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {STEPS.map((step, i) => (
+              <Card key={step.text} className="flex flex-col items-start gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-brand text-text-onBrand">
+                  {step.icon}
+                </div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Step {i + 1}</p>
+                <p className="font-semibold leading-snug">{step.text}</p>
+              </Card>
+            ))}
+          </div>
+        </Reveal>
       </div>
     </section>
   );
@@ -253,17 +261,19 @@ function TrustSafety() {
   return (
     <section id="trust-safety" className="px-5 py-16">
       <div className="mx-auto max-w-5xl">
-        <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">Trust & Safety</h2>
-        <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {TRUST_POINTS.map((point) => (
-            <Card key={point.text} className="flex flex-col items-start gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-alt text-brand-solid">
-                {point.icon}
-              </div>
-              <p className="text-sm text-text-muted">{point.text}</p>
-            </Card>
-          ))}
-        </div>
+        <Reveal>
+          <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">Trust & Safety</h2>
+          <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {TRUST_POINTS.map((point) => (
+              <Card key={point.text} className="flex flex-col items-start gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-alt text-brand-solid">
+                  {point.icon}
+                </div>
+                <p className="text-sm text-text-muted">{point.text}</p>
+              </Card>
+            ))}
+          </div>
+        </Reveal>
       </div>
     </section>
   );
@@ -272,13 +282,13 @@ function TrustSafety() {
 function About() {
   return (
     <section id="about" className="bg-surface-alt px-5 py-16 text-center">
-      <div className="mx-auto max-w-xl">
+      <Reveal className="mx-auto max-w-xl">
         <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">About</h2>
         <p className="mt-4 text-text-muted">
           Sajilo Bazar is live today and growing — new workers and new jobs
           joining every week.
         </p>
-      </div>
+      </Reveal>
     </section>
   );
 }
