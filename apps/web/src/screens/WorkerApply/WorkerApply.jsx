@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Card } from '../../components/Card.jsx';
 import { Button } from '../../components/Button.jsx';
 import { Badge } from '../../components/Badge.jsx';
+import { Avatar } from '../../components/Avatar.jsx';
 import { CategoryIcon } from '../../components/CategoryIcon.jsx';
 import { SkeletonBlock } from '../../components/Skeleton.jsx';
 import { AuthBackdrop } from '../../components/AuthBackdrop.jsx';
@@ -557,8 +558,24 @@ function FileField({ label, value, onChange }) {
 
 // Both live camera capture and gallery upload, per the spec - two
 // separate inputs writing to the same file value (no face-matching against
-// the citizenship ID; that's a backlog idea, out of scope here).
+// the citizenship ID; that's a backlog idea, out of scope here). Both
+// inputs are `hidden` (the visible "buttons" are their <label>s), which
+// means the browser never gets to render its own native selected-file
+// thumbnail the way it does for FileField's citizenship inputs above
+// (those stay visible, just styled via the `file:` pseudo-class) - so
+// this one needs its own preview, built the same way Profile.jsx's photo
+// upload eventually renders one (the Avatar component), just from a local
+// object URL since this file isn't uploaded until final submit.
 function ProfilePhotoField({ value, onChange }) {
+  const previewUrl = useMemo(() => (value ? URL.createObjectURL(value) : null), [value]);
+  // Revocation only - the URL itself is derived synchronously above so
+  // swapping files never has one stale render showing the old preview.
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-sm font-medium text-text-muted">Profile photo (required)</span>
@@ -583,7 +600,12 @@ function ProfilePhotoField({ value, onChange }) {
           />
         </label>
       </div>
-      {value && <span className="text-xs text-success">{value.name} selected</span>}
+      {value && (
+        <div className="flex items-center gap-2">
+          <Avatar imageUrl={previewUrl} name={value.name} size={40} />
+          <span className="text-xs text-success">{value.name} selected</span>
+        </div>
+      )}
     </div>
   );
 }

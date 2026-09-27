@@ -7,7 +7,17 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- interactive-widget=resizes-visual: without it, recent mobile Chrome
+         defaults to resizing the LAYOUT viewport (not just the visual one)
+         when the on-screen keyboard opens - which drags every
+         `position: fixed` element (BottomNav, HamburgerMenu, etc.) up to
+         float above the keyboard instead of staying pinned to the real
+         bottom of the screen and getting covered by it like normal
+         content. This restores that expected behavior site-wide. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-visual"
+    />
     <meta name="theme-color" content="#0d9488" />
     <meta
       name="description"
