@@ -1,14 +1,28 @@
 import { apiFetch } from './client.js';
 
-export function getServiceCatalog() {
-  return apiFetch('/workers/catalog/services');
+// category: only that category's services (with price-band hints) - the
+// onboarding pricing step (Step 2c) uses this; the plain no-arg call
+// (search's service picker, etc.) is unchanged.
+export function getServiceCatalog(category) {
+  return apiFetch(`/workers/catalog/services${category ? `?category=${encodeURIComponent(category)}` : ''}`);
 }
 
-export function search({ category, serviceId, q } = {}) {
+export function getCategories() {
+  return apiFetch('/workers/catalog/categories');
+}
+
+// Fixed, DB-seeded list (districts table) - onboarding Step 2a and the
+// customer address form's district select both read from this.
+export function getDistricts() {
+  return apiFetch('/workers/catalog/districts');
+}
+
+export function search({ category, serviceId, q, district } = {}) {
   const params = new URLSearchParams();
   if (category) params.set('category', category);
   if (serviceId) params.set('serviceId', serviceId);
   if (q) params.set('q', q);
+  if (district) params.set('district', district);
   const query = params.toString();
   return apiFetch(`/workers/search${query ? `?${query}` : ''}`);
 }
@@ -110,13 +124,20 @@ export function addService({ serviceId, price, document }) {
   return apiFetch('/workers/me/services', { method: 'POST', body: formData, isFormData: true });
 }
 
-// services: [{ serviceId, price }], documents: { citizenship: File, certificate?: File }, bio: string
-export function apply({ bio, services, documents }) {
+// Onboarding Step 2's early-save: district + chosen services/pricing,
+// saved as soon as the worker finishes the three tap-and-advance
+// sub-screens - well before documents/submit. Returns the same shape as
+// getMyWorkerData, so the caller can drive the resume-step decision off it.
+export function saveOnboardingWork({ district, services }) {
+  return apiFetch('/workers/me/onboarding/work', { method: 'PATCH', body: { district, services } });
+}
+
+// documents: { citizenshipFront, citizenshipBack, profilePhoto, skillCertificate? } (Files), bio: string
+export function apply({ bio, documents }) {
   const formData = new FormData();
   if (bio) formData.append('bio', bio);
-  formData.append('services', JSON.stringify(services));
-  for (const [docType, file] of Object.entries(documents)) {
-    if (file) formData.append(docType, file);
+  for (const [field, file] of Object.entries(documents)) {
+    if (file) formData.append(field, file);
   }
   return apiFetch('/workers/apply', { method: 'POST', body: formData, isFormData: true });
 }

@@ -3,6 +3,8 @@ import { uploadBuffer } from '../../lib/cloudinary.js';
 import * as workersModel from './workers.model.js';
 import { tierForStoredScore } from '../trustScore/trustScore.service.js';
 import { computeEffectiveOnline } from '../../lib/availability.js';
+import * as platformSettingsService from '../platformSettings/platformSettings.service.js';
+import { uploadPhoto as uploadUserPhoto } from '../users/users.service.js';
 
 // The model returns the raw stored score internally (see workers.model.js
 // toSearchResult/toWorkerDetail) - this is the one place it turns into the
@@ -13,15 +15,46 @@ function withTrustTier(worker) {
   return { ...rest, trustTier: tierForStoredScore(trustScore) };
 }
 
-export async function getServiceCatalog() {
-  return workersModel.listServiceCatalog();
+// Enriches each service with its admin-set price band ('Typical: Rs. X-Y'
+// hint on the onboarding pricing step) - null min/max when no band has
+// been set for that service id yet, rather than throwing.
+async function withPriceBands(services) {
+  const bands = await platformSettingsService.getServicePriceBands();
+  return services.map((s) => {
+    const band = bands[String(s.id)];
+    return { ...s, minPrice: band ? Number(band.min) : null, maxPrice: band ? Number(band.max) : null };
+  });
 }
 
-export async function search({ category, serviceId, q }) {
+export async function getServiceCatalog() {
+  const services = await workersModel.listServiceCatalog();
+  return withPriceBands(services);
+}
+
+// Onboarding Step 2b's category tile grid - the distinct set of categories
+// among active services, same free-text catalog searchWorkers/apply
+// already treat as the source of truth (no separate categories table).
+export async function getCategories() {
+  return workersModel.listAllCategories();
+}
+
+// Onboarding Step 2c only shows the chosen category's services - a
+// narrower, price-band-enriched slice of the same catalog.
+export async function getServicesByCategory(category) {
+  const services = await workersModel.listServicesByCategory(category);
+  return withPriceBands(services);
+}
+
+export async function getDistricts() {
+  return workersModel.listDistricts();
+}
+
+export async function search({ category, serviceId, q, district }) {
   const results = await workersModel.searchWorkers({
     category: category || null,
     serviceId: serviceId ? Number(serviceId) : null,
     q: q || null,
+    district: district || null,
   });
   return results.map(withTrustTier);
 }
@@ -214,11 +247,52 @@ export async function setTypicalResponseHours(workerId, hours) {
   return profile;
 }
 
-// The worker-apply flow: set services + pricing, upload verification documents,
-// and flip verification_status to "pending" for admin review (Phase 6).
-export async function apply(userId, { bio, services }, files) {
-  if (!files || files.length === 0) {
-    throw new ApiError(400, 'At least one verification document is required');
+// Onboarding Step 2 ("Your work"): district + chosen services/pricing,
+// saved together as soon as the worker finishes the three tap-and-advance
+// sub-screens - the resume checkpoint that lets a worker who logs back in
+// after this point skip straight to Step 3 (see getMyWorkerData/App.jsx
+// resume logic, driven off profile.district + services being non-empty).
+// A price outside its service's admin-set band is still accepted (never
+// hard-blocked here) but is saved as approval_status='pending' instead of
+// the table's 'approved' default, so it lands in the same admin
+// document-review queue a cross-category addService() request uses.
+export async function saveOnboardingWork(userId, { district, services }) {
+  const bands = await platformSettingsService.getServicePriceBands();
+  const withApproval = services.map(({ serviceId, price }) => {
+    const band = bands[String(serviceId)];
+    const outsideBand = band && (price < Number(band.min) || price > Number(band.max));
+    return { serviceId, price, approvalStatus: outsideBand ? 'pending' : 'approved' };
+  });
+
+  await workersModel.setDistrict(userId, district);
+  await workersModel.withTransaction((client) => workersModel.replaceWorkerServices(client, userId, withApproval));
+
+  return getMyWorkerData(userId);
+}
+
+const REQUIRED_APPLY_DOC_TYPES = ['citizenship_front', 'citizenship_back'];
+
+// The worker-apply flow's final step (Step 3 documents + Step 4 submit):
+// district/services were already saved by saveOnboardingWork above. This
+// uploads the identity documents, sets the profile photo (same Cloudinary
+// path Settings -> Profile photo upload uses - see users.service.js
+// uploadPhoto), and flips verification_status to "pending" for admin
+// review. skill_certificate is only required when the worker's chosen
+// category is high_risk (see workersModel.hasHighRiskService) - Step 3
+// doesn't even show the field otherwise.
+export async function apply(userId, { bio }, files, profilePhotoFile) {
+  const byType = new Map(files.map((f) => [f.docType, f]));
+  const missing = REQUIRED_APPLY_DOC_TYPES.filter((t) => !byType.has(t));
+  if (missing.length > 0) {
+    throw new ApiError(400, `Missing required document(s): ${missing.join(', ')}`);
+  }
+  if (!profilePhotoFile) {
+    throw new ApiError(400, 'A profile photo is required');
+  }
+
+  const needsSkillCertificate = await workersModel.hasHighRiskService(userId);
+  if (needsSkillCertificate && !byType.has('skill_certificate')) {
+    throw new ApiError(400, 'A skill certificate is required for this category');
   }
 
   const uploads = await Promise.all(
@@ -230,12 +304,12 @@ export async function apply(userId, { bio, services }, files) {
   );
 
   await workersModel.withTransaction(async (client) => {
-    await workersModel.replaceWorkerServices(client, userId, services);
     for (const upload of uploads) {
       await workersModel.insertDocument(client, { workerId: userId, ...upload });
     }
   });
 
+  await uploadUserPhoto(userId, profilePhotoFile);
   await workersModel.updateBio(userId, bio ?? null);
   await workersModel.setVerificationStatus(userId, 'pending');
 

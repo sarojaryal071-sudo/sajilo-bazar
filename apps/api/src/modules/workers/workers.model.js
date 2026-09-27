@@ -12,6 +12,7 @@ function toProfile(row) {
     latitude: row.latitude,
     longitude: row.longitude,
     serviceAreaLabel: row.service_area_label,
+    district: row.district,
     handle: row.handle,
     welcomedAt: row.welcomed_at,
     // Self-reported only, not computed - "usually replies within Xh" on
@@ -268,14 +269,78 @@ export async function listServiceCatalog() {
   return rows.map(toService);
 }
 
+// Every service, including inactive ones - the onboarding pricing step
+// (Step 2c) needs the full catalog for whatever category the worker just
+// picked, not just what's currently active, so a service temporarily
+// deactivated mid-review still displays sanely if already chosen. Kept
+// separate from listServiceCatalog (search/detail's public catalog) so
+// that one's is_active filter stays untouched.
+export async function listServicesByCategory(category) {
+  const { rows } = await pool.query(
+    'SELECT * FROM services WHERE category = $1 ORDER BY name',
+    [category]
+  );
+  return rows.map(toService);
+}
+
+export async function listAllCategories() {
+  const { rows } = await pool.query(
+    'SELECT DISTINCT category FROM services WHERE is_active = true ORDER BY category'
+  );
+  return rows.map((r) => r.category);
+}
+
+// approvalStatus defaults to the table's own 'approved' default when not
+// given (existing call sites) - the onboarding pricing step (Step 2c)
+// passes it explicitly per service, 'pending' when that service's price
+// falls outside its admin-set band, so it lands in the same document-
+// review queue a cross-category addService() request already uses.
 export async function replaceWorkerServices(client, workerId, services) {
   await client.query('DELETE FROM worker_services WHERE worker_id = $1', [workerId]);
-  for (const { serviceId, price } of services) {
-    await client.query(
-      'INSERT INTO worker_services (worker_id, service_id, price) VALUES ($1, $2, $3)',
-      [workerId, serviceId, price]
-    );
+  for (const { serviceId, price, approvalStatus } of services) {
+    if (approvalStatus) {
+      await client.query(
+        'INSERT INTO worker_services (worker_id, service_id, price, approval_status) VALUES ($1, $2, $3, $4)',
+        [workerId, serviceId, price, approvalStatus]
+      );
+    } else {
+      await client.query(
+        'INSERT INTO worker_services (worker_id, service_id, price) VALUES ($1, $2, $3)',
+        [workerId, serviceId, price]
+      );
+    }
   }
+}
+
+export async function setDistrict(userId, district) {
+  const { rows } = await pool.query(
+    'UPDATE worker_profiles SET district = $1, updated_at = now() WHERE user_id = $2 RETURNING *',
+    [district, userId]
+  );
+  return rows[0] ? toProfile(rows[0]) : null;
+}
+
+export async function listDistricts() {
+  const { rows } = await pool.query('SELECT id, name FROM districts ORDER BY name');
+  return rows.map((r) => ({ id: r.id, name: r.name }));
+}
+
+// Whether ANY of a worker's currently-chosen services belongs to a
+// high_risk category - the basis for requiring a skill_certificate at
+// Step 3 (a safe superset of the current all-electrical-flagged
+// convention: a worker with even one high_risk service must provide it).
+// Deliberately not restricted to approval_status='approved' - a
+// still-pending price-flagged service still counts, since the requirement
+// is about the category, not whether admin has reviewed the price yet.
+export async function hasHighRiskService(workerId) {
+  const { rows } = await pool.query(
+    `SELECT 1 FROM worker_services ws
+     JOIN services s ON s.id = ws.service_id
+     WHERE ws.worker_id = $1 AND s.high_risk = true AND ws.is_active = true
+     LIMIT 1`,
+    [workerId]
+  );
+  return rows.length > 0;
 }
 
 // The worker's own view shows every active service regardless of approval
@@ -473,7 +538,14 @@ function toSearchResult(row) {
 // workers are searchable. Final results are sorted best-rated first and
 // capped at 20, so a call with no filters at all doubles as "recommended/
 // top-rated workers" for Home's search-activation moment.
-export async function searchWorkers({ category, serviceId, q }) {
+//
+// district (worker signup round, Part B): filters by district match FIRST,
+// same as instant-broadcast matching (see bookings.model.js
+// findNearbyOnlineWorkers). Optional and additive to the pre-existing
+// filters above, not a new radius behavior - null skips it entirely, so a
+// customer with no resolvable district (no saved/default address yet)
+// still sees the same unfiltered results this endpoint always returned.
+export async function searchWorkers({ category, serviceId, q, district }) {
   const { rows } = await pool.query(
     `SELECT * FROM (
        SELECT DISTINCT ON (u.id)
@@ -494,11 +566,12 @@ export async function searchWorkers({ category, serviceId, q }) {
            OR s.name ILIKE '%' || $3 || '%'
            OR wp.service_area_label ILIKE '%' || $3 || '%'
          )
+         AND ($4::text IS NULL OR wp.district = $4)
        ORDER BY u.id, ws.price ASC
      ) matched
      ORDER BY matched.rating_avg DESC
      LIMIT 20`,
-    [category ?? null, serviceId ?? null, q ?? null]
+    [category ?? null, serviceId ?? null, q ?? null, district ?? null]
   );
   return rows.map(toSearchResult);
 }

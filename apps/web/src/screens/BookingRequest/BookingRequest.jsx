@@ -128,6 +128,7 @@ export function BookingRequest() {
         addressLabel: address.addressLabel.trim(),
         latitude: address.latitude,
         longitude: address.longitude,
+        district: address.district ?? null,
         ...(mode === 'schedule'
           ? { scheduledFor: new Date(scheduledFor).toISOString(), responseDeadlineHours }
           : {}),

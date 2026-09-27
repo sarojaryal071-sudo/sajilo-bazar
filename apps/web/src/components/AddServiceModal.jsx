@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Button } from './Button.jsx';
 import { Input } from './Input.jsx';
 import * as workersApi from '../api/workers.api.js';
+import { humanizeCategory } from '../lib/humanize.js';
 
 // catalog arrives from GET /workers/catalog/services already sorted
 // `ORDER BY category, name`, so this grouping preserves alphabetical order
@@ -27,7 +28,7 @@ function ServicePicker({ grouped, selectedId, onSelect }) {
     <div className="flex max-h-64 flex-col gap-4 overflow-y-auto pr-1">
       {categories.map((category) => (
         <div key={category}>
-          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-text-muted">{category}</p>
+          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-text-muted">{humanizeCategory(category)}</p>
           <div className="flex flex-col gap-1.5">
             {grouped[category].map((s) => {
               const selected = selectedId === s.id;

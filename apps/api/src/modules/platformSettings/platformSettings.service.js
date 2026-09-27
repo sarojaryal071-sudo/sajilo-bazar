@@ -6,7 +6,11 @@ import * as platformSettingsModel from './platformSettings.model.js';
 // the API only lets an admin touch keys it already knows about, so a
 // future setting is a migration seed row + an addition here, not a new
 // endpoint.
-export const EDITABLE_KEYS = ['fuel_base_fee', 'fuel_rate_per_km'];
+// 'service_price_bands' (worker signup round) holds one JSONB map keyed by
+// serviceId (`{ "<id>": { "min": n, "max": n } }`) rather than one row per
+// service, so a new service never needs a migration to get a band - just
+// an admin edit through this same key.
+export const EDITABLE_KEYS = ['fuel_base_fee', 'fuel_rate_per_km', 'service_price_bands'];
 
 export async function listSettings() {
   return platformSettingsModel.listSettings();
@@ -28,4 +32,15 @@ export async function getFuelPricing() {
     platformSettingsModel.getValue('fuel_rate_per_km'),
   ]);
   return { baseFee: Number(baseFee ?? 0), ratePerKm: Number(ratePerKm ?? 0) };
+}
+
+// { "<serviceId>": { min, max } } - read fresh every call, same as
+// getFuelPricing, so an admin's edit takes effect on the very next worker
+// who hits the pricing step. Used both as a display hint (workers.service.js
+// getServiceCatalog) and to decide whether a submitted price needs
+// flagging into the admin review queue (workers.service.js
+// saveOnboardingWork).
+export async function getServicePriceBands() {
+  const value = await platformSettingsModel.getValue('service_price_bands');
+  return value ?? {};
 }

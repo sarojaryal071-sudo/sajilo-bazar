@@ -17,17 +17,13 @@ export const VerificationDocumentSchema = z.object({
   createdAt: z.string().datetime().optional(),
 });
 
-// What the worker-apply flow submits in one go: chosen services + pricing, plus
-// at least one verification document. File upload itself is multipart, not JSON -
-// this schema validates the non-file fields alongside it.
+// Onboarding Step 3/4's final submit: district + services were already
+// saved earlier (see WorkerOnboardingWorkInputSchema) - this is just the
+// remaining non-file fields, submitted alongside the required document
+// files (citizenship front/back, profile photo, and skill_certificate when
+// the worker's category is high_risk - see workers.service.js apply()).
+// File upload itself is multipart, not JSON - this schema validates the
+// non-file fields alongside it.
 export const WorkerApplyInputSchema = z.object({
   bio: z.string().max(500).nullable().optional(),
-  services: z
-    .array(
-      z.object({
-        serviceId: z.number().int().positive(),
-        price: z.number().positive(),
-      })
-    )
-    .min(1),
 });

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { BottomNav } from './BottomNav.jsx';
 import { HamburgerMenu } from './HamburgerMenu.jsx';
@@ -9,12 +9,20 @@ import { FullScreenSpinner } from './Skeleton.jsx';
 // Layout for the main tabbed area - auth gate plus a persistent nav, with a
 // different tab set per role (customer: Home/Bookings, worker:
 // Dashboard/Jobs), then Alerts and a hamburger menu tab shared by both -
-// see BottomNav.jsx. The worker-apply screen stays outside this shell; it's
-// a standalone form flow, not a tab. The notification bell and hamburger
+// see BottomNav.jsx. The notification bell and hamburger
 // menu live inside BottomNav as tabs (Messenger-style), not a separate top
 // bar - a standalone bar left an unwanted gap above the content. Profile,
 // Settings, Language, Theme, and Help/Support are reachable only through
 // the hamburger menu now, not as their own bottom-nav tabs.
+//
+// /worker/apply is nested in this same shell (worker signup rework,
+// 2026-09-27) rather than kept standalone, so the onboarding flow gets the
+// same persistent nav chrome as everywhere else - just restricted to Help
+// + Logout (see BottomNav/Sidebar's `restricted` prop), since Home/
+// Bookings/Alerts/Menu don't apply to a not-yet-verified worker. Being on
+// that route at all is proof of not-yet-verified (ProtectedRoute +
+// resolvePostAuthPath already gate normal navigation there), so this is a
+// pure route check - no extra verificationStatus fetch needed.
 //
 // Desktop widths (Piece C, 2026-09-27): a fixed bottom tab bar and a
 // slide-out overlay menu are mobile patterns that make no sense once
@@ -34,17 +42,19 @@ import { FullScreenSpinner } from './Skeleton.jsx';
 export function AppShell() {
   const { user, loading } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const location = useLocation();
+  const restricted = location.pathname.startsWith('/worker/apply');
 
   if (loading) return <FullScreenSpinner />;
   if (!user) return <Navigate to="/login" replace />;
 
   return (
     <div className="flex min-h-dvh flex-col lg:flex-row">
-      <Sidebar role={user.role} />
+      <Sidebar role={user.role} restricted={restricted} />
       <div className="flex flex-1 flex-col pb-20 lg:pb-0">
         <Outlet />
       </div>
-      <BottomNav role={user.role} onOpenMenu={() => setMenuOpen(true)} />
+      <BottomNav role={user.role} onOpenMenu={() => setMenuOpen(true)} restricted={restricted} />
       <HamburgerMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
     </div>
   );

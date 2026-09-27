@@ -10,6 +10,7 @@ import { VerifiedBadge } from '../../components/VerifiedBadge.jsx';
 import { TrustBadge } from '../../components/TrustBadge.jsx';
 import { PortfolioGallery } from '../../components/PortfolioGallery.jsx';
 import * as workersApi from '../../api/workers.api.js';
+import { humanizeCategory } from '../../lib/humanize.js';
 
 function StarIcon() {
   return (
@@ -150,7 +151,7 @@ export function WorkerDetail() {
               />
               <div className="min-w-0 flex-1">
                 <p className="font-medium">{service.name}</p>
-                <p className="text-xs capitalize text-text-muted">{service.category}</p>
+                <p className="text-xs text-text-muted">{humanizeCategory(service.category)}</p>
               </div>
               <p className="shrink-0 font-semibold">Rs. {service.price}</p>
             </Card>

@@ -10,6 +10,7 @@ import { CategoryIcon } from '../../components/CategoryIcon.jsx';
 import { TrustMeter } from '../../components/TrustMeter.jsx';
 import { PortfolioItemModal } from '../../components/PortfolioItemModal.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { humanizeCategory } from '../../lib/humanize.js';
 import * as usersApi from '../../api/users.api.js';
 import * as workersApi from '../../api/workers.api.js';
 import * as trustScoreApi from '../../api/trustScore.api.js';
@@ -305,7 +306,7 @@ export function Profile() {
                     )}
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium">{item.title}</p>
-                      <p className="text-xs capitalize text-text-muted">{item.category}</p>
+                      <p className="text-xs text-text-muted">{humanizeCategory(item.category)}</p>
                     </div>
                     <div className="flex shrink-0 flex-col items-center gap-0.5 text-text-muted">
                       <button
@@ -371,7 +372,7 @@ export function Profile() {
             {workerData.documents.map((doc) => (
               <div key={doc.id}>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="capitalize text-text-muted">{doc.docType}</span>
+                  <span className="text-text-muted">{humanizeCategory(doc.docType)}</span>
                   <Badge tone={DOC_STATUS_TONE[doc.status] ?? 'neutral'}>{doc.status}</Badge>
                 </div>
                 {doc.status === 'rejected' && doc.reviewComment && (

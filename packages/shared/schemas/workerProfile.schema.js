@@ -15,6 +15,12 @@ export const WorkerProfileSchema = z.object({
   latitude: z.number().nullable().optional(),
   longitude: z.number().nullable().optional(),
   serviceAreaLabel: z.string().max(120).nullable().optional(), // e.g. "Baneshwor, Kathmandu"
+  // Chosen at onboarding Step 2a from the fixed, DB-seeded districts list
+  // (see districts table / GET /districts) - null until then, since the
+  // worker_profiles row is created at signup, before onboarding runs.
+  // Booking-matching filters by this before radius (see bookings.model.js
+  // findNearbyOnlineWorkers / workers.model.js searchWorkers).
+  district: z.string().max(60).nullable().optional(),
   // Auto-generated once first approved (e.g. "PL042") - null before then.
   handle: z.string().max(10).nullable().optional(),
   // Null until the one-time post-approval welcome moment has been shown.
@@ -55,6 +61,25 @@ export const WorkerServiceSchema = z.object({
 export const WorkerAddServiceInputSchema = z.object({
   serviceId: z.number().int().positive(),
   price: z.number().positive(),
+});
+
+// Onboarding Step 2 ("Your work"): district + chosen services/pricing,
+// saved together as soon as the worker finishes the three tap-and-advance
+// sub-screens (2a district, 2b category, 2c services & pricing) - well
+// before Step 3's documents or Step 4's final submit. This is the one new
+// persistence checkpoint the resume behavior needs: a worker who logs back
+// in after this point but before finishing Step 3/4 resumes straight into
+// documents, not back at district/category/services.
+export const WorkerOnboardingWorkInputSchema = z.object({
+  district: z.string().min(2).max(60),
+  services: z
+    .array(
+      z.object({
+        serviceId: z.number().int().positive(),
+        price: z.number().positive(),
+      })
+    )
+    .min(1),
 });
 
 export const WorkerDescriptionInputSchema = z.object({

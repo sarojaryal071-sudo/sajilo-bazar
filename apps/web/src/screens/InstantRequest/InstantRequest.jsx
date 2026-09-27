@@ -7,6 +7,7 @@ import { AddressPicker } from '../../components/AddressPicker.jsx';
 import * as workersApi from '../../api/workers.api.js';
 import * as bookingsApi from '../../api/bookings.api.js';
 import { getCurrentLocation } from '../../lib/geolocation.js';
+import { humanizeCategory } from '../../lib/humanize.js';
 
 export function InstantRequest() {
   const navigate = useNavigate();
@@ -60,6 +61,7 @@ export function InstantRequest() {
         addressLabel: address.addressLabel.trim(),
         latitude,
         longitude,
+        district: address.district ?? null,
       });
       navigate(`/booking/${booking.id}`, { replace: true });
     } catch (err) {
@@ -85,7 +87,7 @@ export function InstantRequest() {
       <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
         {categories?.map(([category, services]) => (
           <div key={category}>
-            <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-text-muted">{category}</p>
+            <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-text-muted">{humanizeCategory(category)}</p>
             <div className="flex flex-col gap-2">
               {services.map((service) => {
                 const selected = selectedIds.includes(service.id);

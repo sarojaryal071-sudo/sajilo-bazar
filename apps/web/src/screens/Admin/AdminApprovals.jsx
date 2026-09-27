@@ -3,6 +3,7 @@ import { Card } from '../../components/Card.jsx';
 import { Badge } from '../../components/Badge.jsx';
 import { Button } from '../../components/Button.jsx';
 import { timeAgo } from '../../lib/timeAgo.js';
+import { humanizeCategory } from '../../lib/humanize.js';
 import * as adminApi from '../../api/admin.api.js';
 
 function ApprovalRow({ item, onDecide }) {
@@ -49,7 +50,7 @@ function ApprovalRow({ item, onDecide }) {
           </p>
         ) : (
           <p className="mt-1 text-sm text-text-muted">
-            {item.serviceName} ({item.category}) &middot; Rs. {item.price}
+            {item.serviceName} ({humanizeCategory(item.category)}) &middot; Rs. {item.price}
             {item.highRisk && (
               <>
                 {' '}

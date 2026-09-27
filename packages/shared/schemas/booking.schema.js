@@ -45,6 +45,10 @@ export const BookingSchema = z.object({
   addressLabel: z.string().max(200),
   latitude: z.number().nullable().optional(),
   longitude: z.number().nullable().optional(),
+  // Snapshotted from the picked address at booking time (district-based
+  // matching, Part B) - null when that address never resolved to one (a
+  // freeform "one-off" AddressPicker entry with no district chosen).
+  district: z.string().max(60).nullable().optional(),
   cancelledBy: z.number().int().positive().nullable().optional(),
   cancelReason: z.string().max(300).nullable().optional(),
   // Scheduled booking only (business plan §13) - both null for an urgent
@@ -86,6 +90,10 @@ export const BookingCreateInputSchema = z
     addressLabel: z.string().min(3).max(200),
     latitude: z.number().nullable().optional(),
     longitude: z.number().nullable().optional(),
+    // The picked address's district, when known (see AddressPicker.jsx) -
+    // used to district-filter matching before radius (Part B). Optional/
+    // nullable since a freeform one-off address may not have one.
+    district: z.string().max(60).nullable().optional(),
     scheduledFor: z.string().datetime().optional(),
     responseDeadlineHours: z
       .number()
@@ -125,6 +133,7 @@ export const InstantBookingCreateInputSchema = z.object({
   addressLabel: z.string().min(3).max(200),
   latitude: z.number(),
   longitude: z.number(),
+  district: z.string().max(60).nullable().optional(),
 });
 
 // Self-service "Report a problem" on a booking's own detail screen - the

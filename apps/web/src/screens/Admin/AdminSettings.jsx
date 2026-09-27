@@ -100,14 +100,20 @@ export function AdminSettings() {
       {!settings && !error && <p className="mt-4 text-sm text-text-muted">Loading...</p>}
 
       <div className="mt-4 flex max-w-md flex-col gap-4">
-        {settings?.map((setting) => (
-          <SettingEditor
-            key={setting.key}
-            setting={setting}
-            busy={busyKey === setting.key}
-            onSave={(value) => handleSave(setting.key, value)}
-          />
-        ))}
+        {settings
+          // service_price_bands is a JSONB map (one row per service id), not
+          // a plain number - it doesn't fit this generic numeric-value
+          // editor, so it's edited per-service instead, from Admin ->
+          // Categories, right next to the service it belongs to.
+          ?.filter((setting) => setting.key !== 'service_price_bands')
+          .map((setting) => (
+            <SettingEditor
+              key={setting.key}
+              setting={setting}
+              busy={busyKey === setting.key}
+              onSave={(value) => handleSave(setting.key, value)}
+            />
+          ))}
       </div>
     </div>
   );
