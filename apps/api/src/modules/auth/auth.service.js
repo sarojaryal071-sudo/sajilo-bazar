@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { OAuth2Client } from 'google-auth-library';
 import { ApiError } from '../../middleware/error.middleware.js';
 import * as authModel from './auth.model.js';
+import { attachWorkerVerificationStatus } from '../users/users.model.js';
 
 const SALT_ROUNDS = 10;
 
@@ -62,7 +63,9 @@ export async function signup({ fullName, phone, email, password, role }) {
   }
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-  const user = await authModel.createUser({ fullName, phone, email, passwordHash, role });
+  const user = await attachWorkerVerificationStatus(
+    await authModel.createUser({ fullName, phone, email, passwordHash, role })
+  );
   return { token: issueToken(user), user };
 }
 
@@ -77,7 +80,12 @@ export async function login({ phone, password, keepLoggedIn }) {
   if (!valid) throw new ApiError(401, 'Invalid phone number or password');
 
   const { passwordHash, ...safeUser } = await assertLoginAllowedAndReactivate(user);
-  return { token: issueToken(safeUser, { keepLoggedIn }), user: safeUser };
+  // AppShell's restricted-onboarding-nav gate reads verificationStatus
+  // straight off this response (see AppShell.jsx) - a worker resuming
+  // onboarding via login, not just getMe(), needs it here too, or the
+  // full nav leaks until the next refetch.
+  const withStatus = await attachWorkerVerificationStatus(safeUser);
+  return { token: issueToken(withStatus, { keepLoggedIn }), user: withStatus };
 }
 
 // Verifies the Google ID token server-side (never trusts a client-supplied
@@ -100,7 +108,7 @@ export async function googleAuth({ idToken }) {
 
   const byGoogleId = await authModel.findByGoogleId(googleId);
   if (byGoogleId) {
-    const activeUser = await assertLoginAllowedAndReactivate(byGoogleId);
+    const activeUser = await attachWorkerVerificationStatus(await assertLoginAllowedAndReactivate(byGoogleId));
     return { token: issueToken(activeUser), user: activeUser };
   }
 
@@ -108,7 +116,7 @@ export async function googleAuth({ idToken }) {
     const byEmail = await authModel.findByEmail(email);
     if (byEmail) {
       const linked = await authModel.linkGoogleId(byEmail.id, googleId);
-      const activeUser = await assertLoginAllowedAndReactivate(linked);
+      const activeUser = await attachWorkerVerificationStatus(await assertLoginAllowedAndReactivate(linked));
       return { token: issueToken(activeUser), user: activeUser };
     }
   }
@@ -137,13 +145,15 @@ export async function completeGoogleSignup({ pendingToken, phone, role }) {
   const existingGoogleId = await authModel.findByGoogleId(claims.googleId);
   if (existingGoogleId) throw new ApiError(409, 'This Google account is already linked to a Sajilo Bazar account');
 
-  const user = await authModel.createUser({
-    fullName: claims.fullName || 'Sajilo Bazar user',
-    phone,
-    email: claims.email,
-    role,
-    googleId: claims.googleId,
-  });
+  const user = await attachWorkerVerificationStatus(
+    await authModel.createUser({
+      fullName: claims.fullName || 'Sajilo Bazar user',
+      phone,
+      email: claims.email,
+      role,
+      googleId: claims.googleId,
+    })
+  );
   return { token: issueToken(user), user };
 }
 
@@ -160,6 +170,6 @@ export async function forgotPassword({ phone, newPassword }) {
   // Logs the user straight in after the reset - a second manual login
   // immediately after setting the password they just chose would be
   // needless friction.
-  const activeUser = await assertLoginAllowedAndReactivate(user);
+  const activeUser = await attachWorkerVerificationStatus(await assertLoginAllowedAndReactivate(user));
   return { token: issueToken(activeUser), user: activeUser };
 }

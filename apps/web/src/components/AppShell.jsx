@@ -61,7 +61,7 @@ export function AppShell() {
         <Outlet />
       </div>
       <BottomNav role={user.role} onOpenMenu={() => setMenuOpen(true)} restricted={restricted} />
-      <HamburgerMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
+      <HamburgerMenu open={menuOpen} onClose={() => setMenuOpen(false)} restricted={restricted} />
     </div>
   );
 }
