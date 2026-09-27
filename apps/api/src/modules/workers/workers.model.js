@@ -320,8 +320,12 @@ export async function setDistrict(userId, district) {
   return rows[0] ? toProfile(rows[0]) : null;
 }
 
+// Only districts an admin has actually launched - a district row can exist
+// ahead of time (seeded for a future launch) without being selectable yet.
 export async function listDistricts() {
-  const { rows } = await pool.query('SELECT id, name FROM districts ORDER BY name');
+  const { rows } = await pool.query(
+    'SELECT id, name FROM districts WHERE is_active = true ORDER BY name'
+  );
   return rows.map((r) => ({ id: r.id, name: r.name }));
 }
 

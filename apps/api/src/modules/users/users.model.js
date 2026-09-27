@@ -31,10 +31,26 @@ async function attachAdminDepartments(user) {
   return { ...user, departments: rows.map((r) => r.department) };
 }
 
+// Only role='worker' accounts have a worker_profiles row - same
+// wasted-query-for-most-calls reasoning as attachAdminDepartments above.
+// This is what AppShell.jsx uses to decide the restricted (Help+Logout
+// only) nav during onboarding: keying it off this status rather than the
+// current route means every screen a not-yet-verified worker can reach
+// (including Help/Support) gets the restricted nav, not just /worker/apply
+// itself.
+async function attachWorkerVerificationStatus(user) {
+  if (user.role !== 'worker') return user;
+  const { rows } = await pool.query('SELECT verification_status FROM worker_profiles WHERE user_id = $1', [
+    user.id,
+  ]);
+  return { ...user, verificationStatus: rows[0]?.verification_status ?? null };
+}
+
 export async function findById(id) {
   const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
   if (!rows[0]) return null;
-  return attachAdminDepartments(toUser(rows[0]));
+  const user = await attachAdminDepartments(toUser(rows[0]));
+  return attachWorkerVerificationStatus(user);
 }
 
 export async function updateProfile(id, { fullName, email, profileImageUrl }) {

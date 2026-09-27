@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { BottomNav } from './BottomNav.jsx';
 import { HamburgerMenu } from './HamburgerMenu.jsx';
@@ -19,10 +19,15 @@ import { FullScreenSpinner } from './Skeleton.jsx';
 // 2026-09-27) rather than kept standalone, so the onboarding flow gets the
 // same persistent nav chrome as everywhere else - just restricted to Help
 // + Logout (see BottomNav/Sidebar's `restricted` prop), since Home/
-// Bookings/Alerts/Menu don't apply to a not-yet-verified worker. Being on
-// that route at all is proof of not-yet-verified (ProtectedRoute +
-// resolvePostAuthPath already gate normal navigation there), so this is a
-// pure route check - no extra verificationStatus fetch needed.
+// Bookings/Alerts/Menu don't apply to a not-yet-verified worker.
+//
+// Keyed off `user.verificationStatus` (not the current route) - a route
+// check alone missed every OTHER AppShell-wrapped screen a not-yet-
+// verified worker can reach from the restricted nav itself, e.g. Help
+// leaking the full Dashboard/Jobs/Alerts/Menu bar once opened. Comes for
+// free on every `user` (see users.model.js `attachWorkerVerificationStatus`,
+// the same conditional-join pattern `attachAdminDepartments` already
+// uses) - no extra fetch here.
 //
 // Desktop widths (Piece C, 2026-09-27): a fixed bottom tab bar and a
 // slide-out overlay menu are mobile patterns that make no sense once
@@ -42,11 +47,12 @@ import { FullScreenSpinner } from './Skeleton.jsx';
 export function AppShell() {
   const { user, loading } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-  const location = useLocation();
-  const restricted = location.pathname.startsWith('/worker/apply');
+  const restricted = user?.role === 'worker' && user.verificationStatus && user.verificationStatus !== 'approved';
 
   if (loading) return <FullScreenSpinner />;
-  if (!user) return <Navigate to="/login" replace />;
+  // Also where a logout lands (see AuthContext.jsx logout) - the landing
+  // page, not straight into the login form.
+  if (!user) return <Navigate to="/" replace />;
 
   return (
     <div className="flex min-h-dvh flex-col lg:flex-row">
