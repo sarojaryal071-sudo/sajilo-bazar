@@ -13,6 +13,11 @@ export function search({ category, serviceId, q } = {}) {
   return apiFetch(`/workers/search${query ? `?${query}` : ''}`);
 }
 
+// pool: 'top_rated' | 'new_workers' - Home's two featured-worker rows.
+export function getFeatured(pool) {
+  return apiFetch(`/workers/featured?pool=${pool}`);
+}
+
 export function getDetail(userId) {
   return apiFetch(`/workers/${userId}`);
 }

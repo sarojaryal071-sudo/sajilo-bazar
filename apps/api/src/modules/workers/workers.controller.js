@@ -30,6 +30,21 @@ export async function search(req, res, next) {
   }
 }
 
+const VALID_FEATURED_POOLS = new Set(['top_rated', 'new_workers']);
+
+export async function getFeatured(req, res, next) {
+  try {
+    const { pool } = req.query;
+    if (!VALID_FEATURED_POOLS.has(pool)) {
+      return next(new ApiError(400, 'Invalid pool'));
+    }
+    const workers = await workersService.getFeatured(pool);
+    res.json({ workers });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getDetail(req, res, next) {
   try {
     const userId = Number(req.params.id);

@@ -7,6 +7,7 @@ import { Avatar } from '../../components/Avatar.jsx';
 import { CategoryIcon } from '../../components/CategoryIcon.jsx';
 import { WorkerCard } from '../../components/WorkerCard.jsx';
 import { PromotionCarousel } from '../../components/PromotionCarousel.jsx';
+import { FeaturedWorkersRow } from '../../components/FeaturedWorkersRow.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import * as workersApi from '../../api/workers.api.js';
 import * as publicationsApi from '../../api/publications.api.js';
@@ -125,6 +126,8 @@ export function Home() {
       </div>
 
       <PromotionCarousel promotions={promotions} />
+      <FeaturedWorkersRow title="Top Rated Workers" pool="top_rated" badge="trust" />
+      <FeaturedWorkersRow title="New to Sajilo Bazar" pool="new_workers" badge="new" />
 
       {!searchActive ? (
         <motion.div

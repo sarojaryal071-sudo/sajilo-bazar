@@ -12,6 +12,7 @@ export const workersRoutes = Router();
 
 workersRoutes.get('/catalog/services', workersController.getServiceCatalog);
 workersRoutes.get('/search', workersController.search);
+workersRoutes.get('/featured', requireAuth, workersController.getFeatured);
 workersRoutes.get('/me', requireAuth, requireRole('worker'), workersController.getMe);
 workersRoutes.patch('/me/welcome', requireAuth, requireRole('worker'), workersController.ackWelcome);
 workersRoutes.post(

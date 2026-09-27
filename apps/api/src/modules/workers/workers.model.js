@@ -595,6 +595,81 @@ export async function findApprovedWorkerDetail(userId) {
   return toWorkerDetail(rows[0], services.rows, reviewData, portfolioItems);
 }
 
+// ---- Home featured rows (2026-09-27) ----
+
+const FEATURED_SAMPLE_SIZE = 6;
+
+function toFeaturedWorker(row) {
+  return {
+    userId: row.user_id,
+    fullName: row.full_name,
+    handle: row.handle,
+    profileImageUrl: row.profile_image_url,
+    category: row.category,
+    // Raw score - see toSearchResult above, same reasoning (workers.service.js
+    // strips this down to trustTier before it reaches a customer).
+    trustScore: row.trust_score === null ? null : Number(row.trust_score),
+  };
+}
+
+// One worker's earliest-approved-and-active service category, for the
+// featured card's subtitle - same join shape searchWorkers already uses,
+// just without picking a specific service/price.
+const FEATURED_CATEGORY_JOIN = `
+  LEFT JOIN LATERAL (
+    SELECT s.category FROM worker_services ws
+    JOIN services s ON s.id = ws.service_id AND s.is_active = true
+    WHERE ws.worker_id = u.id AND ws.is_active = true AND ws.approval_status = 'approved'
+    ORDER BY ws.id ASC LIMIT 1
+  ) sc ON true
+`;
+
+// Random up-to-6 sample of approved "Highly Trusted" (trust_score >= 80)
+// workers - Home's "Top Rated Workers" row. Plain ORDER BY RANDOM() per
+// spec (no weighting needed) - the client re-polls this every 30s so every
+// eligible worker gets fair rotation over time rather than caching/ranking
+// a fixed top-N here.
+export async function listFeaturedTopRated() {
+  const { rows } = await pool.query(
+    `SELECT u.id AS user_id, u.full_name, wp.handle, u.profile_image_url, wp.trust_score, sc.category
+     FROM users u
+     JOIN worker_profiles wp ON wp.user_id = u.id
+     ${FEATURED_CATEGORY_JOIN}
+     WHERE wp.verification_status = 'approved'
+       AND u.deactivated_at IS NULL AND u.deleted_at IS NULL
+       AND wp.trust_score >= 80
+     ORDER BY RANDOM()
+     LIMIT ${FEATURED_SAMPLE_SIZE}`
+  );
+  return rows.map(toFeaturedWorker);
+}
+
+// Random up-to-6 sample of approved workers within their first 30 days
+// (the same window as the trust-score grace period - see
+// trustScore.service.js GRACE_PERIOD_DAYS) with zero at-fault disputes ever
+// recorded against them - Home's "New to Sajilo Bazar" row. Naturally
+// disjoint from the Top Rated pool: a worker still in the grace period
+// always has trust_score IS NULL, never >= 80.
+export async function listFeaturedNewWorkers() {
+  const { rows } = await pool.query(
+    `SELECT u.id AS user_id, u.full_name, wp.handle, u.profile_image_url, wp.trust_score, sc.category
+     FROM users u
+     JOIN worker_profiles wp ON wp.user_id = u.id
+     ${FEATURED_CATEGORY_JOIN}
+     WHERE wp.verification_status = 'approved'
+       AND u.deactivated_at IS NULL AND u.deleted_at IS NULL
+       AND wp.approved_at >= now() - INTERVAL '30 days'
+       AND NOT EXISTS (
+         SELECT 1 FROM disputes d
+         JOIN bookings b ON b.id = d.booking_id
+         WHERE b.worker_id = u.id AND d.at_fault = 'worker'
+       )
+     ORDER BY RANDOM()
+     LIMIT ${FEATURED_SAMPLE_SIZE}`
+  );
+  return rows.map(toFeaturedWorker);
+}
+
 export const withTransaction = async (fn) => {
   const client = await pool.connect();
   try {
