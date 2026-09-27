@@ -279,18 +279,23 @@ export function WorkerApply() {
         <div>
           <h1 className="text-xl font-bold">Where do you work?</h1>
           <p className="mt-1 text-text-muted">Choose your district. You'll only be matched with bookings there.</p>
-          <div className="mt-6 flex flex-col gap-2">
-            {districts.map((d) => (
-              <Card
-                key={d.id}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => selectDistrict(d.name)}
-                className="cursor-pointer text-left"
-              >
-                <p className="font-semibold">{d.name}</p>
-              </Card>
-            ))}
-          </div>
+          <label className="mt-6 flex flex-col gap-1.5 text-sm font-medium text-text-muted">
+            District
+            <select
+              value={district}
+              onChange={(e) => selectDistrict(e.target.value)}
+              className="rounded-md border border-border bg-surface px-4 py-3 text-base text-text outline-none focus:border-brand-solid"
+            >
+              <option value="" disabled>
+                Select your district
+              </option>
+              {districts.map((d) => (
+                <option key={d.id} value={d.name}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
       )}
 

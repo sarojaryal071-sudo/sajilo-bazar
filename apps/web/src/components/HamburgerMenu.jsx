@@ -45,7 +45,21 @@ export function LogoutIcon() {
   );
 }
 
-export function HamburgerMenu({ open, onClose }) {
+export function HelpIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="12" r="9" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.9.4-1.5 1-1.5 2.2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12 17.5h.01" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// restricted: same onboarding-incomplete gate as BottomNav (see
+// AppShell.jsx) - a not-yet-verified worker gets Help + Logout only here
+// too, so the drawer never shows Earnings/Profile/Settings before there's
+// anything behind them to view.
+export function HamburgerMenu({ open, onClose, restricted }) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { t } = useLanguage();
@@ -95,29 +109,41 @@ export function HamburgerMenu({ open, onClose }) {
                 BottomNav.jsx CUSTOMER_TABS/WORKER_TABS). This menu only
                 holds what isn't reachable from the tab bar. */}
             <div className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
-              {isWorker && (
+              {restricted ? (
                 <button
-                  onClick={() => go('/worker/earnings')}
+                  onClick={() => go('/help')}
                   className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-surface-alt"
                 >
-                  <EarningsIcon />
-                  <span className="flex-1">Earnings</span>
+                  <HelpIcon />
+                  <span className="flex-1">Help</span>
                 </button>
+              ) : (
+                <>
+                  {isWorker && (
+                    <button
+                      onClick={() => go('/worker/earnings')}
+                      className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-surface-alt"
+                    >
+                      <EarningsIcon />
+                      <span className="flex-1">Earnings</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => go('/profile')}
+                    className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-surface-alt"
+                  >
+                    <ProfileIcon />
+                    <span className="flex-1">{t('menu.profile')}</span>
+                  </button>
+                  <button
+                    onClick={() => go('/settings')}
+                    className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-surface-alt"
+                  >
+                    <SettingsIcon />
+                    <span className="flex-1">{t('menu.settings')}</span>
+                  </button>
+                </>
               )}
-              <button
-                onClick={() => go('/profile')}
-                className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-surface-alt"
-              >
-                <ProfileIcon />
-                <span className="flex-1">{t('menu.profile')}</span>
-              </button>
-              <button
-                onClick={() => go('/settings')}
-                className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium hover:bg-surface-alt"
-              >
-                <SettingsIcon />
-                <span className="flex-1">{t('menu.settings')}</span>
-              </button>
             </div>
 
             <div className="border-t border-border p-3">

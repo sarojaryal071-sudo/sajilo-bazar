@@ -38,7 +38,7 @@ async function attachAdminDepartments(user) {
 // current route means every screen a not-yet-verified worker can reach
 // (including Help/Support) gets the restricted nav, not just /worker/apply
 // itself.
-async function attachWorkerVerificationStatus(user) {
+export async function attachWorkerVerificationStatus(user) {
   if (user.role !== 'worker') return user;
   const { rows } = await pool.query('SELECT verification_status FROM worker_profiles WHERE user_id = $1', [
     user.id,
