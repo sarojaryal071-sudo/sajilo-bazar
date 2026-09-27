@@ -120,6 +120,21 @@ function parseId(req) {
   return id;
 }
 
+// Streams a verification document's bytes through this server - the
+// client never sees the underlying Cloudinary URL (see admin.service.js
+// getDocumentFile). private/no-store so the browser doesn't cache a
+// document image somewhere it could linger.
+export async function streamDocument(req, res, next) {
+  try {
+    const { buffer, contentType } = await adminService.getDocumentFile(parseId(req));
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.send(buffer);
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function approveDocument(req, res, next) {
   try {
     const document = await adminService.decideDocument(parseId(req), req.user.id, 'approve');

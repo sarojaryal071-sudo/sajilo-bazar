@@ -258,34 +258,47 @@ export function AdminShell() {
   const visibleGroups = getVisibleNavGroups(access);
 
   return (
-    <div className="flex min-h-dvh">
-      <aside className="flex w-56 shrink-0 flex-col overflow-y-auto border-r border-border bg-surface-raised px-3 py-6">
-        <p className="px-3 pb-6 text-lg font-bold">Sajilo Bazar</p>
-        <nav className="flex flex-1 flex-col gap-4">
-          {visibleGroups.map((group) => (
-            <div key={group.key} className="flex flex-col gap-1">
-              {group.label && (
-                <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-text-muted">
-                  {group.label}
-                </p>
-              )}
-              {group.items.map((item) => (
-                <NavItemLink key={item.to} {...item} />
-              ))}
-            </div>
-          ))}
-          {access.isSuperAdmin && (
-            <div className="mt-2 border-t border-border pt-3">
-              <NavItemLink {...SETTINGS_ITEM} />
-            </div>
-          )}
-        </nav>
-        <button
-          onClick={logout}
-          className="rounded-lg px-3 py-2.5 text-left text-sm font-medium text-text-muted hover:bg-surface-alt"
-        >
-          Log out
-        </button>
+    <div className="flex h-dvh overflow-hidden">
+      <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-surface-raised">
+        {/* Only this region scrolls internally when the nav list itself is
+            tall - the outer `h-dvh overflow-hidden` on the root div is what
+            actually stops the whole sidebar from scrolling away with
+            <main>'s content (a bare `min-h-dvh` let the row grow taller
+            than the viewport whenever main's content was long, so this
+            flex item just scrolled off with the rest of the page). Log out
+            lives outside this scrolling region entirely (below), so it can
+            never scroll out of view regardless of how tall the nav list or
+            main content gets. */}
+        <div className="flex-1 overflow-y-auto px-3 py-6">
+          <p className="px-3 pb-6 text-lg font-bold">Sajilo Bazar</p>
+          <nav className="flex flex-col gap-4">
+            {visibleGroups.map((group) => (
+              <div key={group.key} className="flex flex-col gap-1">
+                {group.label && (
+                  <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-text-muted">
+                    {group.label}
+                  </p>
+                )}
+                {group.items.map((item) => (
+                  <NavItemLink key={item.to} {...item} />
+                ))}
+              </div>
+            ))}
+            {access.isSuperAdmin && (
+              <div className="mt-2 border-t border-border pt-3">
+                <NavItemLink {...SETTINGS_ITEM} />
+              </div>
+            )}
+          </nav>
+        </div>
+        <div className="shrink-0 border-t border-border px-3 py-4">
+          <button
+            onClick={logout}
+            className="w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-text-muted hover:bg-surface-alt"
+          >
+            Log out
+          </button>
+        </div>
       </aside>
       <main className="min-w-0 flex-1 overflow-y-auto px-8 py-8">
         <Outlet />

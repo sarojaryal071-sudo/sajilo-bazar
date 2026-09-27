@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Card } from '../../components/Card.jsx';
 import { Badge } from '../../components/Badge.jsx';
 import { Button } from '../../components/Button.jsx';
+import { Avatar } from '../../components/Avatar.jsx';
+import { DocumentViewerModal } from '../../components/DocumentViewerModal.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_TONE } from '../../lib/bookingStatus.js';
 import { canAccessDepartment } from '../../lib/adminDepartments.js';
@@ -12,6 +14,83 @@ const MODERATION_TONE = { active: 'success', suspended: 'danger' };
 const VERIFICATION_TONE = { pending: 'warning', approved: 'success', rejected: 'danger', unsubmitted: 'neutral' };
 const DOC_STATUS_TONE = { pending: 'warning', approved: 'success', rejected: 'danger' };
 const SERVICE_STATUS_TONE = { pending: 'warning', rejected: 'danger' };
+
+// A pending document's own approve/reject controls, with the note (per-
+// document review_comment) shown back to the worker on reject - this is
+// what replaces AdminApprovals' old per-document row: reviewing now
+// happens right here, on the same worker-detail card Users always used.
+function DocumentRow({ doc, canEdit, onDecided }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [rejecting, setRejecting] = useState(false);
+  const [comment, setComment] = useState('');
+  const [viewing, setViewing] = useState(false);
+
+  async function handleDecide(decision) {
+    setError('');
+    setBusy(true);
+    try {
+      const { document } =
+        decision === 'approve'
+          ? await adminApi.approveDocument(doc.id)
+          : await adminApi.rejectDocument(doc.id, comment.trim() || null);
+      onDecided(document);
+    } catch (err) {
+      setError(err.message);
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3">
+        <button type="button" onClick={() => setViewing(true)} className="capitalize text-brand-solid underline">
+          {doc.docType.replace(/_/g, ' ')}
+        </button>
+        <Badge tone={DOC_STATUS_TONE[doc.status]}>{doc.status}</Badge>
+      </div>
+      {doc.status === 'rejected' && doc.reviewComment && (
+        <p className="mt-0.5 text-xs text-text-muted">{doc.reviewComment}</p>
+      )}
+      {doc.status === 'pending' && canEdit && (
+        <div className="mt-1.5">
+          {error && <p className="mb-1.5 text-xs text-danger">{error}</p>}
+          {rejecting ? (
+            <div className="flex flex-col gap-1.5">
+              <input
+                autoFocus
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder="Reason for rejecting (shown to the worker)"
+                className="w-full rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs outline-none focus:border-brand-solid"
+              />
+              <div className="flex gap-2">
+                <Button variant="secondary" disabled={busy} onClick={() => setRejecting(false)} className="px-2.5 py-1 text-xs">
+                  Cancel
+                </Button>
+                <Button disabled={busy} onClick={() => handleDecide('reject')} className="px-2.5 py-1 text-xs">
+                  Confirm reject
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Button variant="secondary" disabled={busy} onClick={() => setRejecting(true)} className="px-2.5 py-1 text-xs">
+                Reject
+              </Button>
+              <Button disabled={busy} onClick={() => handleDecide('approve')} className="px-2.5 py-1 text-xs">
+                Approve
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+      {viewing && (
+        <DocumentViewerModal documentId={doc.id} label={doc.docType.replace(/_/g, ' ')} onClose={() => setViewing(false)} />
+      )}
+    </div>
+  );
+}
 
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
@@ -41,6 +120,16 @@ export function AdminUserDetail() {
       })
       .catch((err) => setError(err.message));
   }, [id]);
+
+  // Deciding a document can also flip the worker's own overall
+  // verificationStatus (the last document clearing moves them to fully
+  // "approved" - see admin.service.js decideDocument), so this refetches
+  // the whole detail rather than just patching the one document in place -
+  // simplest way to keep the header badge/handle and every document's
+  // status all correctly in sync with each other.
+  function refetchDetail() {
+    adminApi.getUserDetail(id).then(setDetail).catch((err) => setError(err.message));
+  }
 
   async function handleToggleStatus() {
     setTogglingStatus(true);
@@ -89,12 +178,15 @@ export function AdminUserDetail() {
       <button onClick={() => navigate(-1)} className="text-sm text-text-muted">&larr; Back</button>
 
       <div className="mt-3 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">{user.fullName}</h1>
-          <p className="text-sm text-text-muted">
-            {user.clientId} &middot; <span className="capitalize">{user.role}</span> &middot; joined{' '}
-            {formatDate(user.createdAt)}
-          </p>
+        <div className="flex items-center gap-3">
+          <Avatar name={user.fullName} imageUrl={user.profileImageUrl} size={56} />
+          <div>
+            <h1 className="text-2xl font-bold">{user.fullName}</h1>
+            <p className="text-sm text-text-muted">
+              {user.clientId} &middot; <span className="capitalize">{user.role}</span> &middot; joined{' '}
+              {formatDate(user.createdAt)}
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <Badge tone={MODERATION_TONE[user.moderationStatus]}>{user.moderationStatus}</Badge>
@@ -176,19 +268,9 @@ export function AdminUserDetail() {
           <p className="mt-4 mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
             Verification documents
           </p>
-          <div className="flex flex-col gap-1.5 text-sm">
+          <div className="flex flex-col gap-2.5 text-sm">
             {worker.documents.map((doc) => (
-              <div key={doc.id}>
-                <div className="flex items-center justify-between">
-                  <a href={doc.fileUrl} target="_blank" rel="noreferrer" className="capitalize text-brand-solid underline">
-                    {doc.docType}
-                  </a>
-                  <Badge tone={DOC_STATUS_TONE[doc.status]}>{doc.status}</Badge>
-                </div>
-                {doc.status === 'rejected' && doc.reviewComment && (
-                  <p className="mt-0.5 text-xs text-text-muted">{doc.reviewComment}</p>
-                )}
-              </div>
+              <DocumentRow key={doc.id} doc={doc} canEdit={canEdit} onDecided={refetchDetail} />
             ))}
           </div>
         </Card>

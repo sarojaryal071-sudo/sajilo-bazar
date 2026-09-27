@@ -327,3 +327,28 @@ export async function apply(userId, { bio }, files, profilePhotoFile) {
 
   return getMyWorkerData(userId);
 }
+
+// A worker fixing just the one document an admin rejected - not a full
+// reapplication. Only a currently-rejected document of that type can be
+// resubmitted (workersModel.resubmitDocument's WHERE clause enforces
+// this), so this can't be used to silently swap out an approved or
+// still-pending one. The worker's overall verification_status is left
+// alone: it's already 'pending' (the only way to have a rejected document
+// at all), and stays 'pending' until every document - this one included -
+// is approved (see admin.service.js decideDocument).
+export async function resubmitDocument(userId, docType, file) {
+  if (!file) throw new ApiError(400, 'A replacement document file is required');
+
+  const existing = await workersModel.findDocumentByTypeForWorker(userId, docType);
+  if (!existing) throw new ApiError(404, 'No document of that type found on your application');
+  if (existing.status !== 'rejected') {
+    throw new ApiError(400, 'This document is not awaiting resubmission');
+  }
+
+  const fileUrl = (
+    await uploadBuffer(file.buffer, { folder: `sajilo-bazar/verification/${userId}` })
+  ).secure_url;
+  await workersModel.resubmitDocument(existing.id, fileUrl);
+
+  return getMyWorkerData(userId);
+}
