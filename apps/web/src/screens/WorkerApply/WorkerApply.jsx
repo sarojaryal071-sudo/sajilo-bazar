@@ -209,12 +209,38 @@ export function WorkerApply() {
     setSelected((prev) => ({ ...prev, [id]: price }));
   }
 
+  // The band is a hard floor/ceiling, not just the "Typical: Rs. X-Y" hint
+  // it's also shown as - min/max come from the same admin-set,
+  // per-service data (platform_settings.service_price_bands, via
+  // getServiceCatalog's minPrice/maxPrice) that already renders that hint,
+  // never a hardcoded range. Exactly the min or max is valid; only
+  // strictly outside it is rejected. Mirrors the backend's own check in
+  // workers.service.js saveOnboardingWork, which is the actual
+  // enforcement - this is just so the worker sees it before submitting
+  // rather than only as a server error afterward.
+  function priceRangeError(service, price) {
+    if (service.minPrice == null || service.maxPrice == null) return null;
+    const num = Number(price);
+    if (!price || Number.isNaN(num)) return null;
+    if (num < service.minPrice || num > service.maxPrice) {
+      return `Price must be between Rs. ${service.minPrice} and Rs. ${service.maxPrice} for this service.`;
+    }
+    return null;
+  }
+
   async function confirmServices() {
     setError('');
     const entries = Object.entries(selected);
     if (entries.length === 0) return setError('Choose at least one service you offer.');
     if (entries.some(([, price]) => !price || Number(price) <= 0)) {
       return setError('Set a price for every service you selected.');
+    }
+    const outOfRange = entries.some(([serviceId, price]) => {
+      const service = catalog.find((s) => s.id === Number(serviceId));
+      return service && priceRangeError(service, price);
+    });
+    if (outOfRange) {
+      return setError('Fix the out-of-range price(s) below before continuing.');
     }
     setSavingWork(true);
     try {
@@ -356,37 +382,38 @@ export function WorkerApply() {
           <div className="mt-6 flex flex-col gap-3">
             {catalog.map((service) => {
               const checked = service.id in selected;
+              const rangeError = checked ? priceRangeError(service, selected[service.id]) : null;
               return (
-                <div
-                  key={service.id}
-                  className="flex items-center justify-between gap-3 rounded-2xl bg-surface-alt p-4 shadow-neu-inset"
-                >
-                  <label className="flex flex-1 items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => toggleService(service.id)}
-                      className="h-5 w-5 shrink-0 accent-brand-solid"
-                    />
-                    <span>
-                      <span className="block">{service.name}</span>
-                      {(service.minPrice != null || service.maxPrice != null) && (
-                        <span className="block text-xs text-text-muted">
-                          Typical: Rs. {service.minPrice}&ndash;{service.maxPrice}
-                        </span>
-                      )}
-                    </span>
-                  </label>
-                  {checked && (
-                    <input
-                      type="number"
-                      min="1"
-                      placeholder="Price (Rs.)"
-                      value={selected[service.id]}
-                      onChange={(e) => setPrice(service.id, e.target.value)}
-                      className="w-28 shrink-0 rounded-md border border-border bg-surface px-3 py-2 text-right text-text outline-none placeholder:text-text-muted"
-                    />
-                  )}
+                <div key={service.id} className="rounded-2xl bg-surface-alt p-4 shadow-neu-inset">
+                  <div className="flex items-center justify-between gap-3">
+                    <label className="flex flex-1 items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleService(service.id)}
+                        className="h-5 w-5 shrink-0 accent-brand-solid"
+                      />
+                      <span>
+                        <span className="block">{service.name}</span>
+                        {(service.minPrice != null || service.maxPrice != null) && (
+                          <span className="block text-xs text-text-muted">
+                            Typical: Rs. {service.minPrice}&ndash;{service.maxPrice}
+                          </span>
+                        )}
+                      </span>
+                    </label>
+                    {checked && (
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="Price (Rs.)"
+                        value={selected[service.id]}
+                        onChange={(e) => setPrice(service.id, e.target.value)}
+                        className="w-28 shrink-0 rounded-md border border-border bg-surface px-3 py-2 text-right text-text outline-none placeholder:text-text-muted"
+                      />
+                    )}
+                  </div>
+                  {rangeError && <p className="mt-2 text-xs text-danger">{rangeError}</p>}
                 </div>
               );
             })}

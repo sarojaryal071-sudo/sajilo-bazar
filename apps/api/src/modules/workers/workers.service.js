@@ -252,17 +252,29 @@ export async function setTypicalResponseHours(workerId, hours) {
 // sub-screens - the resume checkpoint that lets a worker who logs back in
 // after this point skip straight to Step 3 (see getMyWorkerData/App.jsx
 // resume logic, driven off profile.district + services being non-empty).
-// A price outside its service's admin-set band is still accepted (never
-// hard-blocked here) but is saved as approval_status='pending' instead of
-// the table's 'approved' default, so it lands in the same admin
-// document-review queue a cross-category addService() request uses.
+// A service's admin-set band (platform_settings.service_price_bands, same
+// data that feeds the "Typical: Rs. X-Y" hint) is a hard floor/ceiling,
+// not just a hint - exactly the min or max is fine, anything strictly
+// outside it is rejected outright rather than silently accepted into an
+// admin review queue. The frontend checks this too (WorkerApply.jsx
+// priceRangeError) so a worker normally never reaches this, but that's a
+// UX convenience only - this is the actual enforcement.
 export async function saveOnboardingWork(userId, { district, services }) {
   const bands = await platformSettingsService.getServicePriceBands();
-  const withApproval = services.map(({ serviceId, price }) => {
-    const band = bands[String(serviceId)];
-    const outsideBand = band && (price < Number(band.min) || price > Number(band.max));
-    return { serviceId, price, approvalStatus: outsideBand ? 'pending' : 'approved' };
-  });
+  const outOfRange = services
+    .map(({ serviceId, price }) => {
+      const band = bands[String(serviceId)];
+      if (!band || (price >= Number(band.min) && price <= Number(band.max))) return null;
+      return { serviceId, min: Number(band.min), max: Number(band.max) };
+    })
+    .filter(Boolean);
+  if (outOfRange.length > 0) {
+    const message = outOfRange
+      .map((s) => `service ${s.serviceId}: price must be between Rs. ${s.min} and Rs. ${s.max}`)
+      .join('; ');
+    throw new ApiError(400, `Price out of range - ${message}`);
+  }
+  const withApproval = services.map(({ serviceId, price }) => ({ serviceId, price, approvalStatus: 'approved' }));
 
   await workersModel.setDistrict(userId, district);
   await workersModel.withTransaction((client) => workersModel.replaceWorkerServices(client, userId, withApproval));
