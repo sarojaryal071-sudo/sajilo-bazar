@@ -113,6 +113,18 @@ export function WorkerDetail() {
 
       {worker.bio && <p className="mt-4 text-sm text-text-muted">{worker.bio}</p>}
 
+      {worker.description && (
+        <>
+          <p className="mt-6 mb-3 text-sm font-semibold uppercase tracking-wide text-text-muted">
+            Description
+          </p>
+          <p className="whitespace-pre-line text-sm text-text">{worker.description}</p>
+          <p className="mt-2 text-xs text-text-muted">
+            This is the worker's own description - it doesn't replace Sajilo Bazar's dispute process.
+          </p>
+        </>
+      )}
+
       <p className="mt-6 mb-3 text-sm font-semibold uppercase tracking-wide text-text-muted">
         Services
       </p>
@@ -156,18 +168,6 @@ export function WorkerDetail() {
           </div>
           <Button onClick={handleBookSelected}>Book selected services</Button>
         </Card>
-      )}
-
-      {worker.description && (
-        <>
-          <p className="mt-6 mb-3 text-sm font-semibold uppercase tracking-wide text-text-muted">
-            Description
-          </p>
-          <p className="whitespace-pre-line text-sm text-text">{worker.description}</p>
-          <p className="mt-2 text-xs text-text-muted">
-            This is the worker's own description - it doesn't replace Sajilo Bazar's dispute process.
-          </p>
-        </>
       )}
 
       {worker.portfolioItems?.length > 0 && (
