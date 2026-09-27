@@ -64,21 +64,30 @@ export async function updatePlatformSetting(key, value, adminId) {
   return platformSettingsService.updateSetting(key, value, adminId);
 }
 
+// Identity-verification documents are now one consolidated entry per
+// worker (listPendingWorkerVerifications), not one row per document - a
+// worker with two pending documents used to show as two disconnected
+// rows. Cross-category service requests (listPendingServices) are a
+// separate, unrelated queue and keep their existing per-request shape.
 export async function getApprovalsQueue() {
-  const [documents, services] = await Promise.all([
-    adminModel.listPendingDocuments(),
+  const [workerVerifications, services] = await Promise.all([
+    adminModel.listPendingWorkerVerifications(),
     adminModel.listPendingServices(),
   ]);
-  return [...documents, ...services].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  return [...workerVerifications, ...services].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 }
 
 const REJECTION_ESCALATION_THRESHOLD = 3;
 
-// Approving a document only flips the worker's overall verification_status
-// once every one of their documents has been approved - a worker who
-// uploaded two documents isn't bookable just because the first one cleared.
-// Rejecting is immediate: one rejected document means the application needs
-// to be redone, same as the existing reapply flow already assumes.
+// "Verified" is all-or-nothing but derived, not immediate either
+// direction: a worker becomes fully verified only once every one of their
+// documents is approved (not just "none left pending" - a rejected
+// document doesn't count as cleared), and rejecting one no longer flips
+// the whole worker to 'rejected' the way it used to. Their overall status
+// just stays 'pending' - the rejected document (with its comment) is what
+// tells them what to fix, and resubmitting just that one document (see
+// workers.service.js resubmitDocument) is enough to get it moving again,
+// without touching whichever other documents already cleared.
 export async function decideDocument(documentId, adminId, decision, comment) {
   const doc = await adminModel.findDocumentById(documentId);
   if (!doc) throw new ApiError(404, 'Document not found');
@@ -88,11 +97,9 @@ export async function decideDocument(documentId, adminId, decision, comment) {
   const updated = await adminModel.decideDocument(documentId, { status, adminId, comment });
 
   if (status === 'rejected') {
-    await adminModel.setWorkerVerificationStatus(doc.worker_id, 'rejected');
-
     // 3-strikes: rather than leaving a repeatedly-rejected worker stuck
     // re-applying into the void, the 3rd rejection auto-opens a support
-    // ticket so a human picks it up - doesn't block a 4th reapplication,
+    // ticket so a human picks it up - doesn't block a 4th resubmission,
     // just guarantees genuine cases get a path to a person. Fires exactly
     // once (checked on the exact threshold), not on every rejection after.
     const rejectedCount = await adminModel.countRejectedDocumentsForWorker(doc.worker_id);
@@ -108,14 +115,31 @@ export async function decideDocument(documentId, adminId, decision, comment) {
       });
     }
   } else {
-    const stillPending = await adminModel.countPendingDocumentsForWorker(doc.worker_id);
-    if (stillPending === 0) {
+    const remaining = await adminModel.countNonApprovedDocumentsForWorker(doc.worker_id);
+    if (remaining === 0) {
       await adminModel.setWorkerVerificationStatus(doc.worker_id, 'approved');
       await workersModel.assignHandle(doc.worker_id);
     }
   }
 
   return updated;
+}
+
+// Streams a verification document through the server rather than ever
+// handing the client its Cloudinary URL - see
+// packages/shared/schemas/verificationDocument.schema.js for why. Cloudinary
+// delivery is public (secure_url, no signing) so this isn't about
+// Cloudinary access control, it's about not letting the URL itself leak
+// into an admin's browser history, a shared link, or the network tab.
+export async function getDocumentFile(id) {
+  const doc = await adminModel.findDocumentById(id);
+  if (!doc) throw new ApiError(404, 'Document not found');
+
+  const upstream = await fetch(doc.file_url);
+  if (!upstream.ok) throw new ApiError(502, 'Could not retrieve this document right now');
+
+  const buffer = Buffer.from(await upstream.arrayBuffer());
+  return { buffer, contentType: upstream.headers.get('content-type') || 'application/octet-stream' };
 }
 
 export async function decideWorkerService(serviceId, adminId, decision, comment) {

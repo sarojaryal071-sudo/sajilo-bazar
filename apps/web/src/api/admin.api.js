@@ -1,4 +1,4 @@
-import { apiFetch } from './client.js';
+import { apiFetch, API_BASE, getToken } from './client.js';
 
 export function getDashboardStats() {
   return apiFetch('/admin/dashboard/stats');
@@ -38,6 +38,19 @@ export function updateStaffAccess(id, input) {
 
 export function getApprovalsQueue() {
   return apiFetch('/admin/approvals');
+}
+
+// Not apiFetch - that always parses JSON, and this endpoint streams image
+// bytes. Returns a Blob for the caller to turn into an object URL (see
+// DocumentViewerModal.jsx) - the raw Cloudinary URL this proxies never
+// reaches this code at all, only the file's own bytes.
+export async function fetchDocumentFile(id) {
+  const token = getToken();
+  const response = await fetch(`${API_BASE}/api/admin/documents/${id}/file`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!response.ok) throw new Error('Could not load this document');
+  return response.blob();
 }
 
 export function approveDocument(id) {

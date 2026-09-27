@@ -5,7 +5,10 @@ export const VerificationDocumentSchema = z.object({
   id: z.number().int().positive(),
   workerId: z.number().int().positive(),
   docType: z.string().min(2).max(40), // e.g. "citizenship", "certificate"
-  fileUrl: z.string().url(),
+  // Deliberately no fileUrl - the underlying Cloudinary URL never reaches
+  // any client (worker or admin). Viewing a document goes through
+  // GET /admin/documents/:id/file instead, which streams it server-side
+  // after checking the requester is an authenticated admin.
   status: z.enum(DOCUMENT_STATUSES).default('pending'),
   reviewedBy: z.number().int().positive().nullable().optional(),
   reviewedAt: z.string().datetime().nullable().optional(),

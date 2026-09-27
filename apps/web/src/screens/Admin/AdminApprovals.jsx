@@ -1,30 +1,60 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Card } from '../../components/Card.jsx';
 import { Badge } from '../../components/Badge.jsx';
 import { Button } from '../../components/Button.jsx';
+import { Avatar } from '../../components/Avatar.jsx';
+import { DocumentViewerModal } from '../../components/DocumentViewerModal.jsx';
 import { timeAgo } from '../../lib/timeAgo.js';
 import { humanizeCategory } from '../../lib/humanize.js';
 import * as adminApi from '../../api/admin.api.js';
 
-function ApprovalRow({ item, onDecide }) {
+// One card per pending worker (Round F, 2026-09-27) - a worker who
+// submitted two identity documents used to show as two disconnected rows
+// here. Reviewing (approve/reject per document, with a note) now happens
+// on the same detail page Users uses (GET /admin/users/:id) rather than
+// inline in this list - see AdminUserDetail.jsx.
+function WorkerVerificationCard({ item }) {
+  const parts = [];
+  if (item.pendingCount > 0) parts.push(`${item.pendingCount} pending`);
+  if (item.rejectedCount > 0) parts.push(`${item.rejectedCount} awaiting resubmission`);
+  const summary = parts.length > 0 ? parts.join(', ') : `${item.totalCount} document(s)`;
+
+  return (
+    <Link to={`/admin/users/${item.workerId}`}>
+      <Card className="flex items-center gap-4 hover:bg-surface-alt">
+        <Avatar name={item.workerName} imageUrl={item.profileImageUrl} size={44} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="font-semibold">{item.workerName}</p>
+            <Badge tone="neutral">Verification</Badge>
+          </div>
+          <p className="mt-1 text-sm text-text-muted">{summary}</p>
+          <p className="mt-1 text-xs text-text-muted">Submitted {timeAgo(item.createdAt)}</p>
+        </div>
+        <span className="shrink-0 text-sm font-medium text-brand-solid">Review &rarr;</span>
+      </Card>
+    </Link>
+  );
+}
+
+// Cross-category service requests (Phase 5) - a separate, unrelated queue
+// from worker identity verification, unchanged in shape from before this
+// round. Still one row per request, still actioned inline here.
+function ServiceApprovalRow({ item, onDecide }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [rejecting, setRejecting] = useState(false);
   const [comment, setComment] = useState('');
+  const [viewingDoc, setViewingDoc] = useState(false);
 
   async function handleDecide(decision) {
     setError('');
     setBusy(true);
     try {
-      if (item.kind === 'document') {
-        await (decision === 'approve'
-          ? adminApi.approveDocument(item.id)
-          : adminApi.rejectDocument(item.id, comment.trim() || null));
-      } else {
-        await (decision === 'approve'
-          ? adminApi.approveService(item.id)
-          : adminApi.rejectService(item.id, comment.trim() || null));
-      }
+      await (decision === 'approve'
+        ? adminApi.approveService(item.id)
+        : adminApi.rejectService(item.id, comment.trim() || null));
       onDecide(item);
     } catch (err) {
       setError(err.message);
@@ -37,37 +67,26 @@ function ApprovalRow({ item, onDecide }) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <p className="font-semibold">{item.workerName}</p>
-          <Badge tone={item.kind === 'document' ? 'neutral' : 'warning'}>
-            {item.kind === 'document' ? 'Verification document' : 'New service category'}
-          </Badge>
+          <Badge tone="warning">New service category</Badge>
         </div>
-        {item.kind === 'document' ? (
-          <p className="mt-1 text-sm text-text-muted">
-            <span className="capitalize">{item.docType}</span> &middot;{' '}
-            <a href={item.fileUrl} target="_blank" rel="noreferrer" className="text-brand-solid underline">
-              View document
-            </a>
-          </p>
-        ) : (
-          <p className="mt-1 text-sm text-text-muted">
-            {item.serviceName} ({humanizeCategory(item.category)}) &middot; Rs. {item.price}
-            {item.highRisk && (
-              <>
-                {' '}
-                &middot; <span className="text-danger">High risk</span>
-              </>
-            )}
-            {item.documentUrl && (
-              <>
-                {' '}
-                &middot;{' '}
-                <a href={item.documentUrl} target="_blank" rel="noreferrer" className="text-brand-solid underline">
-                  View supporting document
-                </a>
-              </>
-            )}
-          </p>
-        )}
+        <p className="mt-1 text-sm text-text-muted">
+          {item.serviceName} ({humanizeCategory(item.category)}) &middot; Rs. {item.price}
+          {item.highRisk && (
+            <>
+              {' '}
+              &middot; <span className="text-danger">High risk</span>
+            </>
+          )}
+          {item.documentId && (
+            <>
+              {' '}
+              &middot;{' '}
+              <button type="button" onClick={() => setViewingDoc(true)} className="text-brand-solid underline">
+                View supporting document
+              </button>
+            </>
+          )}
+        </p>
         <p className="mt-1 text-xs text-text-muted">Submitted {timeAgo(item.createdAt)}</p>
         {error && <p className="mt-1 text-sm text-danger">{error}</p>}
         {rejecting && (
@@ -101,6 +120,13 @@ function ApprovalRow({ item, onDecide }) {
           </>
         )}
       </div>
+      {viewingDoc && (
+        <DocumentViewerModal
+          documentId={item.documentId}
+          label="Supporting document"
+          onClose={() => setViewingDoc(false)}
+        />
+      )}
     </Card>
   );
 }
@@ -124,7 +150,7 @@ export function AdminApprovals() {
     <div>
       <h1 className="text-2xl font-bold">Approvals</h1>
       <p className="mt-1 text-sm text-text-muted">
-        Worker verification documents and new-category service requests waiting on review.
+        Workers awaiting verification and new-category service requests waiting on review.
       </p>
 
       {error && <p className="mt-4 text-sm text-danger">{error}</p>}
@@ -132,9 +158,13 @@ export function AdminApprovals() {
       {queue?.length === 0 && <p className="mt-4 text-sm text-text-muted">Nothing pending - all caught up.</p>}
 
       <div className="mt-6 flex flex-col gap-3">
-        {queue?.map((item) => (
-          <ApprovalRow key={`${item.kind}-${item.id}`} item={item} onDecide={handleDecided} />
-        ))}
+        {queue?.map((item) =>
+          item.kind === 'worker_verification' ? (
+            <WorkerVerificationCard key={`worker-${item.workerId}`} item={item} />
+          ) : (
+            <ServiceApprovalRow key={`service-${item.id}`} item={item} onDecide={handleDecided} />
+          )
+        )}
       </div>
     </div>
   );

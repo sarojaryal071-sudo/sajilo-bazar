@@ -257,3 +257,14 @@ export async function apply(req, res, next) {
     next(err.issues ? new ApiError(400, 'Invalid worker apply data', err.issues) : err);
   }
 }
+
+// Fixing one admin-rejected document (e.g. a blurry citizenship photo),
+// not a full reapplication - see workers.service.js resubmitDocument.
+export async function resubmitDocument(req, res, next) {
+  try {
+    const result = await workersService.resubmitDocument(req.user.id, req.params.docType, req.file);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}

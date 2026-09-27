@@ -40,12 +40,17 @@ function toWorkerService(row) {
   };
 }
 
+// No fileUrl on this shape, deliberately - the raw Cloudinary URL never
+// reaches a client (worker's own GET /workers/me and the admin's GET
+// /admin/users/:id both go through this same serializer). Viewing a
+// document goes through GET /admin/documents/:id/file instead, which
+// looks the row's file_url up server-side and streams it after checking
+// the requester is an authenticated admin.
 function toDocument(row) {
   return {
     id: row.id,
     workerId: row.worker_id,
     docType: row.doc_type,
-    fileUrl: row.file_url,
     status: row.status,
     reviewedBy: row.reviewed_by,
     reviewedAt: row.reviewed_at,
@@ -435,6 +440,35 @@ export async function listDocuments(workerId) {
     [workerId]
   );
   return rows.map(toDocument);
+}
+
+// A worker only ever has one current identity-verification row per doc
+// type (apply() inserts each type once; resubmitDocument below updates
+// that same row in place rather than inserting a new one) - raw row, not
+// toDocument(), since the service layer needs to check its status before
+// deciding whether a resubmission is even allowed.
+export async function findDocumentByTypeForWorker(workerId, docType) {
+  const { rows } = await pool.query(
+    'SELECT * FROM verification_documents WHERE worker_id = $1 AND doc_type = $2 AND worker_service_id IS NULL',
+    [workerId, docType]
+  );
+  return rows[0] || null;
+}
+
+// Resubmitting a rejected document updates that same row in place (new
+// file, back to 'pending', review fields cleared) rather than inserting a
+// new one - it's a correction to the same submission, not a fresh one.
+// Only matches a currently-'rejected' row, so this can't be used to
+// silently reopen an already-approved or already-pending document.
+export async function resubmitDocument(id, fileUrl) {
+  const { rows } = await pool.query(
+    `UPDATE verification_documents
+     SET file_url = $2, status = 'pending', reviewed_by = NULL, reviewed_at = NULL, review_comment = NULL
+     WHERE id = $1 AND status = 'rejected'
+     RETURNING *`,
+    [id, fileUrl]
+  );
+  return rows[0] ? toDocument(rows[0]) : null;
 }
 
 // ---- Portfolio (richer worker profile, 2026-09-27) ----

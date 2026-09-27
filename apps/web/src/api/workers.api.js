@@ -141,3 +141,12 @@ export function apply({ bio, documents }) {
   }
   return apiFetch('/workers/apply', { method: 'POST', body: formData, isFormData: true });
 }
+
+// Fixing one admin-rejected document (e.g. "citizenship_front") rather
+// than the full apply() flow - only works when that document is currently
+// rejected (see workers.service.js resubmitDocument).
+export function resubmitDocument(docType, file) {
+  const formData = new FormData();
+  formData.append('document', file);
+  return apiFetch(`/workers/me/documents/${docType}`, { method: 'PATCH', body: formData, isFormData: true });
+}

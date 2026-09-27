@@ -4,7 +4,7 @@ const TOKEN_STORAGE_KEY = 'sajilo_token';
 // vite.config.js). Set to the deployed API's origin (no trailing slash)
 // via VITE_API_URL in production, since frontend and backend are on
 // different domains there (Vercel + Render).
-const API_BASE = import.meta.env.VITE_API_URL || '';
+export const API_BASE = import.meta.env.VITE_API_URL || '';
 
 export function getToken() {
   return localStorage.getItem(TOKEN_STORAGE_KEY);

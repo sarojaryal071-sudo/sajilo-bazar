@@ -65,6 +65,17 @@ workersRoutes.patch(
   requireRole('worker'),
   workersController.saveOnboardingWork
 );
+// Fixing one admin-rejected document (e.g. a blurry citizenship photo) -
+// not gated by requireApprovedWorker (they're never approved yet at this
+// point), just that they're an authenticated worker with a rejected
+// document of that type (checked in the service layer).
+workersRoutes.patch(
+  '/me/documents/:docType',
+  requireAuth,
+  requireRole('worker'),
+  upload.single('document'),
+  workersController.resubmitDocument
+);
 workersRoutes.post(
   '/apply',
   requireAuth,

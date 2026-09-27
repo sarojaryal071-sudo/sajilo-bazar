@@ -62,16 +62,43 @@ export async function getAccountingSummary() {
   };
 }
 
-function toPendingDocument(row) {
+// One consolidated entry per pending worker (Round F, 2026-09-27) -
+// replaces the old one-row-per-document queue (a worker with two pending
+// identity documents used to show as two disconnected rows). Only the
+// original identity-verification documents feed this (worker_service_id
+// IS NULL) - a document submitted as evidence for a specific cross-
+// category service request is still surfaced via listPendingServices'
+// documentId instead, unchanged. Clicking through to review happens on
+// the same detail page as Users (GET /admin/users/:id), reusing that
+// screen rather than a separate one - see AdminUserDetail.jsx.
+function toPendingWorkerVerification(row) {
   return {
-    kind: 'document',
-    id: row.id,
+    kind: 'worker_verification',
     workerId: row.worker_id,
     workerName: row.worker_name,
-    docType: row.doc_type,
-    fileUrl: row.file_url,
+    profileImageUrl: row.profile_image_url,
+    pendingCount: row.pending_count,
+    rejectedCount: row.rejected_count,
+    totalCount: row.total_count,
     createdAt: row.created_at,
   };
+}
+
+export async function listPendingWorkerVerifications() {
+  const { rows } = await pool.query(
+    `SELECT u.id AS worker_id, u.full_name AS worker_name, u.profile_image_url,
+            MIN(vd.created_at) AS created_at,
+            COUNT(*) FILTER (WHERE vd.status = 'pending')::int AS pending_count,
+            COUNT(*) FILTER (WHERE vd.status = 'rejected')::int AS rejected_count,
+            COUNT(*)::int AS total_count
+     FROM users u
+     JOIN worker_profiles wp ON wp.user_id = u.id
+     JOIN verification_documents vd ON vd.worker_id = u.id AND vd.worker_service_id IS NULL
+     WHERE wp.verification_status = 'pending'
+     GROUP BY u.id, u.full_name, u.profile_image_url
+     ORDER BY MIN(vd.created_at) ASC`
+  );
+  return rows.map(toPendingWorkerVerification);
 }
 
 function toPendingService(row) {
@@ -87,34 +114,20 @@ function toPendingService(row) {
     // The supporting document submitted alongside this specific request,
     // when the category is high-risk - null for a low-risk cross-category
     // add, which needs no document (see workers.service.js addService).
-    documentUrl: row.document_url,
+    // Just the id, never the file itself/its URL - the client fetches it
+    // through GET /admin/documents/:id/file, which streams it server-side
+    // after an admin auth check instead of ever exposing the raw
+    // Cloudinary URL.
+    documentId: row.document_id,
     createdAt: row.created_at,
   };
-}
-
-// The two independent approval queues from Phase 1 (identity/skill
-// verification) and Phase 5 (cross-category service additions) - combined
-// here into one chronological list since they're both "things an admin
-// needs to say yes/no to", even though they update different tables.
-// Documents tied to a specific service request (worker_service_id set)
-// are excluded here - they're surfaced alongside that request via
-// listPendingServices' documentUrl instead, so they don't show up twice.
-export async function listPendingDocuments() {
-  const { rows } = await pool.query(
-    `SELECT vd.*, u.full_name AS worker_name
-     FROM verification_documents vd
-     JOIN users u ON u.id = vd.worker_id
-     WHERE vd.status = 'pending' AND vd.worker_service_id IS NULL
-     ORDER BY vd.created_at ASC`
-  );
-  return rows.map(toPendingDocument);
 }
 
 export async function listPendingServices() {
   const { rows } = await pool.query(
     `SELECT ws.*, s.name AS service_name, s.category, s.high_risk, u.full_name AS worker_name,
-            (SELECT vd.file_url FROM verification_documents vd
-             WHERE vd.worker_service_id = ws.id ORDER BY vd.created_at DESC LIMIT 1) AS document_url
+            (SELECT vd.id FROM verification_documents vd
+             WHERE vd.worker_service_id = ws.id ORDER BY vd.created_at DESC LIMIT 1) AS document_id
      FROM worker_services ws
      JOIN services s ON s.id = ws.service_id
      JOIN users u ON u.id = ws.worker_id
@@ -129,11 +142,16 @@ export async function findDocumentById(id) {
   return rows[0] || null;
 }
 
-// Documents pending for the same worker as the one just decided, so the
-// service layer can tell whether this was the worker's last one.
-export async function countPendingDocumentsForWorker(workerId) {
+// Whether this worker still has any document left that isn't approved
+// (pending review, or rejected and awaiting resubmission) - the basis for
+// "verified" being all-or-nothing (see admin.service.js decideDocument).
+// A single rejected document no longer flips the worker straight to
+// 'rejected' the way it used to; it just means this count stays above
+// zero until they resubmit and it's approved too.
+export async function countNonApprovedDocumentsForWorker(workerId) {
   const { rows } = await pool.query(
-    "SELECT COUNT(*)::int AS count FROM verification_documents WHERE worker_id = $1 AND status = 'pending'",
+    `SELECT COUNT(*)::int AS count FROM verification_documents
+     WHERE worker_id = $1 AND worker_service_id IS NULL AND status != 'approved'`,
     [workerId]
   );
   return rows[0].count;
@@ -167,8 +185,8 @@ export async function countRejectedDocumentsForWorker(workerId) {
 export async function setWorkerVerificationStatus(workerId, status) {
   await pool.query(
     `UPDATE worker_profiles
-     SET verification_status = $1,
-         approved_at = CASE WHEN $1 = 'approved' THEN now() ELSE approved_at END,
+     SET verification_status = $1::varchar,
+         approved_at = CASE WHEN $1::varchar = 'approved' THEN now() ELSE approved_at END,
          updated_at = now()
      WHERE user_id = $2`,
     [status, workerId]
@@ -286,6 +304,7 @@ function toUserSummary(row) {
     fullName: row.full_name,
     phone: row.phone,
     email: row.email,
+    profileImageUrl: row.profile_image_url,
     role: row.role,
     moderationStatus: row.moderation_status,
     verificationStatus: row.verification_status ?? null,
@@ -298,6 +317,16 @@ function toUserSummary(row) {
 // shape per role. No pagination yet (LIMIT is a defensive cap, not a page
 // size) - real pagination is a later-round concern once there's enough
 // production data for it to matter.
+//
+// A worker who isn't fully verified yet (verification_status !=
+// 'approved' - still 'pending', or 'unsubmitted' before they've even
+// started onboarding) is deliberately excluded here: they're not a real,
+// bookable user yet, and showing them as "active" in this list was
+// misleading (see Approvals instead, which is where they belong until
+// every document clears - admin.model.js listPendingWorkerVerifications).
+// Customers/admins have no worker_profiles row at all (verification_status
+// is NULL via the LEFT JOIN) so the role check on the left of that OR
+// always passes for them, unaffected by this.
 const USERS_LIST_CAP = 200;
 
 export async function listUsers({ role, status, q }) {
@@ -308,6 +337,7 @@ export async function listUsers({ role, status, q }) {
      WHERE ($1::text IS NULL OR u.role = $1)
        AND ($2::text IS NULL OR u.moderation_status = $2)
        AND ($3::text IS NULL OR u.full_name ILIKE '%' || $3 || '%' OR u.phone ILIKE '%' || $3 || '%')
+       AND (u.role != 'worker' OR wp.verification_status = 'approved')
      ORDER BY u.created_at DESC
      LIMIT ${USERS_LIST_CAP}`,
     [role || null, status || null, q || null]

@@ -29,6 +29,15 @@ adminRoutes.patch('/settings/:key', requireSuperAdmin, adminController.updatePla
 adminRoutes.get('/accounting/summary', requireDepartment('finance'), adminController.getAccountingSummary);
 
 adminRoutes.get('/approvals', requireDepartment('people_content'), adminController.getApprovalsQueue);
+// Same access as viewing the worker/user the document belongs to (Users
+// detail's read-only cross-department exception included) - streams the
+// file itself server-side, never the underlying Cloudinary URL, to
+// whichever admin screen is showing it (Approvals or Users detail).
+adminRoutes.get(
+  '/documents/:id/file',
+  requireDepartment('people_content', 'support'),
+  adminController.streamDocument
+);
 adminRoutes.patch(
   '/approvals/documents/:id/approve',
   requireDepartment('people_content'),
