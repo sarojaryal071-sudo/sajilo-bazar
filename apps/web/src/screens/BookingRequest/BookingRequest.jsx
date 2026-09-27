@@ -29,6 +29,7 @@ export function BookingRequest() {
   const [worker, setWorker] = useState(null);
   const [loadError, setLoadError] = useState('');
   const [address, setAddress] = useState(null);
+  const [fuelCharge, setFuelCharge] = useState(null);
   const [mode, setMode] = useState('now');
   const [scheduledFor, setScheduledFor] = useState('');
   const [responseDeadlineHours, setResponseDeadlineHours] = useState(6);
@@ -46,6 +47,23 @@ export function BookingRequest() {
       .then(({ worker }) => setWorker(worker))
       .catch((err) => setLoadError(err.message));
   }, [workerId]);
+
+  // Fuel/travel charge preview (Piece D) - quoted fresh once an address
+  // with coordinates is picked, never by reading the worker's own location
+  // client-side (that's never exposed to a customer - see workers.model.js
+  // findApprovedWorkerDetail). A one-off address with no coordinates
+  // simply shows no fuel line yet - the real one is computed and stored
+  // server-side the moment the booking is actually created.
+  useEffect(() => {
+    if (address?.latitude == null || address?.longitude == null) {
+      setFuelCharge(null);
+      return;
+    }
+    bookingsApi
+      .quoteFuelCharge(Number(workerId), address.latitude, address.longitude)
+      .then(({ fuelCharge }) => setFuelCharge(fuelCharge))
+      .catch(() => setFuelCharge(null));
+  }, [workerId, address?.latitude, address?.longitude]);
 
   if (loadError) {
     return (
@@ -90,7 +108,8 @@ export function BookingRequest() {
     );
   }
 
-  const total = services.reduce((sum, s) => sum + s.price, 0);
+  const serviceTotal = services.reduce((sum, s) => sum + s.price, 0);
+  const total = serviceTotal + (fuelCharge ?? 0);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -147,7 +166,15 @@ export function BookingRequest() {
             </div>
           ))}
         </div>
-        <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
+        <div className="mt-2 flex items-center justify-between border-t border-border pt-2 text-sm">
+          <span className="text-text-muted">Service charge</span>
+          <span className="font-medium">Rs. {serviceTotal}</span>
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-text-muted">Fuel/travel charge</span>
+          <span className="font-medium">{fuelCharge === null ? 'Pick an address' : `Rs. ${fuelCharge}`}</span>
+        </div>
+        <div className="mt-1 flex items-center justify-between border-t border-border pt-3">
           <span className="font-semibold">Total</span>
           <span className="text-lg font-bold">Rs. {total}</span>
         </div>

@@ -81,7 +81,11 @@ Build in this order — don't jump ahead to later-phase screens.
   worker's profile, the same entry point as an urgent booking - not gated to
   unmatched/broadcast-fallback workers. Location is chosen via the same Uber-style
   picker as the instant flow (see "Customer home location" below) rather than a plain
-  free-text field
+  free-text field. Price breakdown (2026-09-27, Piece D) shows Service charge and
+  Fuel/travel charge as two distinct lines plus a Total - the fuel line is quoted live
+  once an address with coordinates is picked (a small server-side quote endpoint, never
+  the worker's own raw saved location, which this screen never has access to) and updates
+  the submit button's own price text too
 - Bookings list screen (customer + worker views)
 - Booking detail / tracking screen
 - In-app chat (tied to a booking) — single seamless composer bar (not the
@@ -277,6 +281,26 @@ see is also a 403 if they call it directly.
 - **Color-coding**: every dispute/ticket row, in every list view (including the Support
   conversation list), shows a colored department badge reusing the existing `Badge.jsx`
   tones - no new visual language needed, the 4 departments map 1:1 onto its 4 existing tones.
+
+## Phase 6c — Fuel/travel charge (Piece D, 2026-09-27)
+
+Built from the same founder product discussion as Phase 6b. One platform-wide formula - base
+fee + per-km rate - added to a booking as a distinct, worker-keeps-100%-of-it fuel/travel
+charge, computed from the assigned worker's saved location and the booking's own address
+(reusing a newly-factored-out Haversine helper - see `DATA_MODEL.md`'s `platform_settings`
+section). Never folded into the service charge the 15% commission is calculated against.
+
+- **Admin: Settings** (`/admin/settings`, replaces the `AdminComingSoon` stub - the standalone
+  Super-Admin-only nav link Phase 6b's grouped nav already reserved for it) — view/edit the two
+  values this formula needs (`fuel_base_fee`, `fuel_rate_per_km`), each its own card with an
+  editable number field and a "Save" button that only appears once the value actually changed.
+  Backed by a new generic `platform_settings` key/value table, not a hardcoded constant - a
+  change here takes effect on the very next booking, no redeploy.
+- **Booking-request screen** (Phase 2, extended above) and **booking detail / final receipt**
+  (Phase 2's tracking screen) both show Service charge and Fuel/travel charge as two distinct
+  line items plus a Total, rather than one lump price - the two amounts behave differently
+  (commission applies to one, not the other), so they're shown separately everywhere a price
+  breaks down.
 
 ## Later phases — not built until their phase starts
 

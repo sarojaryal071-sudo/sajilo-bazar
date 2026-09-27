@@ -95,6 +95,14 @@ export const AdminStaffAccessInputSchema = z.object({
   isSuperAdmin: z.boolean().default(false),
 });
 
+// Admin Settings screen (Piece D, 2026-09-27) - view/edit the two
+// platform_settings values this round introduces (fuel_base_fee,
+// fuel_rate_per_km). The key itself comes from the route param, validated
+// against platformSettingsService.EDITABLE_KEYS server-side, not here.
+export const AdminPlatformSettingUpdateInputSchema = z.object({
+  value: z.number().nonnegative(),
+});
+
 // Admin Policies screen (Round D). Announcements' input schema moved to
 // publication.schema.js (2026-09-25) as part of unifying Announcements +
 // Promotions into one Publications flow - policies are a fixed set, never

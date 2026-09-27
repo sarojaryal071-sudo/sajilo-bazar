@@ -19,6 +19,13 @@ export function create({
   return apiFetch('/bookings', { method: 'POST', body });
 }
 
+// Pre-booking price breakdown preview (Piece D) - a customer has picked a
+// worker and an address but hasn't submitted yet. Never returns the
+// worker's raw location, just the computed charge.
+export function quoteFuelCharge(workerId, latitude, longitude) {
+  return apiFetch('/bookings/fuel-quote', { method: 'POST', body: { workerId, latitude, longitude } });
+}
+
 export function createInstant({ serviceIds, addressLabel, latitude, longitude }) {
   return apiFetch('/bookings/instant', {
     method: 'POST',

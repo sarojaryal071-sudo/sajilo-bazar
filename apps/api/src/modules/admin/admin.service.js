@@ -8,6 +8,7 @@ import * as chatModel from '../chat/chat.model.js';
 import * as commissionLedgerModel from '../commissionLedger/commissionLedger.model.js';
 import { notify } from '../notifications/notifications.service.js';
 import * as trustScoreService from '../trustScore/trustScore.service.js';
+import * as platformSettingsService from '../platformSettings/platformSettings.service.js';
 
 const SALT_ROUNDS = 10;
 
@@ -51,6 +52,16 @@ export async function getAnalytics() {
 
 export async function getAccountingSummary() {
   return adminModel.getAccountingSummary();
+}
+
+// ---- Settings (Piece D, 2026-09-27) ----
+
+export async function listPlatformSettings() {
+  return platformSettingsService.listSettings();
+}
+
+export async function updatePlatformSetting(key, value, adminId) {
+  return platformSettingsService.updateSetting(key, value, adminId);
 }
 
 export async function getApprovalsQueue() {

@@ -15,6 +15,7 @@ function toBooking(row) {
     customerId: row.customer_id,
     workerId: row.worker_id,
     price: row.price === null ? null : Number(row.price),
+    fuelCharge: Number(row.fuel_charge),
     paymentMethod: row.payment_method,
     addressLabel: row.address_label,
     latitude: row.latitude,
@@ -110,6 +111,7 @@ export async function create({
   longitude,
   scheduledFor = null,
   responseDeadlineHours = null,
+  fuelCharge = 0,
 }) {
   const totalPrice = services.reduce((sum, s) => sum + s.price, 0);
   const client = await pool.connect();
@@ -117,9 +119,10 @@ export async function create({
     await client.query('BEGIN');
     const { rows } = await client.query(
       `INSERT INTO bookings (customer_id, worker_id, price, address_label, latitude, longitude,
-                              scheduled_for, response_deadline_hours, respond_by)
+                              scheduled_for, response_deadline_hours, respond_by, fuel_charge)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8,
-               CASE WHEN $8::smallint IS NOT NULL THEN now() + ($8::text || ' hours')::interval ELSE NULL END)
+               CASE WHEN $8::smallint IS NOT NULL THEN now() + ($8::text || ' hours')::interval ELSE NULL END,
+               $9)
        RETURNING id`,
       [
         customerId,
@@ -130,6 +133,7 @@ export async function create({
         longitude ?? null,
         scheduledFor,
         responseDeadlineHours,
+        fuelCharge,
       ]
     );
     const bookingId = rows[0].id;
@@ -220,10 +224,14 @@ export async function createOffers(bookingId, workerIds) {
 // Atomic first-accept-wins claim, then prices every requested service using
 // THIS worker's current rates - if they no longer offer all of them (they
 // could have changed their catalog between broadcast and claim), the whole
-// claim is rolled back rather than left half-priced. Returns
+// claim is rolled back rather than left half-priced. fuelCharge is computed
+// by the caller (bookings.service.js, from this worker's saved location and
+// the booking's own address - see computeFuelCharge) before this atomic
+// claim even starts, since it's a pure read/computation that doesn't need
+// to be inside the transaction. Returns
 // { booking: null, reason: 'already_taken' | 'services_unavailable' } on
 // failure, { booking, reason: null } on success.
-export async function claimInstant(bookingId, workerId) {
+export async function claimInstant(bookingId, workerId, fuelCharge = 0) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -265,7 +273,11 @@ export async function claimInstant(bookingId, workerId) {
         price,
       ]);
     }
-    await client.query('UPDATE bookings SET price = $2 WHERE id = $1', [bookingId, total]);
+    await client.query('UPDATE bookings SET price = $2, fuel_charge = $3 WHERE id = $1', [
+      bookingId,
+      total,
+      fuelCharge,
+    ]);
 
     await client.query('COMMIT');
   } catch (err) {

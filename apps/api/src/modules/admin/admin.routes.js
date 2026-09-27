@@ -20,8 +20,12 @@ adminRoutes.use(requireAuth, requireRole('admin'));
 adminRoutes.get('/dashboard/stats', adminController.getDashboardStats);
 adminRoutes.get('/analytics', requireSuperAdmin, adminController.getAnalytics);
 
-// Settings (platform_settings, commission rate, search radius, etc.) is a
-// plain standalone top-level link, Super Admin only.
+// Settings (platform_settings - currently the Piece D fuel/travel-charge
+// formula, more keys later) is a plain standalone top-level link, Super
+// Admin only.
+adminRoutes.get('/settings', requireSuperAdmin, adminController.listPlatformSettings);
+adminRoutes.patch('/settings/:key', requireSuperAdmin, adminController.updatePlatformSetting);
+
 adminRoutes.get('/accounting/summary', requireDepartment('finance'), adminController.getAccountingSummary);
 
 adminRoutes.get('/approvals', requireDepartment('people_content'), adminController.getApprovalsQueue);

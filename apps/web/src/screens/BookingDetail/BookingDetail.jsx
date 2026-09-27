@@ -456,10 +456,20 @@ export function BookingDetail() {
           </div>
         )}
         {booking.price !== null && (
-          <div className="mt-2 flex items-center justify-between border-t border-border pt-2 text-sm">
-            <span className="text-text-muted">Total</span>
-            <span className="font-semibold">Rs. {booking.price}</span>
-          </div>
+          <>
+            <div className="mt-2 flex items-center justify-between border-t border-border pt-2 text-sm">
+              <span className="text-text-muted">Service charge</span>
+              <span className="font-medium">Rs. {booking.price}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-text-muted">Fuel/travel charge</span>
+              <span className="font-medium">Rs. {booking.fuelCharge}</span>
+            </div>
+            <div className="mt-1 flex items-center justify-between border-t border-border pt-2 text-sm">
+              <span className="font-semibold">Total</span>
+              <span className="font-semibold">Rs. {Math.round((booking.price + booking.fuelCharge) * 100) / 100}</span>
+            </div>
+          </>
         )}
         {booking.status === 'completed' && (
           <div className="mt-2 flex items-center justify-between border-t border-border pt-2 text-sm">
