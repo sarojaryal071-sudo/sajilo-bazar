@@ -6,7 +6,9 @@ import { Badge } from '../../components/Badge.jsx';
 import { Button } from '../../components/Button.jsx';
 import { Input } from '../../components/Input.jsx';
 import { Avatar } from '../../components/Avatar.jsx';
+import { CategoryIcon } from '../../components/CategoryIcon.jsx';
 import { TrustMeter } from '../../components/TrustMeter.jsx';
+import { PortfolioItemModal } from '../../components/PortfolioItemModal.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import * as usersApi from '../../api/users.api.js';
 import * as workersApi from '../../api/workers.api.js';
@@ -46,17 +48,86 @@ export function Profile() {
   const [trustScore, setTrustScore] = useState(null);
   const fileInputRef = useRef(null);
 
+  // Description + Portfolio (2026-09-27) - a worker's free-text profile
+  // description and their past-work gallery, both edited here.
+  const [description, setDescription] = useState('');
+  const [descriptionDirty, setDescriptionDirty] = useState(false);
+  const [savingDescription, setSavingDescription] = useState(false);
+  const [descriptionError, setDescriptionError] = useState('');
+  const [portfolioItems, setPortfolioItems] = useState([]);
+  const [catalogCategories, setCatalogCategories] = useState([]);
+  const [portfolioError, setPortfolioError] = useState('');
+  const [busyItemId, setBusyItemId] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+
   useEffect(() => {
     if (user.role !== 'worker') return;
     workersApi
       .getMyWorkerData()
-      .then(setWorkerData)
+      .then((data) => {
+        setWorkerData(data);
+        setDescription(data.profile.description || '');
+        setPortfolioItems(data.portfolioItems || []);
+      })
+      .catch(() => {});
+    workersApi
+      .getServiceCatalog()
+      .then(({ services }) => setCatalogCategories([...new Set(services.map((s) => s.category))].sort()))
       .catch(() => {});
     trustScoreApi
       .getMyTrustScore()
       .then(({ trustScore }) => setTrustScore(trustScore))
       .catch(() => {});
   }, [user.role]);
+
+  async function handleSaveDescription() {
+    setSavingDescription(true);
+    setDescriptionError('');
+    try {
+      await workersApi.updateDescription(description.trim() || null);
+      setDescriptionDirty(false);
+    } catch (err) {
+      setDescriptionError(err.message);
+    } finally {
+      setSavingDescription(false);
+    }
+  }
+
+  function handlePortfolioItemSaved(saved) {
+    setPortfolioItems((prev) =>
+      prev.some((i) => i.id === saved.id) ? prev.map((i) => (i.id === saved.id ? saved : i)) : [...prev, saved]
+    );
+  }
+
+  async function handleDeletePortfolioItem(id) {
+    if (!window.confirm('Delete this portfolio item?')) return;
+    setBusyItemId(id);
+    setPortfolioError('');
+    try {
+      await workersApi.deletePortfolioItem(id);
+      setPortfolioItems((prev) => prev.filter((i) => i.id !== id));
+    } catch (err) {
+      setPortfolioError(err.message);
+    } finally {
+      setBusyItemId(null);
+    }
+  }
+
+  async function handleMovePortfolioItem(id, direction) {
+    const index = portfolioItems.findIndex((i) => i.id === id);
+    const swapWith = direction === 'up' ? index - 1 : index + 1;
+    if (swapWith < 0 || swapWith >= portfolioItems.length) return;
+    const reordered = [...portfolioItems];
+    [reordered[index], reordered[swapWith]] = [reordered[swapWith], reordered[index]];
+    setPortfolioItems(reordered);
+    setPortfolioError('');
+    try {
+      await workersApi.reorderPortfolio(reordered.map((i) => i.id));
+    } catch (err) {
+      setPortfolioError(err.message);
+    }
+  }
 
   async function handleSave(e) {
     e.preventDefault();
@@ -173,6 +244,124 @@ export function Profile() {
         <Button variant="secondary" className="mt-4" onClick={() => navigate(`/worker/${user.id}`)}>
           View my public profile
         </Button>
+      )}
+
+      {user.role === 'worker' && workerData?.profile.verificationStatus === 'approved' && (
+        <>
+          <Card className="mt-4">
+            <p className="font-semibold">Description</p>
+            <p className="mt-1 text-xs text-text-muted">Shown on your public profile, below your details.</p>
+            <textarea
+              rows={4}
+              value={description}
+              onChange={(e) => {
+                setDescription(e.target.value);
+                setDescriptionDirty(true);
+              }}
+              placeholder="e.g. what I do, how I work, how I handle mistakes..."
+              maxLength={2000}
+              className="mt-3 w-full rounded-md border border-border bg-surface px-4 py-3 text-sm text-text outline-none focus:border-brand-solid"
+            />
+            {descriptionError && <p className="mt-1 text-sm text-danger">{descriptionError}</p>}
+            {descriptionDirty && (
+              <Button
+                variant="secondary"
+                className="mt-3 px-4 py-1.5 text-sm"
+                disabled={savingDescription}
+                onClick={handleSaveDescription}
+              >
+                {savingDescription ? 'Saving...' : 'Save description'}
+              </Button>
+            )}
+          </Card>
+
+          <Card className="mt-4">
+            <div className="flex items-center justify-between">
+              <p className="font-semibold">Portfolio</p>
+              <Button
+                variant="secondary"
+                className="px-3 py-1.5 text-sm"
+                onClick={() => {
+                  setEditingItem(null);
+                  setModalOpen(true);
+                }}
+              >
+                + Add work
+              </Button>
+            </div>
+            {portfolioError && <p className="mt-2 text-sm text-danger">{portfolioError}</p>}
+            {portfolioItems.length === 0 ? (
+              <p className="mt-3 text-sm text-text-muted">No work added yet.</p>
+            ) : (
+              <div className="mt-3 flex flex-col gap-2">
+                {portfolioItems.map((item, index) => (
+                  <div key={item.id} className="flex items-center gap-3 rounded-xl border border-border p-2.5">
+                    {item.imageUrls[0] ? (
+                      <img src={item.imageUrls[0]} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" />
+                    ) : (
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-surface-alt text-text-muted">
+                        <CategoryIcon category={item.category} />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{item.title}</p>
+                      <p className="text-xs capitalize text-text-muted">{item.category}</p>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-center gap-0.5 text-text-muted">
+                      <button
+                        type="button"
+                        disabled={index === 0}
+                        onClick={() => handleMovePortfolioItem(item.id, 'up')}
+                        aria-label="Move up"
+                        className="disabled:opacity-30"
+                      >
+                        &#9650;
+                      </button>
+                      <button
+                        type="button"
+                        disabled={index === portfolioItems.length - 1}
+                        onClick={() => handleMovePortfolioItem(item.id, 'down')}
+                        aria-label="Move down"
+                        className="disabled:opacity-30"
+                      >
+                        &#9660;
+                      </button>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingItem(item);
+                          setModalOpen(true);
+                        }}
+                        className="text-xs font-semibold text-brand-solid"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busyItemId === item.id}
+                        onClick={() => handleDeletePortfolioItem(item.id)}
+                        className="text-xs font-semibold text-danger disabled:opacity-50"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          <PortfolioItemModal
+            open={modalOpen}
+            onClose={() => setModalOpen(false)}
+            item={editingItem}
+            categories={catalogCategories}
+            defaultCategory={workerData?.services?.[0]?.category ?? catalogCategories[0] ?? ''}
+            onSaved={handlePortfolioItemSaved}
+          />
+        </>
       )}
 
       {user.role === 'worker' && workerData?.documents.length > 0 && (

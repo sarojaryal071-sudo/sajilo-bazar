@@ -4,6 +4,10 @@ import { VERIFICATION_STATUSES, SERVICE_APPROVAL_STATUSES } from './enums.js';
 export const WorkerProfileSchema = z.object({
   userId: z.number().int().positive(),
   bio: z.string().max(500).nullable().optional(),
+  // Free-text, unstructured (2026-09-27) - sits alongside bio rather than
+  // replacing it. Deliberately not split into separate fields (what I do /
+  // how I work / etc.) - see Profile.jsx's placeholder guidance text.
+  description: z.string().max(2000).nullable().optional(),
   isOnline: z.boolean().default(false),
   verificationStatus: z.enum(VERIFICATION_STATUSES).default('unsubmitted'),
   ratingAvg: z.number().min(0).max(5).default(0),
@@ -51,4 +55,44 @@ export const WorkerServiceSchema = z.object({
 export const WorkerAddServiceInputSchema = z.object({
   serviceId: z.number().int().positive(),
   price: z.number().positive(),
+});
+
+export const WorkerDescriptionInputSchema = z.object({
+  description: z.string().max(2000).nullable(),
+});
+
+// A past-work item on a worker's portfolio (2026-09-27). No status field -
+// self-serve, goes live immediately, same trust model as reviews (see
+// DATA_MODEL.md). category reuses services.category's own free-text
+// convention rather than a new enum, so a future non-household vertical
+// doesn't need a schema change here.
+export const WorkerPortfolioItemSchema = z.object({
+  id: z.number().int().positive(),
+  workerId: z.number().int().positive(),
+  title: z.string().min(1).max(120),
+  description: z.string().max(2000).nullable().optional(),
+  imageUrls: z.array(z.string().url()).default([]),
+  link: z.string().url().nullable().optional(),
+  category: z.string().min(2).max(60),
+  workDate: z.string().nullable().optional(), // date-only (YYYY-MM-DD), worker-entered, informational
+  displayOrder: z.number().int().min(0),
+  createdAt: z.string().datetime().optional(),
+  updatedAt: z.string().datetime().optional(),
+});
+
+// Non-file fields only - images ride alongside as multipart files (see
+// workers.controller.js createPortfolioItem/updatePortfolioItem).
+export const WorkerPortfolioItemInputSchema = z.object({
+  title: z.string().min(1).max(120),
+  description: z.string().max(2000).nullable().optional(),
+  link: z.string().url().nullable().optional(),
+  category: z.string().min(2).max(60),
+  workDate: z.string().nullable().optional(),
+});
+
+// Replace-all, same idiom as AvailabilityReplaceInputSchema/
+// replaceWorkerServices - the full desired order is always submitted as
+// one set (display_order = each id's index), not incrementally patched.
+export const WorkerPortfolioReorderInputSchema = z.object({
+  orderedIds: z.array(z.number().int().positive()).min(1),
 });

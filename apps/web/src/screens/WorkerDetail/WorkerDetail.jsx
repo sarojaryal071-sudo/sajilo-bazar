@@ -8,6 +8,7 @@ import { SkeletonBlock } from '../../components/Skeleton.jsx';
 import { ReviewsList } from '../../components/ReviewsList.jsx';
 import { VerifiedBadge } from '../../components/VerifiedBadge.jsx';
 import { TrustBadge } from '../../components/TrustBadge.jsx';
+import { PortfolioGallery } from '../../components/PortfolioGallery.jsx';
 import * as workersApi from '../../api/workers.api.js';
 
 function StarIcon() {
@@ -155,6 +156,27 @@ export function WorkerDetail() {
           </div>
           <Button onClick={handleBookSelected}>Book selected services</Button>
         </Card>
+      )}
+
+      {worker.description && (
+        <>
+          <p className="mt-6 mb-3 text-sm font-semibold uppercase tracking-wide text-text-muted">
+            Description
+          </p>
+          <p className="whitespace-pre-line text-sm text-text">{worker.description}</p>
+          <p className="mt-2 text-xs text-text-muted">
+            This is the worker's own description - it doesn't replace Sajilo Bazar's dispute process.
+          </p>
+        </>
+      )}
+
+      {worker.portfolioItems?.length > 0 && (
+        <>
+          <p className="mt-6 mb-3 text-sm font-semibold uppercase tracking-wide text-text-muted">
+            Portfolio
+          </p>
+          <PortfolioGallery items={worker.portfolioItems} />
+        </>
       )}
 
       <p className="mt-6 mb-3 text-sm font-semibold uppercase tracking-wide text-text-muted">

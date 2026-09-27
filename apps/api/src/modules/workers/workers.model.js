@@ -4,6 +4,7 @@ function toProfile(row) {
   return {
     userId: row.user_id,
     bio: row.bio,
+    description: row.description,
     isOnline: row.is_online,
     verificationStatus: row.verification_status,
     ratingAvg: Number(row.rating_avg),
@@ -63,6 +64,26 @@ function toService(row) {
   };
 }
 
+function toPortfolioItem(row) {
+  return {
+    id: row.id,
+    workerId: row.worker_id,
+    title: row.title,
+    description: row.description,
+    imageUrls: row.image_urls ?? [],
+    link: row.link,
+    category: row.category,
+    // pg returns a DATE column as a JS Date (UTC midnight) - normalize to a
+    // plain YYYY-MM-DD string so this round-trips safely through JSON
+    // without a timezone-shift surprise, since this is purely informational
+    // (never used in date arithmetic).
+    workDate: row.work_date instanceof Date ? row.work_date.toISOString().slice(0, 10) : row.work_date,
+    displayOrder: row.display_order,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 export async function findProfile(userId) {
   const { rows } = await pool.query('SELECT * FROM worker_profiles WHERE user_id = $1', [userId]);
   return rows[0] ? toProfile(rows[0]) : null;
@@ -73,6 +94,14 @@ export async function updateBio(userId, bio) {
     bio,
     userId,
   ]);
+}
+
+export async function updateDescription(userId, description) {
+  const { rows } = await pool.query(
+    'UPDATE worker_profiles SET description = $1, updated_at = now() WHERE user_id = $2 RETURNING *',
+    [description, userId]
+  );
+  return rows[0] ? toProfile(rows[0]) : null;
 }
 
 export async function setVerificationStatus(userId, status) {
@@ -339,6 +368,78 @@ export async function listDocuments(workerId) {
   return rows.map(toDocument);
 }
 
+// ---- Portfolio (richer worker profile, 2026-09-27) ----
+
+export async function listPortfolioItems(workerId) {
+  const { rows } = await pool.query(
+    'SELECT * FROM worker_portfolio_items WHERE worker_id = $1 ORDER BY display_order, id',
+    [workerId]
+  );
+  return rows.map(toPortfolioItem);
+}
+
+export async function findPortfolioItem(id, workerId) {
+  const { rows } = await pool.query(
+    'SELECT * FROM worker_portfolio_items WHERE id = $1 AND worker_id = $2',
+    [id, workerId]
+  );
+  return rows[0] ? toPortfolioItem(rows[0]) : null;
+}
+
+// New items go to the end of the list - display_order is the current max + 1.
+export async function createPortfolioItem(workerId, { title, description, imageUrls, link, category, workDate }) {
+  const { rows } = await pool.query(
+    `INSERT INTO worker_portfolio_items (worker_id, title, description, image_urls, link, category, work_date, display_order)
+     VALUES ($1, $2, $3, $4, $5, $6, $7,
+             (SELECT COALESCE(MAX(display_order), -1) + 1 FROM worker_portfolio_items WHERE worker_id = $1))
+     RETURNING *`,
+    [workerId, title, description ?? null, JSON.stringify(imageUrls ?? []), link ?? null, category, workDate ?? null]
+  );
+  return toPortfolioItem(rows[0]);
+}
+
+export async function updatePortfolioItem(id, workerId, { title, description, imageUrls, link, category, workDate }) {
+  const { rows } = await pool.query(
+    `UPDATE worker_portfolio_items
+     SET title = $3, description = $4, image_urls = $5, link = $6, category = $7, work_date = $8, updated_at = now()
+     WHERE id = $1 AND worker_id = $2
+     RETURNING *`,
+    [id, workerId, title, description ?? null, JSON.stringify(imageUrls ?? []), link ?? null, category, workDate ?? null]
+  );
+  return rows[0] ? toPortfolioItem(rows[0]) : null;
+}
+
+export async function deletePortfolioItem(id, workerId) {
+  const { rows } = await pool.query(
+    'DELETE FROM worker_portfolio_items WHERE id = $1 AND worker_id = $2 RETURNING id',
+    [id, workerId]
+  );
+  return Boolean(rows[0]);
+}
+
+// Replace-all reorder, same idiom as replaceAvailability/replaceWorkerServices -
+// the full desired order always arrives as one set (orderedIds' own index
+// becomes display_order), not an incremental patch.
+export async function reorderPortfolioItems(workerId, orderedIds) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    for (let i = 0; i < orderedIds.length; i++) {
+      await client.query(
+        'UPDATE worker_portfolio_items SET display_order = $3, updated_at = now() WHERE id = $1 AND worker_id = $2',
+        [orderedIds[i], workerId, i]
+      );
+    }
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+  return listPortfolioItems(workerId);
+}
+
 function toSearchResult(row) {
   return {
     userId: row.user_id,
@@ -436,7 +537,7 @@ export async function findReviewsForWorker(workerId) {
   };
 }
 
-function toWorkerDetail(profileRow, serviceRows, { reviewsCount, reviews }) {
+function toWorkerDetail(profileRow, serviceRows, { reviewsCount, reviews }, portfolioItems) {
   return {
     userId: profileRow.user_id,
     fullName: profileRow.full_name,
@@ -444,6 +545,8 @@ function toWorkerDetail(profileRow, serviceRows, { reviewsCount, reviews }) {
     profileImageUrl: profileRow.profile_image_url,
     verificationStatus: profileRow.verification_status,
     bio: profileRow.bio,
+    description: profileRow.description,
+    portfolioItems: portfolioItems ?? [],
     ratingAvg: Number(profileRow.rating_avg),
     jobsCompletedCount: profileRow.jobs_completed_count,
     serviceAreaLabel: profileRow.service_area_label,
@@ -467,8 +570,8 @@ function toWorkerDetail(profileRow, serviceRows, { reviewsCount, reviews }) {
 export async function findApprovedWorkerDetail(userId) {
   const { rows } = await pool.query(
     `SELECT u.id AS user_id, u.full_name, wp.handle, u.profile_image_url, wp.verification_status,
-            wp.bio, wp.rating_avg, wp.jobs_completed_count, wp.service_area_label, wp.trust_score,
-            wp.typical_response_hours
+            wp.bio, wp.description, wp.rating_avg, wp.jobs_completed_count, wp.service_area_label,
+            wp.trust_score, wp.typical_response_hours
      FROM users u
      JOIN worker_profiles wp ON wp.user_id = u.id
      WHERE u.id = $1 AND wp.verification_status = 'approved'
@@ -487,8 +590,9 @@ export async function findApprovedWorkerDetail(userId) {
   );
 
   const reviewData = await findReviewsForWorker(userId);
+  const portfolioItems = await listPortfolioItems(userId);
 
-  return toWorkerDetail(rows[0], services.rows, reviewData);
+  return toWorkerDetail(rows[0], services.rows, reviewData, portfolioItems);
 }
 
 export const withTransaction = async (fn) => {

@@ -302,6 +302,38 @@ section). Never folded into the service charge the 15% commission is calculated 
   (commission applies to one, not the other), so they're shown separately everywhere a price
   breaks down.
 
+## Richer worker profile — Description + Portfolio (2026-09-27)
+
+Decided in a founder product discussion - a foundation piece for a future multi-vertical
+expansion (digital services alongside today's household trades), so the data model is generic
+even though only household categories exist today (see `DATA_MODEL.md`'s
+`worker_portfolio_items`, whose `category` reuses `services.category`'s existing free-text
+convention rather than a new enum).
+
+- **Profile screen** (Phase 1, extended) — for an approved worker, gains a **Description** card
+  (a single open textarea, deliberately unstructured - not split into "what I do"/"how I
+  work"/etc. fields, since low-technical-literacy workers shouldn't have to think in categories
+  before writing - with placeholder guidance text like "e.g. what I do, how I work, how I
+  handle mistakes..." that's UI-only, never stored) and a **Portfolio** card below it: a list of
+  existing items as rows (thumbnail or a category-icon placeholder, title, category, up/down
+  reorder, Edit/Delete) plus an "+ Add work" action opening a shared add/edit form (title,
+  description, multiple image upload, optional link, category picker defaulting to the
+  worker's own primary category, work date). No moderation/status field - items go live
+  immediately on save, same trust model as reviews; admin's existing suspend/moderation tools
+  remain the safety net if something's reported.
+- **Worker detail screen** (Phase 2, extended above) — public layout order is now: existing
+  public data + bio (unchanged) -> Services (unchanged) -> **Description** (the worker's
+  free-text field, rendered as-is with line breaks preserved, directly above a static
+  non-editable disclaimer: "This is the worker's own description - it doesn't replace Sajilo
+  Bazar's dispute process") -> **Portfolio** (a horizontal gallery, same 0/1/2+ display rule
+  already used for the Promotions carousel - thumbnail, title, category badge, and a "View
+  project" link only when the item has one, opening externally; tapping an image opens it
+  full-screen) -> **Reviews & Ratings**, last. Out of scope for this round: no portfolio-
+  thumbnail preview on the worker's card in search/browse results - portfolio content is
+  profile-only for now.
+- Portfolio images upload to a worker-scoped Cloudinary folder keyed to the worker's internal
+  id (the app has no username field), not a shared/global one.
+
 ## Later phases — not built until their phase starts
 
 - Admin: full financial reporting (P&L, balance sheet, trial balance) — only once
