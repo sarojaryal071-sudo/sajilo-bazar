@@ -30,6 +30,8 @@ function toBooking(row) {
     flagged: row.flagged,
     flagReason: row.flag_reason,
     createdAt: row.created_at,
+    acceptedAt: row.accepted_at,
+    startedAt: row.started_at,
     completedAt: row.completed_at,
     customerName: row.customer_name,
     customerImageUrl: row.customer_image_url,
@@ -247,7 +249,7 @@ export async function claimInstant(bookingId, workerId, fuelCharge = 0) {
     await client.query('BEGIN');
 
     const claimRes = await client.query(
-      `UPDATE bookings SET worker_id = $2, status = 'accepted'
+      `UPDATE bookings SET worker_id = $2, status = 'accepted', accepted_at = now()
        WHERE id = $1 AND type = 'instant' AND status = 'requested' AND worker_id IS NULL
        RETURNING id`,
       [bookingId, workerId]
@@ -360,7 +362,7 @@ export async function listForUser(userId, role, status) {
 }
 
 export async function setAccepted(id) {
-  await pool.query(`UPDATE bookings SET status = 'accepted' WHERE id = $1`, [id]);
+  await pool.query(`UPDATE bookings SET status = 'accepted', accepted_at = now() WHERE id = $1`, [id]);
   return findById(id);
 }
 
@@ -370,7 +372,7 @@ export async function setDeclined(id) {
 }
 
 export async function setInProgress(id) {
-  await pool.query(`UPDATE bookings SET status = 'in_progress' WHERE id = $1`, [id]);
+  await pool.query(`UPDATE bookings SET status = 'in_progress', started_at = now() WHERE id = $1`, [id]);
   return findById(id);
 }
 

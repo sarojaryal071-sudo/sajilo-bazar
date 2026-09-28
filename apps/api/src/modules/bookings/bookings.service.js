@@ -266,6 +266,7 @@ export async function acceptBooking(bookingId, workerId) {
     bookingId: updated.id,
     workerName: updated.workerName,
   });
+  emitToUser(updated.customerId, 'booking:status_changed', { booking: updated });
   return updated;
 }
 
@@ -280,6 +281,7 @@ export async function declineBooking(bookingId, workerId) {
     bookingId: updated.id,
     workerName: updated.workerName,
   });
+  emitToUser(updated.customerId, 'booking:status_changed', { booking: updated });
   return updated;
 }
 
@@ -293,6 +295,7 @@ export async function startBooking(bookingId, workerId) {
     bookingId: updated.id,
     status: 'in_progress',
   });
+  emitToUser(updated.customerId, 'booking:status_changed', { booking: updated });
   return updated;
 }
 
@@ -308,6 +311,7 @@ export async function completeBooking(bookingId, workerId, { finalPrice, payment
     bookingId: updated.id,
     status: 'completed',
   });
+  emitToUser(updated.customerId, 'booking:status_changed', { booking: updated });
   return updated;
 }
 
@@ -343,6 +347,7 @@ export async function cancelBooking(bookingId, userId, reason) {
       status: 'cancelled',
       cancelReason: updated.cancelReason,
     });
+    emitToUser(otherPartyId, 'booking:status_changed', { booking: updated });
   }
 
   return updated;
