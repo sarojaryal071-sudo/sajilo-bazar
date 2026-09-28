@@ -199,9 +199,9 @@ function ThemeToggle() {
       type="button"
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
       aria-label={t('landing.nav.themeToggle')}
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-alt hover:text-text"
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-alt hover:text-text sm:h-9 sm:w-9"
     >
-      {isDark ? <SunIcon size={20} /> : <MoonIcon size={20} />}
+      {isDark ? <SunIcon size={18} /> : <MoonIcon size={18} />}
     </button>
   );
 }
@@ -213,10 +213,10 @@ function LanguageToggle() {
       type="button"
       onClick={() => setLanguage(language === 'en' ? 'ne' : 'en')}
       aria-label={t('landing.nav.languageToggle')}
-      className="flex h-9 shrink-0 items-center gap-1 rounded-full px-2.5 text-sm font-semibold text-text-muted transition-colors hover:bg-surface-alt hover:text-text"
+      title={language === 'en' ? 'EN' : 'ने'}
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-alt hover:text-text sm:h-9 sm:w-9"
     >
       <GlobeIcon size={18} />
-      {language === 'en' ? 'EN' : 'ने'}
     </button>
   );
 }
@@ -234,13 +234,13 @@ function LandingHeader() {
 
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-surface/90 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-3 sm:px-6 sm:py-4 lg:px-8">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-1 px-2 py-3 sm:gap-3 sm:px-6 sm:py-4 lg:px-8">
         {/* Logo + nav grouped together (and close to each other via gap-8)
             so nav links sit near the logo on the left, not floating at
             dead-center of the bar between the logo and the right-side
             controls - a plain 3-child justify-between row would space all
             three evenly instead. */}
-        <div className="flex min-w-0 items-center gap-8">
+        <div className="flex shrink-0 items-center gap-8">
           <Wordmark />
           <nav className="hidden items-center gap-6 text-sm font-medium text-text-muted sm:flex">
             {navLinks.map((link) => (
@@ -250,16 +250,24 @@ function LandingHeader() {
             ))}
           </nav>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-1.5 sm:gap-2">
+        <div className="flex shrink-0 items-center gap-0 sm:gap-2">
           <ThemeToggle />
           <LanguageToggle />
-          <Link to="/login">
-            <Button variant="secondary" className="whitespace-nowrap px-3 py-2 text-sm sm:px-4">
+          {/* `!` markers force these overrides to win over Button's own
+              base px-6/py-3 - plain same-specificity utility classes
+              aren't guaranteed to win by JSX source order alone (no
+              tailwind-merge in this project's Button component), which
+              is exactly what let the base padding through and squeezed
+              the logo out on narrow phone widths. */}
+          <Link to="/login" className="ml-0.5 sm:ml-0">
+            <Button variant="secondary" className="whitespace-nowrap !px-1.5 !py-1.5 text-sm sm:!px-4 sm:!py-2.5">
               {t('landing.nav.login')}
             </Button>
           </Link>
           <Link to="/signup">
-            <Button className="whitespace-nowrap px-3 py-2 text-sm sm:px-4">{t('landing.nav.signup')}</Button>
+            <Button className="whitespace-nowrap !px-1.5 !py-1.5 text-sm sm:!px-4 sm:!py-2.5">
+              {t('landing.nav.signup')}
+            </Button>
           </Link>
         </div>
       </div>
@@ -578,7 +586,7 @@ function WhatToExpect() {
 // same <section> as the photo.
 const CLOSING_OVERLAY = {
   background:
-    'linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.72) 22%, rgba(15,17,21,0.94) 40%, #0f1115 58%, #0f1115 100%)',
+    'linear-gradient(to bottom, rgba(0,0,0,0.22) 0%, rgba(0,0,0,0.38) 20%, rgba(0,0,0,0.6) 42%, rgba(15,17,21,0.88) 62%, #0f1115 80%, #0f1115 100%)',
 };
 
 const SOCIAL_LINKS = [
@@ -606,8 +614,10 @@ function ClosingCtaAndFooter() {
 
       <div className="relative z-10 px-5 pb-14 pt-20 text-center sm:px-6 lg:px-8 lg:pt-24">
         <Reveal className="mx-auto max-w-2xl">
-          <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">{t('landing.cta.heading')}</h2>
-          <p className="mt-3 text-white/85">{t('landing.cta.subcopy')}</p>
+          <h2 className="text-2xl font-bold tracking-tight text-white [text-shadow:0_2px_16px_rgba(0,0,0,0.55)] sm:text-3xl">
+            {t('landing.cta.heading')}
+          </h2>
+          <p className="mt-3 text-white/90 [text-shadow:0_1px_10px_rgba(0,0,0,0.55)]">{t('landing.cta.subcopy')}</p>
           <Link to="/signup" className="mt-6 inline-block">
             <Button className="px-8 py-3.5 text-base">{t('landing.cta.button')}</Button>
           </Link>
@@ -615,14 +625,21 @@ function ClosingCtaAndFooter() {
       </div>
 
       <footer className="relative z-10 px-5 pb-14 pt-6 text-white/80 sm:px-6 lg:px-8">
-        <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 sm:grid-cols-3">
+        {/* justify-between (rather than a plain equal-width grid) so the
+            three groups sit at the left edge, true horizontal center, and
+            right edge of the row on desktop - a grid's columns are the
+            right width but each column's content still hugs its own
+            left edge, which is what left large empty whitespace after the
+            "Follow us" icons instead of them reaching the row's right
+            edge. Mobile keeps the original stacked, left-aligned layout. */}
+        <div className="mx-auto flex max-w-6xl flex-col gap-10 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <Wordmark className="text-white" />
             <p id="footer-contact" className="mt-4 text-sm text-white/60">
               {t('landing.footer.contactBody')}
             </p>
           </div>
-          <div>
+          <div className="sm:text-center">
             <p className="text-sm font-semibold text-white">{t('landing.footer.legalHeading')}</p>
             <nav className="mt-3 flex flex-col gap-2 text-sm">
               <Link to="/terms" className="text-white/70 transition-colors hover:text-white">
@@ -636,9 +653,9 @@ function ClosingCtaAndFooter() {
               </a>
             </nav>
           </div>
-          <div>
+          <div className="sm:text-right">
             <p className="text-sm font-semibold text-white">{t('landing.footer.followHeading')}</p>
-            <div className="mt-3 flex items-center gap-3">
+            <div className="mt-3 flex items-center gap-3 sm:justify-end">
               {SOCIAL_LINKS.map((social) => (
                 <a
                   key={social.label}
