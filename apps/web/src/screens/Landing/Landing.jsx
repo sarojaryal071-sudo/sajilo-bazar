@@ -263,13 +263,11 @@ function LandingHeader() {
 // Preloaded eagerly since the hero image is above the fold - requested
 // immediately rather than after other page resources, matching whichever
 // crop the <picture> below will actually pick for this viewport width.
-// 1024px (lg:), not 640px (sm:) - that's where the hero's own layout
-// actually switches from a single stacked column to the two-column grid.
 function useHeroImagePreload() {
   useEffect(() => {
     const links = [
-      { href: '/images/hero-mobile.webp', media: '(max-width: 1023px)' },
-      { href: '/images/hero-desktop.webp', media: '(min-width: 1024px)' },
+      { href: '/images/hero-mobile.webp', media: '(max-width: 639px)' },
+      { href: '/images/hero-desktop.webp', media: '(min-width: 640px)' },
     ].map(({ href, media }) => {
       const link = document.createElement('link');
       link.rel = 'preload';
@@ -284,58 +282,68 @@ function useHeroImagePreload() {
   }, []);
 }
 
-// Asymmetric two-column hero (Round H) - replaces the old centered-text-
-// over-full-bleed-photo layout. The photo is now a contained image in its
-// own column rather than a background behind the headline, with a small
-// floating "Verified workers only" badge sitting on it (photo -> gradient
-// scrim -> badge, the same treatment used elsewhere in the app's imagery).
-// Mobile stacks to one column with the image first, as its own full-width
-// band using the dedicated wide mobile crop - not the tall desktop portrait
-// scaled down.
+// Radial wash centered behind the text block (production Hero, pre-Round H -
+// this section deliberately keeps its original full-bleed photo/gradient
+// treatment rather than adopting the boxed two-column layout the rest of
+// this round introduced elsewhere on the page). Strongest right behind the
+// headline/CTAs for legibility, fading to fully transparent toward the
+// image's edges so the photo still reads as texture/mood out there. Same
+// three brand tokens as bg-brand, just as explicit rgba stops since a CSS
+// gradient can't reference --color-brand-solid's hex through color-mix()
+// reliably across browsers yet.
+const HERO_OVERLAY = {
+  background:
+    'radial-gradient(ellipse 70% 60% at 30% center, rgba(15,118,110,0.82) 0%, rgba(13,148,136,0.6) 35%, rgba(16,185,129,0.25) 65%, rgba(16,185,129,0) 100%)',
+};
+
+// Full-bleed background photo, unchanged from production - only the text
+// block's alignment moved (centered -> left), with the photo's own crop
+// re-balanced so its two subjects sit toward the right of the frame instead
+// of behind the now-left-aligned text (same kind of per-breakpoint
+// object-position fix already applied for mobile here, just extended to
+// match the new alignment on every breakpoint).
 function Hero() {
-  const { t } = useLanguage();
   useHeroImagePreload();
 
   return (
-    <section className="bg-surface">
-      <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 pb-14 pt-6 sm:pt-8 lg:grid-cols-2 lg:gap-16 lg:px-8 lg:py-20">
-        <div className="relative order-1 aspect-[16/10] w-full overflow-hidden sm:aspect-[16/9] lg:order-2 lg:aspect-[4/5] lg:rounded-3xl">
-          <picture>
-            <source media="(min-width: 1024px)" srcSet="/images/hero-desktop.webp" />
-            <img
-              src="/images/hero-mobile.webp"
-              alt="A verified Sajilo Bazar worker at a customer's home"
-              fetchpriority="high"
-              className="h-full w-full object-cover"
-            />
-          </picture>
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-transparent" />
-          <div className="absolute bottom-4 left-4 flex items-center gap-2 rounded-full bg-black/55 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm sm:bottom-5 sm:left-5">
-            <VerifiedIcon size={16} />
-            {t('landing.hero.badge')}
-          </div>
-        </div>
+    <section className="relative isolate flex min-h-[80vh] items-center overflow-hidden sm:min-h-[85vh]">
+      <picture>
+        <source media="(min-width: 640px)" srcSet="/images/hero-desktop.webp" />
+        <img
+          src="/images/hero-mobile.webp"
+          alt="A Sajilo Bazar worker and customer looking at a booking together on a phone"
+          fetchpriority="high"
+          className="absolute inset-0 h-full w-full object-cover object-[80%_35%] sm:object-[72%_center]"
+        />
+      </picture>
+      <div className="pointer-events-none absolute inset-0" style={HERO_OVERLAY} />
+      {/* Fades the bottom of the hero into the page's own background color
+          instead of a hard cutoff where the section ends. */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-b from-transparent to-surface" />
 
-        <div className="order-2 flex flex-col items-start gap-6 px-5 sm:px-6 lg:order-1 lg:px-0">
-          <motion.h1
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="text-4xl font-extrabold tracking-tight text-text sm:text-5xl"
-          >
-            {t('landing.hero.headline')}
-          </motion.h1>
-          <p className="max-w-xl text-lg text-text-muted">{t('landing.hero.subcopy')}</p>
-          <div className="mt-2 flex flex-col gap-3 sm:flex-row">
-            <Link to="/signup">
-              <Button className="w-full px-8 py-3.5 text-base sm:w-auto">{t('landing.hero.getStarted')}</Button>
-            </Link>
-            <Link to="/login" className="w-full sm:w-auto">
-              <Button variant="secondary" className="w-full px-8 py-3.5 text-base sm:w-auto">
-                {t('landing.hero.login')}
-              </Button>
-            </Link>
-          </div>
+      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col items-start gap-6 px-5 py-20 text-left sm:px-6 lg:px-8">
+        <motion.h1
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="max-w-2xl text-4xl font-extrabold tracking-tight text-white sm:text-5xl"
+        >
+          Sajilo Bazar connects people who need work done with people who do
+          it.
+        </motion.h1>
+        <p className="max-w-xl text-lg text-white/90">
+          Post a job or list your skills — matching, tracking, and payment all
+          happen right in the app.
+        </p>
+        <div className="mt-2 flex flex-col gap-3 sm:flex-row">
+          <Link to="/signup">
+            <Button className="w-full px-8 py-3.5 text-base sm:w-auto">Sign up</Button>
+          </Link>
+          <a href="#how-it-works" className="w-full sm:w-auto">
+            <Button variant="secondary" className="w-full px-8 py-3.5 text-base sm:w-auto">
+              See how it works
+            </Button>
+          </a>
         </div>
       </div>
     </section>
