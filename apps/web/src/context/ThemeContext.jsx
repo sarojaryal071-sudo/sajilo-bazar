@@ -3,13 +3,15 @@ import { useLocation } from 'react-router-dom';
 
 const STORAGE_KEY = 'sajilo-theme';
 
-// Welcome/Login/Signup were designed and verified in one fixed look (see
+// Login/Signup were designed and verified in one fixed look (see
 // AuthScreen.jsx) - the stored theme preference (and even the OS's own
 // prefers-color-scheme) never applies there, only inside the authenticated
-// app shell. tokens.css enforces this the other way too: any explicit
-// data-theme attribute on :root suppresses the prefers-color-scheme media
-// query, so this is the only place that ever sets it.
-const FIXED_THEME_PATHS = new Set(['/', '/login', '/signup']);
+// app shell and the public Landing page (which has its own working theme
+// toggle - see Landing.jsx). tokens.css enforces this the other way too:
+// any explicit data-theme attribute on :root suppresses the
+// prefers-color-scheme media query, so this is the only place that ever
+// sets it.
+const FIXED_THEME_PATHS = new Set(['/login', '/signup']);
 
 function systemPrefersDark() {
   return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;

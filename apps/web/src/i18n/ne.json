@@ -14,5 +14,69 @@
   "menu.light": "उज्यालो",
   "menu.dark": "अँध्यारो",
   "menu.english": "अंग्रेजी",
-  "menu.nepali": "नेपाली"
+  "menu.nepali": "नेपाली",
+
+  "landing.nav.services": "सेवाहरू",
+  "landing.nav.howItWorks": "यसरी काम गर्छ",
+  "landing.nav.about": "हाम्रो बारे",
+  "landing.nav.login": "लग इन",
+  "landing.nav.signup": "साइन अप",
+  "landing.nav.themeToggle": "थिम बदल्नुहोस्",
+  "landing.nav.languageToggle": "भाषा बदल्नुहोस्",
+
+  "landing.hero.badge": "प्रमाणित कामदारहरू मात्र",
+  "landing.hero.headline": "साजिलो बजारले काम चाहिने र काम गर्ने मानिसहरूलाई जोड्छ।",
+  "landing.hero.subcopy": "काम पोस्ट गर्नुहोस् वा आफ्नो सीप सूचीबद्ध गर्नुहोस् — मिलान, ट्र्याकिङ र भुक्तानी सबै एपमै हुन्छ।",
+  "landing.hero.getStarted": "सुरु गर्नुहोस्",
+  "landing.hero.login": "लग इन",
+
+  "landing.trust.verified.title": "प्रमाणित र पृष्ठभूमि जाँचिएको",
+  "landing.trust.pricing.title": "अगावै देखिने पारदर्शी मूल्य",
+  "landing.trust.chat.title": "एप-भित्रै च्याट",
+  "landing.trust.score.title": "ट्रस्ट स्कोर श्रेणी",
+
+  "landing.about.eyebrow": "साजिलो बजारको बारेमा",
+  "landing.about.heading": "चितवनका लागि, एक-एक विश्वसनीय कामबाट",
+  "landing.about.body": "साजिलो बजार चितवनबाटै सुरु भएको हो — जो पहिले फोन उठाउँछ त्यही होइन, साँच्चै भरोसा गर्न मिल्ने स्थानीय सहयोग खोज्ने एउटा तरिका। हरेक कामदारको कागजात स्वीकृति नपाई काम गर्न पाउँदैन, मूल्य अगावै देखाइन्छ, र बुकिङदेखि भुक्तानीसम्म सबै काम एपमै ट्र्याक हुन्छ।",
+
+  "landing.services.eyebrow": "हामीले समेट्ने सेवाहरू",
+  "landing.services.heading": "तपाईं नजिकैका सेवाहरू",
+  "landing.services.subcopy": "वास्तविक श्रेणीहरू, वास्तविक स्थानीय कामदारहरू — प्लेटफर्ममा सक्रिय भएकैबाट लिइएको।",
+
+  "landing.why.eyebrow": "किन हामीलाई रोज्ने",
+  "landing.why.heading": "अड्कल होइन, भरोसामा निर्मित",
+  "landing.why.verify.title": "प्रमाणित कागजात + ट्रस्ट स्कोर",
+  "landing.why.verify.desc": "हरेक कामदारको कागजात जाँचिन्छ, र बुक गर्नुअघि नै प्रोफाइलमा ट्रस्ट स्कोर देखिन्छ।",
+  "landing.why.price.title": "पारदर्शी मूल्य विवरण",
+  "landing.why.price.desc": "सेवा शुल्क र इन्धन/यात्रा शुल्क छुट्टाछुट्टै देखाइन्छ — कुनै लुकेको शुल्क छैन।",
+  "landing.why.chat.title": "बुकिङसँगै जोडिएको एप-भित्रै च्याट",
+  "landing.why.chat.desc": "बुकिङबाटै सिधै आफ्नो कामदारलाई म्यासेज गर्नुहोस् — अगावै फोन नम्बर चाहिँदैन।",
+  "landing.why.cash.title": "काम सकिएपछि नगद भुक्तानी",
+  "landing.why.cash.desc": "काम सकिएपछि मात्र भुक्तानी गर्नुहोस्, बुकिङ इतिहासमा रसिद सुरक्षित रहन्छ।",
+
+  "landing.how.eyebrow": "सुरु गर्ने तरिका",
+  "landing.how.heading": "यसरी काम गर्छ",
+
+  "landing.expect.eyebrow": "के आशा गर्ने",
+  "landing.expect.heading": "के आशा गर्ने",
+  "landing.expect.docs.title": "कागजात प्रमाणित",
+  "landing.expect.docs.desc": "कागजात जाँच नभएसम्म कुनै पनि कामदारले काम लिन पाउँदैन।",
+  "landing.expect.score.title": "बुक गर्नुअघि नै ट्रस्ट स्कोर देखिन्छ",
+  "landing.expect.score.desc": "प्रतिबद्ध हुनुअघि नै प्रोफाइलमा कामदारको ट्र्याक रेकर्ड हेर्नुहोस्।",
+  "landing.expect.tracked.title": "एपमै ट्र्याक",
+  "landing.expect.tracked.desc": "च्याट, स्थिति अपडेट र काम इतिहास सबै एकै ठाउँमा रहन्छ।",
+  "landing.expect.pay.title": "काम सकिएपछि मात्र भुक्तानी",
+  "landing.expect.pay.desc": "अगावै भुक्तानी छैन — काम सकिएपछि मात्र भुक्तानी गर्नुहोस् र मूल्याङ्कन गर्नुहोस्।",
+
+  "landing.cta.heading": "सुरु गर्न तयार हुनुहुन्छ?",
+  "landing.cta.subcopy": "काम पोस्ट गर्नुहोस् वा आफ्नो सीप सूचीबद्ध गर्नुहोस् — एक मिनेट मात्र लाग्छ।",
+  "landing.cta.button": "सुरु गर्नुहोस्",
+
+  "landing.footer.legalHeading": "कानुनी",
+  "landing.footer.followHeading": "फलो गर्नुहोस्",
+  "landing.footer.terms": "सर्तहरू र नियमहरू",
+  "landing.footer.privacy": "गोपनीयता नीति",
+  "landing.footer.contact": "सम्पर्क गर्नुहोस्",
+  "landing.footer.contactBody": "प्रश्न छ? हामी सुन्न चाहन्छौं।",
+  "landing.footer.rights": "सर्वाधिकार सुरक्षित।"
 }
