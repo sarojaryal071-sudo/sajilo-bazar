@@ -3,7 +3,6 @@ import { uploadBuffer } from '../../lib/cloudinary.js';
 import { emitToUser } from '../../realtime/socket.js';
 import { notify } from '../notifications/notifications.service.js';
 import * as bookingsModel from '../bookings/bookings.model.js';
-import * as platformSettingsService from '../platformSettings/platformSettings.service.js';
 import * as quotesModel from './quotes.model.js';
 
 async function requireBooking(bookingId) {
@@ -26,30 +25,6 @@ function assertCanSubmitQuote(booking, workerId) {
   }
 }
 
-// Bounded by the admin price band (platform_settings.service_price_bands),
-// same hard floor/ceiling workers.service.js's saveOnboardingWork already
-// enforces for a worker's own listed price - decided as the safer default
-// per the founder's instruction to flag this rather than guess, since a
-// quote is functionally "a worker setting a price for a service" the same
-// way onboarding pricing is. Summed across every service on the booking;
-// if any service has no band defined yet, no bound is enforced (same
-// leniency as the "no band -> not flagged" behavior elsewhere) rather than
-// guessing at a partial bound.
-async function assertWithinPriceBand(booking, amount) {
-  const bands = await platformSettingsService.getServicePriceBands();
-  let min = 0;
-  let max = 0;
-  for (const service of booking.services) {
-    const band = bands[String(service.serviceId)];
-    if (!band) return; // any unbanded service -> no bound enforced for this quote
-    min += Number(band.min);
-    max += Number(band.max);
-  }
-  if (amount < min || amount > max) {
-    throw new ApiError(400, `Quote amount must be between Rs. ${min} and Rs. ${max}`);
-  }
-}
-
 // Phase 2 (manual counter-quote): only makes sense while the booking is
 // still awaiting a first decision - once it's accepted/declined/cancelled/
 // etc. there's nothing left for a quote to counter. Get Quotes (Phase 3,
@@ -62,11 +37,18 @@ function assertBookingAwaitingDecision(booking) {
   }
 }
 
+// amount's only real check is Zod's z.number().positive() on the way in
+// (QuoteCreateInputSchema) plus the DB's own CHECK (amount > 0) - quotes
+// are deliberately unbounded (2026-09-28 fix): the whole point of a quote
+// is pricing a non-standard job (extra material, more time, unusual
+// complexity) that doesn't fit a normal listed-price band, so the same
+// min/max band saveOnboardingWork enforces for a worker's own listed price
+// does not apply here. That band enforcement itself is untouched - this
+// only removes it from quote submission.
 export async function submitQuote(bookingId, workerId, { amount, message }, file) {
   const booking = await requireBooking(bookingId);
   assertCanSubmitQuote(booking, workerId);
   assertBookingAwaitingDecision(booking);
-  await assertWithinPriceBand(booking, amount);
 
   // At most one quote per worker per booking, EVER - not just "no second
   // pending one" (see quotesModel.findAnyByBookingAndWorker). A worker
