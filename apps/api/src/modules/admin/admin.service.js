@@ -142,6 +142,21 @@ export async function getDocumentFile(id) {
   return { buffer, contentType: upstream.headers.get('content-type') || 'application/octet-stream' };
 }
 
+// Same proxy pattern as getDocumentFile above, for a user's profile photo -
+// lets an admin open it in the same viewer modal as identity documents
+// instead of it being unclickable during review.
+export async function getUserPhotoFile(id) {
+  const user = await adminModel.findUserById(id);
+  if (!user) throw new ApiError(404, 'User not found');
+  if (!user.profile_image_url) throw new ApiError(404, 'This user has no profile photo');
+
+  const upstream = await fetch(user.profile_image_url);
+  if (!upstream.ok) throw new ApiError(502, 'Could not retrieve this photo right now');
+
+  const buffer = Buffer.from(await upstream.arrayBuffer());
+  return { buffer, contentType: upstream.headers.get('content-type') || 'application/octet-stream' };
+}
+
 export async function decideWorkerService(serviceId, adminId, decision, comment) {
   const service = await adminModel.findWorkerServiceById(serviceId);
   if (!service) throw new ApiError(404, 'Service not found');

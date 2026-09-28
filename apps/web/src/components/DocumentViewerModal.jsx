@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
 import * as adminApi from '../api/admin.api.js';
 
-// In-page viewer for a verification document, replacing what used to be a
-// plain <a href={doc.fileUrl} target="_blank"> straight to the raw
-// Cloudinary URL (see admin.service.js getDocumentFile for why that
-// changed). Fetches the file's bytes through the admin-only proxy
-// endpoint and renders them from a local object URL - the underlying
-// Cloudinary URL never passes through this component or reaches the
-// browser's address bar/history/network tab as a navigable link.
-export function DocumentViewerModal({ documentId, label, onClose }) {
+// In-page viewer for a verification document or a user's profile photo,
+// replacing what used to be a plain <a href={doc.fileUrl} target="_blank">
+// straight to the raw Cloudinary URL (see admin.service.js getDocumentFile
+// for why that changed). Fetches the file's bytes through one of the
+// admin-only proxy endpoints and renders them from a local object URL -
+// the underlying Cloudinary URL never passes through this component or
+// reaches the browser's address bar/history/network tab as a navigable
+// link. Pass either documentId (a verification_documents row) or userId
+// (a user's profile photo) - not both.
+export function DocumentViewerModal({ documentId, userId, label, onClose }) {
   const [blobUrl, setBlobUrl] = useState(null);
   const [contentType, setContentType] = useState('');
   const [error, setError] = useState('');
@@ -16,8 +18,8 @@ export function DocumentViewerModal({ documentId, label, onClose }) {
   useEffect(() => {
     let cancelled = false;
     let url = null;
-    adminApi
-      .fetchDocumentFile(documentId)
+    const fetchFile = userId != null ? adminApi.fetchUserPhotoFile(userId) : adminApi.fetchDocumentFile(documentId);
+    fetchFile
       .then((blob) => {
         if (cancelled) return;
         url = URL.createObjectURL(blob);
@@ -29,7 +31,7 @@ export function DocumentViewerModal({ documentId, label, onClose }) {
       cancelled = true;
       if (url) URL.revokeObjectURL(url);
     };
-  }, [documentId]);
+  }, [documentId, userId]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-5" onClick={onClose}>
