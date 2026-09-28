@@ -44,6 +44,10 @@ export default {
       },
       fontFamily: {
         sans: ['var(--font-sans)'],
+        // Display/heading font for the public Landing page only (see
+        // src/index.css for where it's loaded) - not part of the shared
+        // --font-sans token, so it never affects any other screen.
+        display: ['"Fraunces"', 'Georgia', 'serif'],
       },
       backgroundImage: {
         brand: 'linear-gradient(135deg, var(--color-brand-from), var(--color-brand-to))',

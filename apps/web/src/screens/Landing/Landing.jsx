@@ -199,7 +199,7 @@ function ThemeToggle() {
       type="button"
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
       aria-label={t('landing.nav.themeToggle')}
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-alt hover:text-text sm:h-9 sm:w-9"
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-alt hover:text-text"
     >
       {isDark ? <SunIcon size={18} /> : <MoonIcon size={18} />}
     </button>
@@ -214,7 +214,7 @@ function LanguageToggle() {
       onClick={() => setLanguage(language === 'en' ? 'ne' : 'en')}
       aria-label={t('landing.nav.languageToggle')}
       title={language === 'en' ? 'EN' : 'ने'}
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-alt hover:text-text sm:h-9 sm:w-9"
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-surface-alt hover:text-text"
     >
       <GlobeIcon size={18} />
     </button>
@@ -234,7 +234,7 @@ function LandingHeader() {
 
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-surface/90 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-1 px-2 py-3 sm:gap-3 sm:px-6 sm:py-4 lg:px-8">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-0 px-0 py-3 sm:gap-3 sm:px-6 sm:py-4 lg:px-8">
         {/* Logo + nav grouped together (and close to each other via gap-8)
             so nav links sit near the logo on the left, not floating at
             dead-center of the bar between the logo and the right-side
@@ -250,22 +250,35 @@ function LandingHeader() {
             ))}
           </nav>
         </div>
-        <div className="flex shrink-0 items-center gap-0 sm:gap-2">
+        {/* Theme/language toggles are fixed 36x36 (h-9 w-9, set on the
+            toggles themselves) at every breakpoint, and the language
+            toggle is icon-only with no text label, so its own box never
+            changes size when the language is switched. gap-2 (8px) is a
+            consistent gap between all four controls. Login/Signup get an
+            explicit mobile-only min-width (reset via sm:min-w-0, so
+            desktop is untouched) sized to the wider of the two
+            languages' rendered text, since "Log in"/"Sign up" and their
+            Nepali translations are different lengths and would otherwise
+            visibly resize the buttons themselves on every language
+            toggle even with the toggle control itself fixed-size - measured
+            empirically via Playwright rather than guessed. `!` markers on
+            the Button overrides below force them to win over Button's own
+            base px-6/py-3 (plain same-specificity Tailwind utilities
+            aren't guaranteed to win by JSX source order alone without a
+            merge utility). */}
+        <div className="flex shrink-0 items-center gap-2">
           <ThemeToggle />
           <LanguageToggle />
-          {/* `!` markers force these overrides to win over Button's own
-              base px-6/py-3 - plain same-specificity utility classes
-              aren't guaranteed to win by JSX source order alone (no
-              tailwind-merge in this project's Button component), which
-              is exactly what let the base padding through and squeezed
-              the logo out on narrow phone widths. */}
-          <Link to="/login" className="ml-0.5 sm:ml-0">
-            <Button variant="secondary" className="whitespace-nowrap !px-1.5 !py-1.5 text-sm sm:!px-4 sm:!py-2.5">
+          <Link to="/login">
+            <Button
+              variant="secondary"
+              className="min-w-[56px] whitespace-nowrap !px-1.5 !py-1.5 text-xs sm:min-w-0 sm:!px-4 sm:!py-2.5 sm:text-sm"
+            >
               {t('landing.nav.login')}
             </Button>
           </Link>
           <Link to="/signup">
-            <Button className="whitespace-nowrap !px-1.5 !py-1.5 text-sm sm:!px-4 sm:!py-2.5">
+            <Button className="min-w-[64px] whitespace-nowrap !px-1.5 !py-1.5 text-xs sm:min-w-0 sm:!px-4 sm:!py-2.5 sm:text-sm">
               {t('landing.nav.signup')}
             </Button>
           </Link>
@@ -341,12 +354,12 @@ function Hero() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          className="max-w-[220px] text-4xl font-extrabold tracking-tight text-white sm:max-w-lg sm:text-5xl"
+          className="max-w-[220px] text-[clamp(2rem,1.3rem+3.5vw,3.5rem)] font-display font-bold leading-[1.08] tracking-tight text-white sm:max-w-lg"
         >
           Sajilo Bazar connects people who need work done with people who do
           it.
         </motion.h1>
-        <p className="max-w-[240px] text-lg text-white/90 sm:max-w-md">
+        <p className="max-w-[240px] text-lg leading-relaxed text-white/90 sm:max-w-md">
           Post a job or list your skills — matching, tracking, and payment all
           happen right in the app.
         </p>
@@ -404,11 +417,18 @@ function About() {
           <p className="text-xs font-semibold uppercase tracking-wide text-brand-solid">
             {t('landing.about.eyebrow')}
           </p>
-          <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">{t('landing.about.heading')}</h2>
-          <p className="mt-4 text-text-muted">{t('landing.about.body')}</p>
+          <h2 className="mt-2 text-[clamp(1.5rem,1.15rem+1.8vw,2.25rem)] font-display font-bold leading-[1.15] tracking-tight">{t('landing.about.heading')}</h2>
+          <p className="mt-4 leading-relaxed text-text-muted">{t('landing.about.body')}</p>
         </Reveal>
-        <Reveal delay={0.1} className="order-2 lg:order-1">
-          <div className="relative aspect-[16/10] w-full overflow-hidden sm:aspect-[16/9] lg:aspect-[5/4] lg:rounded-3xl">
+        {/* Mobile only (below sm): side padding matches the text column's
+            own px-5 gutter instead of running edge-to-edge, and the box
+            is a taller aspect ratio close to the source photo's own
+            (825x1024) so object-cover doesn't have to crop nearly the
+            whole image height to fill a short, wide box - that's what
+            was cropping off the top of the worker's head. sm: and lg:
+            are untouched, exactly what they were before. */}
+        <Reveal delay={0.1} className="order-2 px-5 sm:px-0 lg:order-1">
+          <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl sm:aspect-[16/9] sm:rounded-none lg:aspect-[5/4] lg:rounded-3xl">
             <picture>
               <source media="(min-width: 1024px)" srcSet="/images/about-desktop.webp" />
               <img
@@ -448,8 +468,8 @@ function ServicesGrid() {
           <p className="text-xs font-semibold uppercase tracking-wide text-brand-solid">
             {t('landing.services.eyebrow')}
           </p>
-          <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">{t('landing.services.heading')}</h2>
-          <p className="mt-3 text-text-muted">{t('landing.services.subcopy')}</p>
+          <h2 className="mt-2 text-[clamp(1.5rem,1.15rem+1.8vw,2.25rem)] font-display font-bold leading-[1.15] tracking-tight">{t('landing.services.heading')}</h2>
+          <p className="mt-3 leading-relaxed text-text-muted">{t('landing.services.subcopy')}</p>
         </Reveal>
         <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {categories.map((category, i) => (
@@ -489,7 +509,7 @@ function WhyChooseUs() {
       <div className="mx-auto max-w-6xl">
         <Reveal className="mx-auto max-w-xl text-center">
           <p className="text-xs font-semibold uppercase tracking-wide text-brand-solid">{t('landing.why.eyebrow')}</p>
-          <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">{t('landing.why.heading')}</h2>
+          <h2 className="mt-2 text-[clamp(1.5rem,1.15rem+1.8vw,2.25rem)] font-display font-bold leading-[1.15] tracking-tight">{t('landing.why.heading')}</h2>
         </Reveal>
         <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2">
           {items.map((item, i) => (
@@ -519,7 +539,7 @@ function HowItWorks() {
       <div className="mx-auto max-w-6xl">
         <Reveal className="text-center">
           <p className="text-xs font-semibold uppercase tracking-wide text-brand-solid">{t('landing.how.eyebrow')}</p>
-          <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">{t('landing.how.heading')}</h2>
+          <h2 className="mt-2 text-[clamp(1.5rem,1.15rem+1.8vw,2.25rem)] font-display font-bold leading-[1.15] tracking-tight">{t('landing.how.heading')}</h2>
         </Reveal>
         <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {STEPS.map((step, i) => (
@@ -556,7 +576,9 @@ function WhatToExpect() {
     <section className="px-5 py-16 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl">
         <Reveal className="text-center">
-          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{t('landing.expect.heading')}</h2>
+          <h2 className="text-[clamp(1.5rem,1.15rem+1.8vw,2.25rem)] font-display font-bold leading-[1.15] tracking-tight">
+            {t('landing.expect.heading')}
+          </h2>
         </Reveal>
         <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {items.map((item, i) => (
@@ -614,10 +636,12 @@ function ClosingCtaAndFooter() {
 
       <div className="relative z-10 px-5 pb-14 pt-20 text-center sm:px-6 lg:px-8 lg:pt-24">
         <Reveal className="mx-auto max-w-2xl">
-          <h2 className="text-2xl font-bold tracking-tight text-white [text-shadow:0_2px_16px_rgba(0,0,0,0.55)] sm:text-3xl">
+          <h2 className="text-[clamp(1.5rem,1.15rem+1.8vw,2.25rem)] font-display font-bold leading-[1.15] tracking-tight text-white [text-shadow:0_2px_16px_rgba(0,0,0,0.55)]">
             {t('landing.cta.heading')}
           </h2>
-          <p className="mt-3 text-white/90 [text-shadow:0_1px_10px_rgba(0,0,0,0.55)]">{t('landing.cta.subcopy')}</p>
+          <p className="mt-3 leading-relaxed text-white/90 [text-shadow:0_1px_10px_rgba(0,0,0,0.55)]">
+            {t('landing.cta.subcopy')}
+          </p>
           <Link to="/signup" className="mt-6 inline-block">
             <Button className="px-8 py-3.5 text-base">{t('landing.cta.button')}</Button>
           </Link>

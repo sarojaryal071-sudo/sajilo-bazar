@@ -1,4 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+/* Fraunces: display/heading font for the public Landing page only (see
+   Landing.jsx's `font-display` usage) - Inter remains the sitewide body
+   font and the only font used everywhere else in the app. Loading the
+   resource here (rather than lazily inside Landing.jsx) matches how
+   Inter itself is already loaded, and costs nothing on other screens
+   since nothing outside Landing.jsx references the `font-display`
+   utility that resolves to it. */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,800;9..144,900&display=swap');
 @import './styles/tokens.css';
 
 @tailwind base;
