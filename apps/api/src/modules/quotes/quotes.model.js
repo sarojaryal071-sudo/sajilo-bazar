@@ -45,14 +45,17 @@ export async function findRawById(id) {
   return rows[0] ?? null;
 }
 
-// A worker's current pending (submitted) quote on a booking, if any - used
-// to reject a second submission while one is still outstanding rather than
-// silently accumulating duplicate rows (see quotes.service.js submitQuote).
-export async function findSubmittedByBookingAndWorker(bookingId, workerId) {
-  const { rows } = await pool.query(
-    `SELECT * FROM quotes WHERE booking_id = $1 AND worker_id = $2 AND status = 'submitted'`,
-    [bookingId, workerId]
-  );
+// Phase 2: a worker may submit at most one quote per booking, EVER - not
+// just "no second pending one". This looks for any row regardless of
+// status (submitted/accepted/declined/expired), so a worker whose quote was
+// already declined can't resubmit (see quotes.service.js submitQuote). The
+// quotes_booking_worker_key unique constraint (migration 045) makes this
+// race-safe at the DB level too, not just a check-then-insert.
+export async function findAnyByBookingAndWorker(bookingId, workerId) {
+  const { rows } = await pool.query('SELECT * FROM quotes WHERE booking_id = $1 AND worker_id = $2', [
+    bookingId,
+    workerId,
+  ]);
   return rows[0] ?? null;
 }
 

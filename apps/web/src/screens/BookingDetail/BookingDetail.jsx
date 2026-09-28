@@ -13,6 +13,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { useSocket } from '../../context/SocketContext.jsx';
 import { useIsDesktop } from '../../hooks/useIsDesktop.js';
 import * as bookingsApi from '../../api/bookings.api.js';
+import * as quotesApi from '../../api/quotes.api.js';
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_TONE, NO_WORKER_TERMINAL_STATUSES } from '../../lib/bookingStatus.js';
 import { WORKER_DESKTOP_BLOCK_MESSAGE, WORKER_ACTIVE_BOOKING_STATUSES } from '../../lib/workerDesktopBlock.js';
 
@@ -201,6 +202,105 @@ function CompleteSection({ busy, defaultPrice, onComplete }) {
   );
 }
 
+// Manual counter-quote (Phase 2) - the worker's alternative to Accept as
+// listed price. amount + optional message only, no photo (that's a backend
+// capability from Phase 1 not part of this phase's UI).
+function QuoteSubmitForm({ busy, onSubmit }) {
+  const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState('');
+  const [message, setMessage] = useState('');
+
+  if (!open) {
+    return (
+      <Button variant="secondary" disabled={busy} onClick={() => setOpen(true)}>
+        Send a counter-quote
+      </Button>
+    );
+  }
+
+  const amountValue = Number(amount);
+  const amountValid = amount.trim() !== '' && amountValue > 0;
+
+  return (
+    <Card className="flex flex-col gap-4">
+      <div>
+        <label className="text-sm text-text-muted" htmlFor="quote-amount">
+          Your price (Rs.)
+        </label>
+        <input
+          id="quote-amount"
+          type="number"
+          min="1"
+          step="1"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          className="mt-1 w-full rounded-md border border-border bg-surface px-4 py-3 text-text outline-none focus:border-brand-solid"
+        />
+      </div>
+      <div>
+        <label className="text-sm text-text-muted" htmlFor="quote-message">
+          Message (optional)
+        </label>
+        <textarea
+          id="quote-message"
+          rows={2}
+          placeholder="Why the price is different, what's included, etc."
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          className="mt-1 w-full rounded-md border border-border bg-surface px-4 py-3 text-text outline-none focus:border-brand-solid"
+        />
+      </div>
+      <div className="flex gap-3">
+        <Button variant="secondary" className="flex-1" onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
+        <Button
+          className="flex-1"
+          disabled={busy || !amountValid}
+          onClick={() => onSubmit(amountValue, message.trim() || null)}
+        >
+          Send quote
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+// The worker's own submitted quote, shown while it's still awaiting the
+// customer - hides the plain Accept/Decline-as-listed buttons below so the
+// two paths (accept at listed price vs. counter) never look simultaneously
+// available once one has actually been chosen.
+function MyQuoteStatus({ quote }) {
+  return (
+    <Card className="mt-6 border-2 border-warning/40">
+      <p className="font-semibold">Counter-quote sent</p>
+      <p className="mt-1 text-2xl font-bold">Rs. {quote.amount}</p>
+      {quote.message && <p className="mt-1 text-sm text-text-muted">{quote.message}</p>}
+      <p className="mt-2 text-sm text-text-muted">Waiting for the customer's decision.</p>
+    </Card>
+  );
+}
+
+// The customer's view of an incoming counter-quote - surfaced as its own
+// card above the status timeline (not a timeline step), per the spec.
+function QuoteCard({ quote, busy, onDecide }) {
+  return (
+    <Card className="mt-6 border-2 border-brand-solid">
+      <p className="font-semibold">Counter-quote received</p>
+      <p className="mt-1 text-2xl font-bold">Rs. {quote.amount}</p>
+      {quote.message && <p className="mt-1 text-sm text-text-muted">{quote.message}</p>}
+      <div className="mt-4 flex gap-3">
+        <Button variant="secondary" className="flex-1" disabled={busy} onClick={() => onDecide('decline')}>
+          Decline
+        </Button>
+        <Button className="flex-1" disabled={busy} onClick={() => onDecide('accept')}>
+          Accept
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
 // "Report a problem" - the missing self-service entry point into the
 // disputes table admin already has a full list/detail/resolve screen for
 // (Round C). Once filed for this session, it just confirms rather than
@@ -260,6 +360,7 @@ export function BookingDetail() {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [disputeBusy, setDisputeBusy] = useState(false);
   const [disputeFiled, setDisputeFiled] = useState(false);
+  const [quotes, setQuotes] = useState([]);
 
   const load = useCallback(() => {
     bookingsApi
@@ -271,6 +372,21 @@ export function BookingDetail() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Manual counter-quote (Phase 2) - instant requests never have quotes
+  // (boundary: this phase doesn't touch the instant flow), so this only
+  // fetches once the booking is loaded and known to be a manual one.
+  const loadQuotes = useCallback(() => {
+    if (booking?.type !== 'manual') return;
+    quotesApi
+      .listQuotes(id)
+      .then(({ quotes }) => setQuotes(quotes))
+      .catch(() => {});
+  }, [booking?.type, id]);
+
+  useEffect(() => {
+    loadQuotes();
+  }, [loadQuotes]);
 
   useEffect(() => {
     if (booking?.status !== 'completed') return;
@@ -313,11 +429,17 @@ export function BookingDetail() {
   useEffect(() => {
     if (!socket || !booking) return;
     function onStatusChanged({ booking: updated }) {
-      if (updated.id === Number(id)) setBooking(updated);
+      if (updated.id === Number(id)) {
+        setBooking(updated);
+        // Also covers a counter-quote being submitted/accepted/declined -
+        // the backend pushes this same event for those too (see
+        // quotes.service.js), even when booking.status itself didn't move.
+        loadQuotes();
+      }
     }
     socket.on('booking:status_changed', onStatusChanged);
     return () => socket.off('booking:status_changed', onStatusChanged);
-  }, [socket, booking, id]);
+  }, [socket, booking, id, loadQuotes]);
 
   if (error) {
     return (
@@ -379,17 +501,40 @@ export function BookingDetail() {
   const neverMatched = !otherName && NO_WORKER_TERMINAL_STATUSES.includes(booking.status);
   const headerName = neverMatched ? 'No worker found' : otherName;
 
+  // At most one quote per worker per booking, ever (see quotes.service.js),
+  // so this worker's own quote (if any) is a single row, not a list.
+  const myQuote = isWorker ? (quotes.find((q) => q.workerId === user.id) ?? null) : null;
+  const pendingQuoteForCustomer = !isWorker ? (quotes.find((q) => q.status === 'submitted') ?? null) : null;
+
   async function runAction(action) {
     setActionError('');
     setBusy(true);
     try {
       const { booking: updated } = await action();
       setBooking(updated);
+      loadQuotes();
     } catch (err) {
       setActionError(err.message);
     } finally {
       setBusy(false);
     }
+  }
+
+  async function handleSubmitQuote(amount, message) {
+    setActionError('');
+    setBusy(true);
+    try {
+      await quotesApi.submitQuote(id, { amount, message });
+      loadQuotes();
+    } catch (err) {
+      setActionError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function handleDecideQuote(decision) {
+    runAction(() => quotesApi.decideQuote(pendingQuoteForCustomer.id, decision));
   }
 
   async function handleReviewSubmit({ rating, comment }) {
@@ -464,6 +609,11 @@ export function BookingDetail() {
           )}
         </Card>
       )}
+
+      {!isWorker && pendingQuoteForCustomer && (
+        <QuoteCard quote={pendingQuoteForCustomer} busy={busy} onDecide={handleDecideQuote} />
+      )}
+      {isWorker && myQuote?.status === 'submitted' && <MyQuoteStatus quote={myQuote} />}
 
       {isInstantWaiting ? (
         <WaitingForWorker />
@@ -545,7 +695,7 @@ export function BookingDetail() {
           </Button>
         )}
 
-        {isWorker && booking.status === 'requested' && (
+        {isWorker && booking.status === 'requested' && !myQuote && (
           <div className="flex gap-3">
             <Button
               variant="secondary"
@@ -556,9 +706,12 @@ export function BookingDetail() {
               Decline
             </Button>
             <Button className="flex-1" disabled={busy} onClick={() => runAction(() => bookingsApi.accept(id))}>
-              Accept
+              Accept as listed
             </Button>
           </div>
+        )}
+        {isWorker && booking.type === 'manual' && booking.status === 'requested' && !myQuote && (
+          <QuoteSubmitForm busy={busy} onSubmit={handleSubmitQuote} />
         )}
         {isWorker && booking.status === 'accepted' && (
           <Button disabled={busy} onClick={() => runAction(() => bookingsApi.start(id))}>
