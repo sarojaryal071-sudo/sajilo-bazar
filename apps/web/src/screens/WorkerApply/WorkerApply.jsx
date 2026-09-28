@@ -7,6 +7,7 @@ import { Badge } from '../../components/Badge.jsx';
 import { Avatar } from '../../components/Avatar.jsx';
 import { CategoryIcon } from '../../components/CategoryIcon.jsx';
 import { SkeletonBlock } from '../../components/Skeleton.jsx';
+import { DocumentStatusList } from '../../components/DocumentStatusList.jsx';
 import { AuthBackdrop } from '../../components/AuthBackdrop.jsx';
 import { Wordmark } from '../../components/Wordmark.jsx';
 import { humanizeCategory } from '../../lib/humanize.js';
@@ -99,6 +100,7 @@ export function WorkerApply() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [wasRejected, setWasRejected] = useState(false);
+  const [pendingDocuments, setPendingDocuments] = useState([]);
 
   // step: 0 = Your work, 1 = Documents, 2 = Review & submit, 3 = Application status
   const [step, setStep] = useState(0);
@@ -136,6 +138,7 @@ export function WorkerApply() {
         setDistricts(districtsRes.districts);
         setCategories(categoriesRes.categories);
         setWasRejected(data.profile.verificationStatus === 'rejected');
+        setPendingDocuments(data.documents);
 
         if (data.profile.verificationStatus === 'pending') {
           setStep(3);
@@ -522,7 +525,14 @@ export function WorkerApply() {
         </div>
       )}
 
-      {step === 3 && <PendingStatus justSubmitted={submitted} onOpenHelp={() => navigate('/help')} />}
+      {step === 3 && (
+        <PendingStatus
+          justSubmitted={submitted}
+          documents={pendingDocuments}
+          onResubmitted={(data) => setPendingDocuments(data.documents)}
+          onOpenHelp={() => navigate('/help')}
+        />
+      )}
     </OnboardingBackdrop>
   );
 }
@@ -611,8 +621,13 @@ function ProfilePhotoField({ value, onChange }) {
 }
 
 // Step 5 - shown right after submit and on every future login while still
-// pending (postAuthRedirect.js routes 'pending' workers here).
-function PendingStatus({ justSubmitted, onOpenHelp }) {
+// pending (postAuthRedirect.js routes 'pending' workers here). Per-document
+// status (Round G) - previously this screen was the only thing a pending
+// worker saw, with no indication that an admin had already approved one
+// document and rejected another, or why. Resubmitting a rejected document
+// leaves any other already-approved one untouched - see
+// DocumentStatusList.jsx.
+function PendingStatus({ justSubmitted, documents, onResubmitted, onOpenHelp }) {
   return (
     <div>
       <div className="flex flex-col items-center text-center">
@@ -627,7 +642,16 @@ function PendingStatus({ justSubmitted, onOpenHelp }) {
         </p>
       </div>
 
-      <Card className="mt-6">
+      {documents?.length > 0 && (
+        <Card className="mt-6">
+          <p className="font-semibold">Your documents</p>
+          <div className="mt-3">
+            <DocumentStatusList documents={documents} onResubmitted={onResubmitted} />
+          </div>
+        </Card>
+      )}
+
+      <Card className="mt-4">
         <p className="font-semibold">What happens next</p>
         <ul className="mt-2 flex flex-col gap-2 text-sm text-text-muted">
           <li>1. We review your documents and pricing.</li>

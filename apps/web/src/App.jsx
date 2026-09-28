@@ -82,6 +82,12 @@ export default function App() {
           <Route element={<AdminShell />}>
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/approvals" element={<AdminApprovals />} />
+            {/* Same AdminUserDetail component as /admin/users/:id below, reused
+                rather than duplicated - only the route differs, so that
+                reviewing a still-pending worker from Approvals keeps the
+                sidebar highlighted on Approvals instead of Users, which they
+                don't belong in yet. See AdminApprovals.jsx. */}
+            <Route path="/admin/approvals/:id" element={<AdminUserDetail />} />
             <Route path="/admin/users" element={<AdminUsers />} />
             <Route path="/admin/users/:id" element={<AdminUserDetail />} />
             <Route path="/admin/bookings" element={<AdminBookings />} />

@@ -110,6 +110,7 @@ export function AdminUserDetail() {
   const [savingNotes, setSavingNotes] = useState(false);
   const [notesSaved, setNotesSaved] = useState(false);
   const [togglingStatus, setTogglingStatus] = useState(false);
+  const [viewingPhoto, setViewingPhoto] = useState(false);
 
   useEffect(() => {
     adminApi
@@ -179,7 +180,18 @@ export function AdminUserDetail() {
 
       <div className="mt-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Avatar name={user.fullName} imageUrl={user.profileImageUrl} size={56} />
+          {user.profileImageUrl ? (
+            <button
+              type="button"
+              onClick={() => setViewingPhoto(true)}
+              aria-label="View profile photo"
+              className="rounded-full"
+            >
+              <Avatar name={user.fullName} imageUrl={user.profileImageUrl} size={56} />
+            </button>
+          ) : (
+            <Avatar name={user.fullName} imageUrl={user.profileImageUrl} size={56} />
+          )}
           <div>
             <h1 className="text-2xl font-bold">{user.fullName}</h1>
             <p className="text-sm text-text-muted">
@@ -207,6 +219,10 @@ export function AdminUserDetail() {
       </div>
 
       {error && <p className="mt-3 text-sm text-danger">{error}</p>}
+
+      {viewingPhoto && (
+        <DocumentViewerModal userId={user.id} label="Profile photo" onClose={() => setViewingPhoto(false)} />
+      )}
 
       <Card className="mt-6">
         <p className="font-semibold">Contact</p>
@@ -249,6 +265,15 @@ export function AdminUserDetail() {
               <p className="text-xs text-text-muted">Reviews</p>
             </div>
           </div>
+
+          {worker.profile.bio && (
+            <>
+              <p className="mt-4 mb-1 text-xs font-semibold uppercase tracking-wide text-text-muted">
+                About (from applicant)
+              </p>
+              <p className="text-sm text-text-muted">{worker.profile.bio}</p>
+            </>
+          )}
 
           <p className="mt-4 mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">Services</p>
           <div className="flex flex-col gap-1.5 text-sm">

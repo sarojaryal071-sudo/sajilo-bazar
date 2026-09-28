@@ -135,6 +135,18 @@ export async function streamDocument(req, res, next) {
   }
 }
 
+// Same proxy pattern as streamDocument above, for a user's profile photo.
+export async function streamUserPhoto(req, res, next) {
+  try {
+    const { buffer, contentType } = await adminService.getUserPhotoFile(parseId(req));
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.send(buffer);
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function approveDocument(req, res, next) {
   try {
     const document = await adminService.decideDocument(parseId(req), req.user.id, 'approve');

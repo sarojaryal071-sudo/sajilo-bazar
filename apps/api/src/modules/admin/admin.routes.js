@@ -66,6 +66,13 @@ adminRoutes.patch(
 // Content-only, gated separately below.
 adminRoutes.get('/users', requireDepartment('people_content', 'support'), adminController.listUsers);
 adminRoutes.get('/users/:id', requireDepartment('people_content', 'support'), adminController.getUserDetail);
+// Same access/streaming pattern as /documents/:id/file above, for a user's
+// profile photo - lets it open in the same viewer modal during review.
+adminRoutes.get(
+  '/users/:id/photo',
+  requireDepartment('people_content', 'support'),
+  adminController.streamUserPhoto
+);
 adminRoutes.patch('/users/:id/suspend', requireDepartment('people_content'), adminController.suspendUser);
 adminRoutes.patch('/users/:id/reinstate', requireDepartment('people_content'), adminController.reinstateUser);
 adminRoutes.patch('/users/:id/notes', requireDepartment('people_content'), adminController.setUserNotes);

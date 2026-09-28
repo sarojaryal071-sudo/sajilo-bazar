@@ -12,8 +12,11 @@ import * as adminApi from '../../api/admin.api.js';
 // One card per pending worker (Round F, 2026-09-27) - a worker who
 // submitted two identity documents used to show as two disconnected rows
 // here. Reviewing (approve/reject per document, with a note) now happens
-// on the same detail page Users uses (GET /admin/users/:id) rather than
-// inline in this list - see AdminUserDetail.jsx.
+// on the same detail UI Users uses (GET /admin/users/:id under the hood),
+// but at its own /admin/approvals/:id route (Round G) - a pending worker
+// isn't in Users yet, and routing this through /admin/users/:id made the
+// sidebar highlight "Users" while reviewing someone who, by definition,
+// still belongs in Approvals. See App.jsx and AdminUserDetail.jsx.
 function WorkerVerificationCard({ item }) {
   const parts = [];
   if (item.pendingCount > 0) parts.push(`${item.pendingCount} pending`);
@@ -21,7 +24,7 @@ function WorkerVerificationCard({ item }) {
   const summary = parts.length > 0 ? parts.join(', ') : `${item.totalCount} document(s)`;
 
   return (
-    <Link to={`/admin/users/${item.workerId}`}>
+    <Link to={`/admin/approvals/${item.workerId}`}>
       <Card className="flex items-center gap-4 hover:bg-surface-alt">
         <Avatar name={item.workerName} imageUrl={item.profileImageUrl} size={44} />
         <div className="min-w-0 flex-1">

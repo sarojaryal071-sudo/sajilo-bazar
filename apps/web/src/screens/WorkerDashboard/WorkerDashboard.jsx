@@ -11,6 +11,7 @@ import { AddServiceModal } from '../../components/AddServiceModal.jsx';
 import { EarningsChart } from '../../components/EarningsChart.jsx';
 import { SkeletonBlock } from '../../components/Skeleton.jsx';
 import { PromotionCarousel } from '../../components/PromotionCarousel.jsx';
+import { DocumentStatusList } from '../../components/DocumentStatusList.jsx';
 import { useIsDesktop } from '../../hooks/useIsDesktop.js';
 import * as workersApi from '../../api/workers.api.js';
 import * as bookingsApi from '../../api/bookings.api.js';
@@ -326,6 +327,14 @@ export function WorkerDashboard() {
     });
   }
 
+  // resubmitDocument returns the full getMyWorkerData shape (same as the
+  // initial load), so this just replaces data wholesale rather than
+  // patching one document in place - simplest way to keep the document's
+  // new 'pending' status in sync with everything else.
+  function handleDocumentResubmitted(result) {
+    setData(result);
+  }
+
   async function handleWelcomeDismiss() {
     setShowWelcome(false);
     try {
@@ -396,6 +405,15 @@ export function WorkerDashboard() {
           )}
         </Card>
       </motion.div>
+
+      {data.profile.verificationStatus === 'pending' && data.documents.length > 0 && (
+        <Card className="mt-4">
+          <p className="font-semibold">Your documents</p>
+          <div className="mt-3">
+            <DocumentStatusList documents={data.documents} onResubmitted={handleDocumentResubmitted} />
+          </div>
+        </Card>
+      )}
 
       {data.profile.verificationStatus === 'approved' && (
         <>
