@@ -19,6 +19,26 @@ import { WORKER_DESKTOP_BLOCK_MESSAGE, WORKER_ACTIVE_BOOKING_STATUSES } from '..
 const STEPS = ['requested', 'accepted', 'in_progress', 'completed'];
 const WAITING_POLL_MS = 4000;
 
+// Timeline step labels/timestamp-field pairing for StatusTracker below -
+// "Job Started" reads better in a timeline than the badge's "In progress"
+// wording, but both describe the same 'in_progress' status.
+const TIMELINE_STEPS = [
+  { status: 'requested', label: 'Requested', field: 'createdAt' },
+  { status: 'accepted', label: 'Accepted', field: 'acceptedAt' },
+  { status: 'in_progress', label: 'Job Started', field: 'startedAt' },
+  { status: 'completed', label: 'Completed', field: 'completedAt' },
+];
+
+function formatTimelineTimestamp(value) {
+  if (!value) return null;
+  return new Date(value).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
 function RadarIcon() {
   return (
     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -61,22 +81,29 @@ function WaitingForWorker() {
   );
 }
 
-function StatusTracker({ status }) {
-  const stepIndex = STEPS.indexOf(status);
+function StatusTracker({ booking }) {
+  const stepIndex = STEPS.indexOf(booking.status);
   return (
-    <div className="mt-6 flex items-center">
-      {STEPS.map((step, i) => (
-        <div key={step} className="flex flex-1 items-center last:flex-none">
-          <div className="flex flex-col items-center gap-1">
-            <div className={`h-3 w-3 rounded-full ${i <= stepIndex ? 'bg-brand-solid' : 'bg-surface-alt'}`} />
-            <span className="text-[10px] capitalize text-text-muted">{BOOKING_STATUS_LABEL[step]}</span>
+    <Card className="mt-6">
+      {TIMELINE_STEPS.map((step, i) => {
+        const reached = i <= stepIndex;
+        const timestamp = formatTimelineTimestamp(booking[step.field]);
+        return (
+          <div key={step.status} className="flex gap-3">
+            <div className="flex flex-col items-center">
+              <div className={`h-3 w-3 shrink-0 rounded-full ${reached ? 'bg-brand-solid' : 'bg-surface-alt'}`} />
+              {i < TIMELINE_STEPS.length - 1 && (
+                <div className={`w-0.5 flex-1 ${i < stepIndex ? 'bg-brand-solid' : 'bg-surface-alt'}`} />
+              )}
+            </div>
+            <div className={`flex flex-1 items-center justify-between pb-4 ${reached ? '' : 'opacity-50'}`}>
+              <span className="text-sm font-medium">{step.label}</span>
+              {timestamp && <span className="text-xs text-text-muted">{timestamp}</span>}
+            </div>
           </div>
-          {i < STEPS.length - 1 && (
-            <div className={`mx-1 h-0.5 flex-1 ${i < stepIndex ? 'bg-brand-solid' : 'bg-surface-alt'}`} />
-          )}
-        </div>
-      ))}
-    </div>
+        );
+      })}
+    </Card>
   );
 }
 
@@ -255,25 +282,42 @@ export function BookingDetail() {
 
   const isInstantWaiting = booking?.type === 'instant' && booking?.status === 'requested' && !booking?.workerId;
 
-  // Live push for the customer waiting on an instant request - falls
-  // through instantly once a worker claims it, no need to wait for the
-  // polling fallback below.
+  // The moment a worker claims this instant request, send the customer
+  // straight to their live Dashboard/My Bookings list rather than leaving
+  // them on this screen - the dashboard card and this same screen (if they
+  // tap back in) both then stay current via the booking:status_changed
+  // listener below.
   useEffect(() => {
     if (!socket || !isInstantWaiting) return;
     function onAssigned({ booking: updated }) {
-      if (updated.id === Number(id)) setBooking(updated);
+      if (updated.id === Number(id)) navigate('/bookings', { replace: true });
     }
     socket.on('booking:assigned', onAssigned);
     return () => socket.off('booking:assigned', onAssigned);
-  }, [socket, isInstantWaiting, id]);
+  }, [socket, isInstantWaiting, id, navigate]);
 
   // Polling fallback in case the socket isn't connected (or missed the
-  // event) - same source of truth either way.
+  // event) - same source of truth either way. No auto-navigate on this
+  // path (it can't tell "just now" from "already the case"); the screen
+  // itself still updates correctly via the loaded booking.
   useEffect(() => {
     if (!isInstantWaiting) return;
     const interval = setInterval(load, WAITING_POLL_MS);
     return () => clearInterval(interval);
   }, [isInstantWaiting, load]);
+
+  // Live status-change push, reusing the same socket the dashboard list
+  // listens on - keeps this screen's timeline/actions current for whoever
+  // has it open (customer or worker) whenever the other side accepts,
+  // starts, completes, or cancels.
+  useEffect(() => {
+    if (!socket || !booking) return;
+    function onStatusChanged({ booking: updated }) {
+      if (updated.id === Number(id)) setBooking(updated);
+    }
+    socket.on('booking:status_changed', onStatusChanged);
+    return () => socket.off('booking:status_changed', onStatusChanged);
+  }, [socket, booking, id]);
 
   if (error) {
     return (
@@ -429,7 +473,7 @@ export function BookingDetail() {
           {booking.cancelReason && <p className="mt-1 text-sm text-text-muted">{booking.cancelReason}</p>}
         </Card>
       ) : (
-        <StatusTracker status={booking.status} />
+        <StatusTracker booking={booking} />
       )}
 
       <Card className="mt-6">

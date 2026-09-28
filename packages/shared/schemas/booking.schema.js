@@ -69,6 +69,11 @@ export const BookingSchema = z.object({
   // completed (that's the only place it's surfaced in the UI).
   paymentMethod: z.enum(PAYMENT_METHODS),
   createdAt: z.string().datetime().optional(),
+  // Booking Detail's status timeline (Requested/Accepted/Job Started/
+  // Completed) - each null until its transition happens, same idiom as
+  // completedAt below.
+  acceptedAt: z.string().datetime().nullable().optional(),
+  startedAt: z.string().datetime().nullable().optional(),
   completedAt: z.string().datetime().nullable().optional(),
 });
 

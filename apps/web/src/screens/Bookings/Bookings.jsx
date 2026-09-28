@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Screen } from '../../components/Screen.jsx';
 import { BookingListItem } from '../../components/BookingListItem.jsx';
+import { useSocket } from '../../context/SocketContext.jsx';
 import * as bookingsApi from '../../api/bookings.api.js';
 
 export function Bookings() {
   const navigate = useNavigate();
+  const socket = useSocket();
   const [bookings, setBookings] = useState(null);
   const [error, setError] = useState('');
 
@@ -15,6 +17,18 @@ export function Bookings() {
       .then(({ bookings }) => setBookings(bookings))
       .catch((err) => setError(err.message));
   }, []);
+
+  // Same socket infrastructure the instant-booking broadcast already uses
+  // (see realtime/socket.js) - a status change pushed while this list is
+  // open updates the matching card in place, no refetch needed.
+  useEffect(() => {
+    if (!socket) return;
+    function onStatusChanged({ booking: updated }) {
+      setBookings((prev) => (prev ? prev.map((b) => (b.id === updated.id ? updated : b)) : prev));
+    }
+    socket.on('booking:status_changed', onStatusChanged);
+    return () => socket.off('booking:status_changed', onStatusChanged);
+  }, [socket]);
 
   return (
     <Screen fillHeight={false}>

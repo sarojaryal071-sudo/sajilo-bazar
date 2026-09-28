@@ -122,7 +122,7 @@ export function BookingRequest() {
     }
     setSubmitting(true);
     try {
-      const { booking } = await bookingsApi.create({
+      await bookingsApi.create({
         workerId: Number(workerId),
         serviceIds: services.map((s) => s.id),
         addressLabel: address.addressLabel.trim(),
@@ -133,7 +133,7 @@ export function BookingRequest() {
           ? { scheduledFor: new Date(scheduledFor).toISOString(), responseDeadlineHours }
           : {}),
       });
-      navigate(`/booking/${booking.id}`, { replace: true });
+      navigate('/bookings', { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {
