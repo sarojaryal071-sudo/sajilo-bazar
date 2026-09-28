@@ -10,7 +10,17 @@ import * as platformSettingsModel from './platformSettings.model.js';
 // serviceId (`{ "<id>": { "min": n, "max": n } }`) rather than one row per
 // service, so a new service never needs a migration to get a band - just
 // an admin edit through this same key.
-export const EDITABLE_KEYS = ['fuel_base_fee', 'fuel_rate_per_km', 'service_price_bands'];
+// 'get_quotes_window_minutes'/'get_quotes_cap' (quotes/booking_photos data
+// foundation round) are unused until Phase 3 wires up the actual Get Quotes
+// flow - added now so they're admin-editable through this same mechanism
+// from day one rather than needing a second migration later.
+export const EDITABLE_KEYS = [
+  'fuel_base_fee',
+  'fuel_rate_per_km',
+  'service_price_bands',
+  'get_quotes_window_minutes',
+  'get_quotes_cap',
+];
 
 export async function listSettings() {
   return platformSettingsModel.listSettings();
@@ -43,4 +53,16 @@ export async function getFuelPricing() {
 export async function getServicePriceBands() {
   const value = await platformSettingsModel.getValue('service_price_bands');
   return value ?? {};
+}
+
+// Get Quotes (Phase 3) config - not read by anything yet in this round
+// (quotes.service.js doesn't enforce a window or cap in Phase 1), exposed
+// now so Phase 3 has a ready-made getter rather than inventing its own
+// read path for these two keys.
+export async function getQuotesSettings() {
+  const [windowMinutes, cap] = await Promise.all([
+    platformSettingsModel.getValue('get_quotes_window_minutes'),
+    platformSettingsModel.getValue('get_quotes_cap'),
+  ]);
+  return { windowMinutes: Number(windowMinutes ?? 5), cap: Number(cap ?? 5) };
 }

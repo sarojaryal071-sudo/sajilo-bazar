@@ -19,3 +19,5 @@ export * from './schemas/trustScore.schema.js';
 export * from './schemas/availability.schema.js';
 export * from './schemas/address.schema.js';
 export * from './schemas/publication.schema.js';
+export * from './schemas/quote.schema.js';
+export * from './schemas/bookingPhoto.schema.js';
