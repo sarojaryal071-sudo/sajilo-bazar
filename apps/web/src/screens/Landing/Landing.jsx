@@ -235,14 +235,21 @@ function LandingHeader() {
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-surface/90 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-3 sm:px-6 sm:py-4 lg:px-8">
-        <Wordmark />
-        <nav className="hidden items-center gap-6 text-sm font-medium text-text-muted sm:flex">
-          {navLinks.map((link) => (
-            <a key={link.href} href={link.href} className="transition-colors hover:text-text">
-              {link.label}
-            </a>
-          ))}
-        </nav>
+        {/* Logo + nav grouped together (and close to each other via gap-8)
+            so nav links sit near the logo on the left, not floating at
+            dead-center of the bar between the logo and the right-side
+            controls - a plain 3-child justify-between row would space all
+            three evenly instead. */}
+        <div className="flex min-w-0 items-center gap-8">
+          <Wordmark />
+          <nav className="hidden items-center gap-6 text-sm font-medium text-text-muted sm:flex">
+            {navLinks.map((link) => (
+              <a key={link.href} href={link.href} className="transition-colors hover:text-text">
+                {link.label}
+              </a>
+            ))}
+          </nav>
+        </div>
         <div className="flex shrink-0 flex-wrap items-center gap-1.5 sm:gap-2">
           <ThemeToggle />
           <LanguageToggle />
@@ -313,7 +320,7 @@ function Hero() {
           src="/images/hero-mobile.webp"
           alt="A Sajilo Bazar worker and customer looking at a booking together on a phone"
           fetchpriority="high"
-          className="absolute inset-0 h-full w-full object-cover object-[80%_35%] sm:object-[72%_center]"
+          className="absolute inset-0 h-full w-full object-cover object-center sm:object-[50%_center]"
         />
       </picture>
       <div className="pointer-events-none absolute inset-0" style={HERO_OVERLAY} />
@@ -326,12 +333,12 @@ function Hero() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          className="max-w-2xl text-4xl font-extrabold tracking-tight text-white sm:text-5xl"
+          className="max-w-[220px] text-4xl font-extrabold tracking-tight text-white sm:max-w-lg sm:text-5xl"
         >
           Sajilo Bazar connects people who need work done with people who do
           it.
         </motion.h1>
-        <p className="max-w-xl text-lg text-white/90">
+        <p className="max-w-[240px] text-lg text-white/90 sm:max-w-md">
           Post a job or list your skills — matching, tracking, and payment all
           happen right in the app.
         </p>
@@ -561,33 +568,18 @@ function WhatToExpect() {
   );
 }
 
-// Full-bleed closing band (Round H) - same photo -> gradient -> text
-// treatment as Hero/About above, just stronger (the whole card's content
-// sits on the photo here, not next to it), since this is the page's final
-// call to action.
-function ClosingCTA() {
-  const { t } = useLanguage();
-  return (
-    <section className="relative overflow-hidden px-5 py-24 text-center sm:px-6 lg:px-8">
-      <picture>
-        <source media="(min-width: 1024px)" srcSet="/images/cta-desktop.webp" />
-        <img
-          src="/images/cta-mobile.webp"
-          alt="A Sajilo Bazar worker on their way to a job"
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-      </picture>
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/55 to-black/35" />
-      <Reveal className="relative z-10 mx-auto max-w-2xl">
-        <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">{t('landing.cta.heading')}</h2>
-        <p className="mt-3 text-white/85">{t('landing.cta.subcopy')}</p>
-        <Link to="/signup" className="mt-6 inline-block">
-          <Button className="px-8 py-3.5 text-base">{t('landing.cta.button')}</Button>
-        </Link>
-      </Reveal>
-    </section>
-  );
-}
+// Photo -> gradient -> text treatment, same as Hero/About above - covers
+// both the closing CTA content and the footer links below it in one
+// continuous section (Round I) so the two no longer read as disconnected
+// blocks (a short photo band handing off to a separate flat-dark footer).
+// The gradient goes fully solid to #0f1115 - the exact color the footer
+// used as its own flat background before - well before the footer content
+// starts, so link/copy legibility is unchanged even though it's now the
+// same <section> as the photo.
+const CLOSING_OVERLAY = {
+  background:
+    'linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.72) 22%, rgba(15,17,21,0.94) 40%, #0f1115 58%, #0f1115 100%)',
+};
 
 const SOCIAL_LINKS = [
   { href: '#', label: 'Facebook', icon: <FacebookIcon /> },
@@ -596,54 +588,75 @@ const SOCIAL_LINKS = [
 ];
 
 // Restyled only - same real links (Terms/Privacy/Contact, socials) as
-// before, just on the new dark multi-column treatment. TODO (unchanged
-// from before this round): swap the '#' placeholders for real social
-// profile URLs once those accounts exist.
-function LandingFooter() {
+// before. TODO (unchanged from before this round): swap the '#'
+// placeholders for real social profile URLs once those accounts exist.
+function ClosingCtaAndFooter() {
   const { t } = useLanguage();
   return (
-    <footer className="bg-[#0f1115] px-5 py-14 text-white/80 sm:px-6 lg:px-8">
-      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 sm:grid-cols-3">
-        <div>
-          <Wordmark className="text-white" />
-          <p id="footer-contact" className="mt-4 text-sm text-white/60">
-            {t('landing.footer.contactBody')}
-          </p>
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-white">{t('landing.footer.legalHeading')}</p>
-          <nav className="mt-3 flex flex-col gap-2 text-sm">
-            <Link to="/terms" className="text-white/70 transition-colors hover:text-white">
-              {t('landing.footer.terms')}
-            </Link>
-            <Link to="/privacy" className="text-white/70 transition-colors hover:text-white">
-              {t('landing.footer.privacy')}
-            </Link>
-            <a href="#footer-contact" className="text-white/70 transition-colors hover:text-white">
-              {t('landing.footer.contact')}
-            </a>
-          </nav>
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-white">{t('landing.footer.followHeading')}</p>
-          <div className="mt-3 flex items-center gap-3">
-            {SOCIAL_LINKS.map((social) => (
-              <a
-                key={social.label}
-                href={social.href}
-                aria-label={social.label}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white/70 transition-colors hover:bg-white/20 hover:text-white"
-              >
-                {social.icon}
+    <section className="relative overflow-hidden">
+      <picture>
+        <source media="(min-width: 1024px)" srcSet="/images/cta-desktop.webp" />
+        <img
+          src="/images/cta-mobile.webp"
+          alt="A Sajilo Bazar worker on their way to a job"
+          className="absolute inset-0 h-full w-full object-cover object-[center_22%] sm:object-[center_15%]"
+        />
+      </picture>
+      <div className="pointer-events-none absolute inset-0" style={CLOSING_OVERLAY} />
+
+      <div className="relative z-10 px-5 pb-14 pt-20 text-center sm:px-6 lg:px-8 lg:pt-24">
+        <Reveal className="mx-auto max-w-2xl">
+          <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">{t('landing.cta.heading')}</h2>
+          <p className="mt-3 text-white/85">{t('landing.cta.subcopy')}</p>
+          <Link to="/signup" className="mt-6 inline-block">
+            <Button className="px-8 py-3.5 text-base">{t('landing.cta.button')}</Button>
+          </Link>
+        </Reveal>
+      </div>
+
+      <footer className="relative z-10 px-5 pb-14 pt-6 text-white/80 sm:px-6 lg:px-8">
+        <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 sm:grid-cols-3">
+          <div>
+            <Wordmark className="text-white" />
+            <p id="footer-contact" className="mt-4 text-sm text-white/60">
+              {t('landing.footer.contactBody')}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-white">{t('landing.footer.legalHeading')}</p>
+            <nav className="mt-3 flex flex-col gap-2 text-sm">
+              <Link to="/terms" className="text-white/70 transition-colors hover:text-white">
+                {t('landing.footer.terms')}
+              </Link>
+              <Link to="/privacy" className="text-white/70 transition-colors hover:text-white">
+                {t('landing.footer.privacy')}
+              </Link>
+              <a href="#footer-contact" className="text-white/70 transition-colors hover:text-white">
+                {t('landing.footer.contact')}
               </a>
-            ))}
+            </nav>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-white">{t('landing.footer.followHeading')}</p>
+            <div className="mt-3 flex items-center gap-3">
+              {SOCIAL_LINKS.map((social) => (
+                <a
+                  key={social.label}
+                  href={social.href}
+                  aria-label={social.label}
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white/70 transition-colors hover:bg-white/20 hover:text-white"
+                >
+                  {social.icon}
+                </a>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
-      <div className="mx-auto mt-10 max-w-6xl border-t border-white/10 pt-6 text-center text-xs text-white/50">
-        &copy; {new Date().getFullYear()} Sajilo Bazar. {t('landing.footer.rights')}
-      </div>
-    </footer>
+        <div className="mx-auto mt-10 max-w-6xl border-t border-white/10 pt-6 text-center text-xs text-white/50">
+          &copy; {new Date().getFullYear()} Sajilo Bazar. {t('landing.footer.rights')}
+        </div>
+      </footer>
+    </section>
   );
 }
 
@@ -663,8 +676,7 @@ export function Landing() {
       <WhyChooseUs />
       <HowItWorks />
       <WhatToExpect />
-      <ClosingCTA />
-      <LandingFooter />
+      <ClosingCtaAndFooter />
     </div>
   );
 }
