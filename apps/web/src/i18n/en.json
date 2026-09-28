@@ -14,5 +14,63 @@
   "menu.light": "Light",
   "menu.dark": "Dark",
   "menu.english": "English",
-  "menu.nepali": "Nepali"
+  "menu.nepali": "Nepali",
+
+  "landing.nav.services": "Services",
+  "landing.nav.howItWorks": "How it works",
+  "landing.nav.about": "About",
+  "landing.nav.login": "Log in",
+  "landing.nav.signup": "Sign up",
+  "landing.nav.themeToggle": "Switch theme",
+  "landing.nav.languageToggle": "Switch language",
+
+  "landing.trust.verified.title": "Verified & background-checked",
+  "landing.trust.pricing.title": "Transparent pricing shown upfront",
+  "landing.trust.chat.title": "In-app chat",
+  "landing.trust.score.title": "Trust Score ranking",
+
+  "landing.about.eyebrow": "About Sajilo Bazar",
+  "landing.about.heading": "Built for Chitwan, one trusted job at a time",
+  "landing.about.body": "Sajilo Bazar started right here in Chitwan, as a way to find local help you can actually trust — not just whoever answers the phone first. Every worker is document-verified before they can take a job, pricing is shown upfront, and the whole job is tracked in the app from booking to payment.",
+
+  "landing.services.eyebrow": "What we cover",
+  "landing.services.heading": "Services near you",
+  "landing.services.subcopy": "Real categories, real local workers — pulled straight from who's active on the platform.",
+
+  "landing.why.eyebrow": "Why choose us",
+  "landing.why.heading": "Built on trust, not guesswork",
+  "landing.why.verify.title": "Verified documents + Trust Score",
+  "landing.why.verify.desc": "Every worker is document-reviewed, with a Trust Score visible on their profile before you book.",
+  "landing.why.price.title": "Transparent price breakdown",
+  "landing.why.price.desc": "Service price and any fuel/travel charge are shown separately — no hidden fees.",
+  "landing.why.chat.title": "In-app chat, tied to your booking",
+  "landing.why.chat.desc": "Message your worker directly from the booking — no phone number needed upfront.",
+  "landing.why.cash.title": "Cash on completion",
+  "landing.why.cash.desc": "Pay when the job's done, with a saved receipt in your booking history.",
+
+  "landing.how.eyebrow": "Getting started",
+  "landing.how.heading": "How it works",
+
+  "landing.expect.eyebrow": "What to expect",
+  "landing.expect.heading": "What to expect",
+  "landing.expect.docs.title": "Documents verified",
+  "landing.expect.docs.desc": "No worker takes a job until their documents have been reviewed.",
+  "landing.expect.score.title": "Trust Score visible before you book",
+  "landing.expect.score.desc": "See a worker's track record on their profile, before you commit.",
+  "landing.expect.tracked.title": "Tracked in the app",
+  "landing.expect.tracked.desc": "Chat, status updates, and job history all stay in one place.",
+  "landing.expect.pay.title": "Pay only after the job's done",
+  "landing.expect.pay.desc": "No upfront payment — pay and rate once the work is complete.",
+
+  "landing.cta.heading": "Ready to get started?",
+  "landing.cta.subcopy": "Post a job or list your skills — it only takes a minute.",
+  "landing.cta.button": "Get Started",
+
+  "landing.footer.legalHeading": "Legal",
+  "landing.footer.followHeading": "Follow us",
+  "landing.footer.terms": "Terms & Conditions",
+  "landing.footer.privacy": "Privacy Policy",
+  "landing.footer.contact": "Contact Us",
+  "landing.footer.contactBody": "Have questions? We'd love to hear from you.",
+  "landing.footer.rights": "All rights reserved."
 }
