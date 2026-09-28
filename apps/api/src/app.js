@@ -11,6 +11,7 @@ import { publicationsRoutes } from './modules/publications/publications.routes.j
 import { adminRoutes } from './modules/admin/admin.routes.js';
 import { trustScoreRoutes } from './modules/trustScore/trustScore.routes.js';
 import { addressesRoutes } from './modules/addresses/addresses.routes.js';
+import { quotesRoutes } from './modules/quotes/quotes.routes.js';
 import { notFoundHandler, errorHandler } from './middleware/error.middleware.js';
 
 export const app = express();
@@ -30,6 +31,7 @@ app.use('/api/publications', publicationsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/trust-score', trustScoreRoutes);
 app.use('/api/addresses', addressesRoutes);
+app.use('/api/quotes', quotesRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

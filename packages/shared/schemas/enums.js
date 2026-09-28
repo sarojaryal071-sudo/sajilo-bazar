@@ -32,6 +32,20 @@ export const BOOKING_STATUSES = [
 
 export const BOOKING_OFFER_STATUSES = ['pending', 'accepted', 'expired', 'declined'];
 
+// A quote's own lifecycle - shared by both the manual counter-quote flow
+// (Phase 2, one quote row per booking, only the already-assigned worker can
+// submit) and Get Quotes (Phase 3, an open booking with no worker_id yet,
+// multiple workers can each submit one). 'expired' exists now for the Get
+// Quotes time-window sweep, not implemented until Phase 3 - see
+// platform_settings.get_quotes_window_minutes.
+export const QUOTE_STATUSES = ['submitted', 'accepted', 'declined', 'expired'];
+
+// Who attached a given booking_photos row - the customer's problem photo at
+// request time, or the worker's before/after photos once the job is under
+// way (see BOOKING_PHOTO_TYPES below).
+export const BOOKING_PHOTO_UPLOADED_BY = ['customer', 'worker'];
+export const BOOKING_PHOTO_TYPES = ['problem', 'before', 'after'];
+
 // Preset choices only for a scheduled booking's response deadline - not
 // freeform (business plan §13).
 export const RESPONSE_DEADLINE_HOURS = [1, 6, 24];
