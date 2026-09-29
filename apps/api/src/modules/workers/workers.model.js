@@ -96,10 +96,11 @@ export async function findProfile(userId) {
 }
 
 export async function updateBio(userId, bio) {
-  await pool.query('UPDATE worker_profiles SET bio = $1, updated_at = now() WHERE user_id = $2', [
-    bio,
-    userId,
-  ]);
+  const { rows } = await pool.query(
+    'UPDATE worker_profiles SET bio = $1, updated_at = now() WHERE user_id = $2 RETURNING *',
+    [bio, userId]
+  );
+  return rows[0] ? toProfile(rows[0]) : null;
 }
 
 export async function updateDescription(userId, description) {

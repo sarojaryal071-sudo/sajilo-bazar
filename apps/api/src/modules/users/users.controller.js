@@ -26,8 +26,16 @@ export async function updateMe(req, res, next) {
   }
 }
 
+// A worker's photo is tied to the identity verification done at onboarding
+// (see workers.service.js apply, which calls usersService.uploadPhoto
+// directly - that internal call bypasses this controller, so onboarding
+// itself is unaffected) - this generic endpoint stays customer-only so it
+// can never be changed afterward.
 export async function uploadPhoto(req, res, next) {
   try {
+    if (req.user.role === 'worker') {
+      throw new ApiError(403, 'Your profile photo is set during identity verification and cannot be changed here');
+    }
     const user = await usersService.uploadPhoto(req.user.id, req.file);
     res.json({ user });
   } catch (err) {

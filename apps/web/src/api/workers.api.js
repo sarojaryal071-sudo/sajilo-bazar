@@ -63,6 +63,11 @@ export function updateDescription(description) {
   return apiFetch('/workers/me/description', { method: 'PATCH', body: { description } });
 }
 
+// Profile page inline-edit (UI round) - the original onboarding bio field.
+export function updateBio(bio) {
+  return apiFetch('/workers/me/bio', { method: 'PATCH', body: { bio } });
+}
+
 export function listPortfolio() {
   return apiFetch('/workers/me/portfolio');
 }

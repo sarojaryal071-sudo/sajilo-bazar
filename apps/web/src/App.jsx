@@ -1,5 +1,6 @@
 import { Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext.jsx';
+import { ActiveAddressProvider } from './context/ActiveAddressContext.jsx';
 import { SocketProvider } from './context/SocketContext.jsx';
 import { ThemeProvider } from './context/ThemeContext.jsx';
 import { LanguageProvider } from './context/LanguageContext.jsx';
@@ -51,6 +52,7 @@ export default function App() {
     <ThemeProvider>
       <LanguageProvider>
         <AuthProvider>
+          <ActiveAddressProvider>
           <SocketProvider>
             <ScrollToTop />
             <Routes>
@@ -177,6 +179,7 @@ export default function App() {
                 which screen they're currently on. */}
             <IncomingRequestPopup />
           </SocketProvider>
+          </ActiveAddressProvider>
         </AuthProvider>
       </LanguageProvider>
     </ThemeProvider>

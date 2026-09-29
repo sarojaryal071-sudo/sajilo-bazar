@@ -101,6 +101,15 @@ export async function updateDescription(userId, description) {
   return profile;
 }
 
+// Profile page inline-edit (UI round) - unlike description/portfolio this
+// isn't gated by requireApprovedWorker at the route level, so a still-
+// pending worker can also touch up the bio they wrote at onboarding.
+export async function updateBio(userId, bio) {
+  const profile = await workersModel.updateBio(userId, bio);
+  if (!profile) throw new ApiError(404, 'Worker profile not found');
+  return profile;
+}
+
 // Cloudinary folder keyed to the worker's internal id, not a username (the
 // app has no username field) - workers/{workerId}/portfolio, namespaced
 // under the same sajilo-bazar/ prefix every other upload uses.

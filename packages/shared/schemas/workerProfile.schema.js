@@ -86,6 +86,12 @@ export const WorkerDescriptionInputSchema = z.object({
   description: z.string().max(2000).nullable(),
 });
 
+// Profile page inline-edit (UI round) - same 500-char cap as the original
+// onboarding bio field (see WorkerProfileSchema.bio / WorkerApplyInputSchema).
+export const WorkerBioInputSchema = z.object({
+  bio: z.string().max(500).nullable(),
+});
+
 // A past-work item on a worker's portfolio (2026-09-27). No status field -
 // self-serve, goes live immediately, same trust model as reviews (see
 // DATA_MODEL.md). category reuses services.category's own free-text

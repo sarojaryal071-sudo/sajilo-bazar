@@ -1,7 +1,8 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useUnreadNotificationCount } from '../hooks/useUnreadNotificationCount.js';
 import { useLanguage } from '../context/LanguageContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import { Avatar } from './Avatar.jsx';
 
 const ICONS = {
   home: <path d="M3 11.5 12 4l9 7.5M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9" />,
@@ -18,7 +19,6 @@ const ICONS = {
       <path d="M9.5 18a2.5 2.5 0 0 0 5 0" />
     </>
   ),
-  menu: <path d="M4 7h16M4 12h16M4 17h16" />,
   help: (
     <>
       <circle cx="12" cy="12" r="9" />
@@ -34,8 +34,11 @@ const ICONS = {
   ),
 };
 
-// Routes reachable only through the hamburger menu - the tab highlights as
-// active when the user is on one of these, even though it isn't a NavLink.
+// Routes the Account tab should still highlight as active for, even though
+// it links straight to /profile - Settings and Help are reached by
+// drilling in from there (the gear icon, and Settings' own Support
+// section), so a customer/worker on either still reads as "in the Account
+// area".
 const MENU_ROUTES = ['/profile', '/settings', '/help'];
 
 export function NavIcon({ name }) {
@@ -48,8 +51,8 @@ export function NavIcon({ name }) {
 
 // No Search tab - search lives inside Home (the search bar at its top,
 // tappable to enter search mode), not as a separate nav destination. No
-// standalone Profile tab either - it moved into the hamburger menu, which
-// is always the last tab (see MENU_ROUTES / HamburgerMenu.jsx).
+// standalone Profile tab either - Account links straight to /profile (see
+// MENU_ROUTES above), which is now the Profile/Account page itself.
 export const CUSTOMER_TABS = [
   { to: '/home', icon: 'home', labelKey: 'nav.home' },
   { to: '/bookings', icon: 'bookings', labelKey: 'nav.bookings' },
@@ -60,22 +63,26 @@ export const WORKER_TABS = [
   { to: '/worker/jobs', icon: 'jobs', labelKey: 'nav.jobs' },
 ];
 
-// Messenger-style: the notification bell and the hamburger menu both live
-// as tabs alongside the role's other tabs, rather than a separate top bar
-// (which left an unwanted gap above the content). They're appended here
-// rather than baked into CUSTOMER_TABS/WORKER_TABS since the bell carries a
-// live badge and the hamburger opens an overlay instead of navigating.
+// Messenger-style: the notification bell and Account both live as tabs
+// alongside the role's other tabs, rather than a separate top bar (which
+// left an unwanted gap above the content). They're appended here rather
+// than baked into CUSTOMER_TABS/WORKER_TABS since the bell carries a live
+// badge. Account used to be a "Menu" tab that opened a hamburger overlay
+// (UI round: removed) - it now navigates straight to the Profile page,
+// same as any other tab, using the signed-in user's own avatar as its icon
+// rather than a generic hamburger glyph, and highlighted active across the
+// wider MENU_ROUTES set above.
 //
 // restricted: true during worker onboarding (unverified worker on
-// /worker/apply) - Home/Bookings/Alerts/Menu don't apply pre-verification,
+// /worker/apply) - Home/Bookings/Alerts/Account don't apply pre-verification,
 // so this swaps in just Help (the existing Support/contact flow) and
 // Logout, same component/position as everywhere else in the app.
-export function BottomNav({ role, onOpenMenu, restricted }) {
+export function BottomNav({ role, restricted }) {
   const tabs = role === 'worker' ? WORKER_TABS : CUSTOMER_TABS;
   const unreadCount = useUnreadNotificationCount();
   const location = useLocation();
   const { t } = useLanguage();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const menuActive = MENU_ROUTES.some((route) => location.pathname.startsWith(route));
 
   if (restricted) {
@@ -141,16 +148,20 @@ export function BottomNav({ role, onOpenMenu, restricted }) {
           </span>
           {t('nav.alerts')}
         </NavLink>
-        <button
-          onClick={onOpenMenu}
-          aria-label="Menu"
+        <Link
+          to="/profile"
+          aria-label="Account"
           className={`flex flex-col items-center gap-1 rounded-lg px-4 py-1.5 text-xs font-medium transition-colors ${
             menuActive ? 'text-brand-solid' : 'text-text-muted'
           }`}
         >
-          <NavIcon name="menu" />
+          <span
+            className={`rounded-full ${menuActive ? 'ring-2 ring-brand-solid' : 'ring-2 ring-transparent'}`}
+          >
+            <Avatar name={user.fullName} imageUrl={user.profileImageUrl} size={22} />
+          </span>
           {t('nav.menu')}
-        </button>
+        </Link>
       </div>
     </nav>
   );
