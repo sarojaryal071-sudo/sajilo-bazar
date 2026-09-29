@@ -5,6 +5,7 @@ import {
   AvailabilityReplaceInputSchema,
   TypicalResponseHoursInputSchema,
   WorkerDescriptionInputSchema,
+  WorkerBioInputSchema,
   WorkerPortfolioItemInputSchema,
   WorkerPortfolioReorderInputSchema,
   WorkerOnboardingWorkInputSchema,
@@ -151,6 +152,16 @@ export async function updateDescription(req, res, next) {
     res.json({ profile });
   } catch (err) {
     next(err.issues ? new ApiError(400, 'Invalid description', err.issues) : err);
+  }
+}
+
+export async function updateBio(req, res, next) {
+  try {
+    const { bio } = WorkerBioInputSchema.parse({ bio: req.body.bio ?? null });
+    const profile = await workersService.updateBio(req.user.id, bio);
+    res.json({ profile });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid bio', err.issues) : err);
   }
 }
 

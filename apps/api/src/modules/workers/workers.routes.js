@@ -25,6 +25,9 @@ workersRoutes.post(
   workersController.addService
 );
 workersRoutes.patch('/me/description', requireAuth, requireApprovedWorker, workersController.updateDescription);
+// Profile page inline-edit (UI round) - not gated by requireApprovedWorker
+// (bio is set at onboarding, before approval), just an authenticated worker.
+workersRoutes.patch('/me/bio', requireAuth, requireRole('worker'), workersController.updateBio);
 workersRoutes.get('/me/portfolio', requireAuth, requireApprovedWorker, workersController.listPortfolio);
 workersRoutes.post(
   '/me/portfolio',

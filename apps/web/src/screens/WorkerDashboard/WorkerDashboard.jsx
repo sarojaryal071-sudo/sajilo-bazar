@@ -5,6 +5,7 @@ import { Screen } from '../../components/Screen.jsx';
 import { Card } from '../../components/Card.jsx';
 import { Badge } from '../../components/Badge.jsx';
 import { Button } from '../../components/Button.jsx';
+import { GreetingHeader } from '../../components/GreetingHeader.jsx';
 import { BookingListItem } from '../../components/BookingListItem.jsx';
 import { ReviewsList } from '../../components/ReviewsList.jsx';
 import { AddServiceModal } from '../../components/AddServiceModal.jsx';
@@ -14,6 +15,7 @@ import { PromotionCarousel } from '../../components/PromotionCarousel.jsx';
 import { DocumentStatusList } from '../../components/DocumentStatusList.jsx';
 import { useIsDesktop } from '../../hooks/useIsDesktop.js';
 import { useSocket } from '../../context/SocketContext.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
 import * as workersApi from '../../api/workers.api.js';
 import * as bookingsApi from '../../api/bookings.api.js';
 import * as commissionLedgerApi from '../../api/commissionLedger.api.js';
@@ -275,6 +277,7 @@ const ACTIVE_STATUSES = ['accepted', 'in_progress'];
 export function WorkerDashboard() {
   const navigate = useNavigate();
   const socket = useSocket();
+  const { user } = useAuth();
   const [data, setData] = useState(null);
   const [bookings, setBookings] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -408,7 +411,9 @@ export function WorkerDashboard() {
     <Screen fillHeight={false}>
       {showWelcome && <WelcomeOverlay handle={data.profile.handle} onDismiss={handleWelcomeDismiss} />}
 
-      <div className="flex items-center justify-between">
+      <GreetingHeader name={user.fullName.split(' ')[0]} imageUrl={user.profileImageUrl} greeting="Welcome back," />
+
+      <div className="mt-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Dashboard</h1>
         {data.profile.handle && <span className="text-sm text-text-muted">{data.profile.handle}</span>}
       </div>

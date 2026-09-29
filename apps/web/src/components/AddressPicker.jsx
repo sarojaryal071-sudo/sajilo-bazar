@@ -16,13 +16,35 @@ function PinIcon() {
   );
 }
 
+function ChevronDownIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0">
+      <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 // Uber-style location picker, used at booking time (manual and instant):
 // default Home location, any other saved address, or a fresh one-off
 // address just for this booking. Saved addresses already carry lat/lng;
 // a one-off entry can optionally attach the browser's current position via
 // "Use my current location", same capture the instant flow used to do
 // unconditionally on every submit.
-export function AddressPicker({ value, onChange }) {
+// compact: a pill-style trigger (pin + address text + chevron) instead of
+// the labeled full-width button - used for Home's location bar (UI round),
+// where "Address" as a form-field caption and "Where should the worker
+// come?" as placeholder copy don't fit a browsing context. Everything
+// below the trigger (the sheet, saved/one-off logic) is identical either
+// way - same component, just a different entry point, per that round's
+// "reuse the existing AddressPicker component" instruction.
+export function AddressPicker({
+  value,
+  onChange,
+  compact = false,
+  placeholder = 'Where should the worker come?',
+  oneOffLabel = '+ Enter a new address for this booking',
+  oneOffButtonLabel = 'Use this address',
+}) {
   const [addresses, setAddresses] = useState(null);
   const [districts, setDistricts] = useState([]);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -111,18 +133,32 @@ export function AddressPicker({ value, onChange }) {
 
   return (
     <div>
-      <span className="text-sm font-medium text-text-muted">Address</span>
-      <button
-        type="button"
-        onClick={openSheet}
-        className="mt-1.5 flex w-full items-start gap-3 rounded-md border border-border bg-surface px-4 py-3 text-left"
-      >
-        <PinIcon />
-        <span className="min-w-0 flex-1 truncate text-text">
-          {value?.addressLabel || 'Where should the worker come?'}
-        </span>
-        <span className="shrink-0 text-sm font-medium text-brand-solid">Change</span>
-      </button>
+      {compact ? (
+        <button
+          type="button"
+          onClick={openSheet}
+          className="flex w-full items-center gap-2 rounded-full border border-border bg-surface px-4 py-2.5 text-left shadow-resting"
+        >
+          <PinIcon />
+          <span className="min-w-0 flex-1 truncate text-sm font-medium text-text">
+            {value?.addressLabel || placeholder}
+          </span>
+          <ChevronDownIcon />
+        </button>
+      ) : (
+        <>
+          <span className="text-sm font-medium text-text-muted">Address</span>
+          <button
+            type="button"
+            onClick={openSheet}
+            className="mt-1.5 flex w-full items-start gap-3 rounded-md border border-border bg-surface px-4 py-3 text-left"
+          >
+            <PinIcon />
+            <span className="min-w-0 flex-1 truncate text-text">{value?.addressLabel || placeholder}</span>
+            <span className="shrink-0 text-sm font-medium text-brand-solid">Change</span>
+          </button>
+        </>
+      )}
 
       {sheetOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:px-5">
@@ -167,14 +203,14 @@ export function AddressPicker({ value, onChange }) {
                   onClick={() => setOneOffMode(true)}
                   className="mt-1 rounded-xl border border-dashed border-border px-4 py-3 text-left text-sm font-medium text-brand-solid"
                 >
-                  + Enter a new address for this booking
+                  {oneOffLabel}
                 </button>
               </div>
             ) : (
               <div className="mt-4 flex flex-col gap-3">
                 <Input
                   label="Address"
-                  placeholder="Where should the worker come?"
+                  placeholder={placeholder}
                   value={oneOffText}
                   onChange={(e) => setOneOffText(e.target.value)}
                 />
@@ -212,7 +248,7 @@ export function AddressPicker({ value, onChange }) {
                     disabled={oneOffText.trim().length < 3}
                     onClick={confirmOneOff}
                   >
-                    Use this address
+                    {oneOffButtonLabel}
                   </Button>
                 </div>
               </div>

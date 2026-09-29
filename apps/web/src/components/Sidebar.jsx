@@ -4,7 +4,7 @@ import { useLanguage } from '../context/LanguageContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Wordmark } from './Wordmark.jsx';
 import { NavIcon, CUSTOMER_TABS, WORKER_TABS } from './BottomNav.jsx';
-import { EarningsIcon, ProfileIcon, SettingsIcon, LogoutIcon } from './HamburgerMenu.jsx';
+import { EarningsIcon, ProfileIcon, SettingsIcon, LogoutIcon } from './NavIcons.jsx';
 
 // Desktop-width (lg+, Piece C of the "Desktop scope..." round, 2026-09-27)
 // replacement for BottomNav + HamburgerMenu - same destinations (role tabs,

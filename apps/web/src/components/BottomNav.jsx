@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useUnreadNotificationCount } from '../hooks/useUnreadNotificationCount.js';
 import { useLanguage } from '../context/LanguageContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -34,8 +34,10 @@ const ICONS = {
   ),
 };
 
-// Routes reachable only through the hamburger menu - the tab highlights as
-// active when the user is on one of these, even though it isn't a NavLink.
+// Routes the Menu tab should still highlight as active for, even though it
+// links straight to /profile - Settings and Help are reached by drilling in
+// from there (the gear icon, and Settings' own Support section), so a
+// customer/worker on either still reads as "in the Menu area".
 const MENU_ROUTES = ['/profile', '/settings', '/help'];
 
 export function NavIcon({ name }) {
@@ -48,8 +50,8 @@ export function NavIcon({ name }) {
 
 // No Search tab - search lives inside Home (the search bar at its top,
 // tappable to enter search mode), not as a separate nav destination. No
-// standalone Profile tab either - it moved into the hamburger menu, which
-// is always the last tab (see MENU_ROUTES / HamburgerMenu.jsx).
+// standalone Profile tab either - Menu links straight to /profile (see
+// MENU_ROUTES above), which is now the Profile/Account page itself.
 export const CUSTOMER_TABS = [
   { to: '/home', icon: 'home', labelKey: 'nav.home' },
   { to: '/bookings', icon: 'bookings', labelKey: 'nav.bookings' },
@@ -60,17 +62,19 @@ export const WORKER_TABS = [
   { to: '/worker/jobs', icon: 'jobs', labelKey: 'nav.jobs' },
 ];
 
-// Messenger-style: the notification bell and the hamburger menu both live
-// as tabs alongside the role's other tabs, rather than a separate top bar
-// (which left an unwanted gap above the content). They're appended here
-// rather than baked into CUSTOMER_TABS/WORKER_TABS since the bell carries a
-// live badge and the hamburger opens an overlay instead of navigating.
+// Messenger-style: the notification bell and Menu both live as tabs
+// alongside the role's other tabs, rather than a separate top bar (which
+// left an unwanted gap above the content). They're appended here rather
+// than baked into CUSTOMER_TABS/WORKER_TABS since the bell carries a live
+// badge. Menu used to open a hamburger overlay (UI round: removed) - it now
+// navigates straight to the Profile page, same as any other tab, just
+// highlighted active across the wider MENU_ROUTES set above.
 //
 // restricted: true during worker onboarding (unverified worker on
 // /worker/apply) - Home/Bookings/Alerts/Menu don't apply pre-verification,
 // so this swaps in just Help (the existing Support/contact flow) and
 // Logout, same component/position as everywhere else in the app.
-export function BottomNav({ role, onOpenMenu, restricted }) {
+export function BottomNav({ role, restricted }) {
   const tabs = role === 'worker' ? WORKER_TABS : CUSTOMER_TABS;
   const unreadCount = useUnreadNotificationCount();
   const location = useLocation();
@@ -141,8 +145,8 @@ export function BottomNav({ role, onOpenMenu, restricted }) {
           </span>
           {t('nav.alerts')}
         </NavLink>
-        <button
-          onClick={onOpenMenu}
+        <Link
+          to="/profile"
           aria-label="Menu"
           className={`flex flex-col items-center gap-1 rounded-lg px-4 py-1.5 text-xs font-medium transition-colors ${
             menuActive ? 'text-brand-solid' : 'text-text-muted'
@@ -150,7 +154,7 @@ export function BottomNav({ role, onOpenMenu, restricted }) {
         >
           <NavIcon name="menu" />
           {t('nav.menu')}
-        </button>
+        </Link>
       </div>
     </nav>
   );

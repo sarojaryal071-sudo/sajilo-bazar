@@ -3,15 +3,16 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Screen } from '../../components/Screen.jsx';
 import { Card } from '../../components/Card.jsx';
-import { Avatar } from '../../components/Avatar.jsx';
+import { GreetingHeader } from '../../components/GreetingHeader.jsx';
 import { CategoryIcon } from '../../components/CategoryIcon.jsx';
 import { WorkerCard } from '../../components/WorkerCard.jsx';
 import { PromotionCarousel } from '../../components/PromotionCarousel.jsx';
 import { FeaturedWorkersRow } from '../../components/FeaturedWorkersRow.jsx';
+import { AddressPicker } from '../../components/AddressPicker.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useActiveAddress } from '../../context/ActiveAddressContext.jsx';
 import * as workersApi from '../../api/workers.api.js';
 import * as publicationsApi from '../../api/publications.api.js';
-import * as addressesApi from '../../api/addresses.api.js';
 import { humanizeCategory } from '../../lib/humanize.js';
 
 const SEARCH_DEBOUNCE_MS = 175;
@@ -56,10 +57,13 @@ export function Home() {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [results, setResults] = useState(null);
   const [resultsError, setResultsError] = useState('');
-  // The customer's own default saved address's district, if any (Part B) -
-  // an additive filter only: no default address yet means district stays
-  // null and search behaves exactly as it always has (no location filter).
-  const [defaultDistrict, setDefaultDistrict] = useState(null);
+  // The session's active location (UI round) - defaults itself to the
+  // customer's default saved address the first time AddressPicker mounts
+  // with no value yet (see AddressPicker's own effect), then stays
+  // whatever was last picked from the location bar below. An additive
+  // search filter only: no address yet means district stays null and
+  // search behaves exactly as it always has (no location filter).
+  const { activeAddress, setActiveAddress } = useActiveAddress();
 
   // Service catalog, for both the resting-state category grid and the
   // active-state filter chips.
@@ -79,11 +83,6 @@ export function Home() {
       .getActivePromotions('customers')
       .then(({ promotions }) => setPromotions(promotions))
       .catch(() => {});
-
-    addressesApi
-      .list()
-      .then(({ addresses }) => setDefaultDistrict(addresses.find((a) => a.isDefault)?.district ?? null))
-      .catch(() => {});
   }, []);
 
   // Debounce typed input only - category taps and activation itself stay
@@ -101,10 +100,10 @@ export function Home() {
     if (!searchActive) return;
     setResultsError('');
     workersApi
-      .search({ q: debouncedQuery, category: activeCategory, district: defaultDistrict })
+      .search({ q: debouncedQuery, category: activeCategory, district: activeAddress?.district ?? null })
       .then(({ results }) => setResults(results))
       .catch(() => setResultsError('Could not load workers right now.'));
-  }, [searchActive, activeCategory, debouncedQuery, defaultDistrict]);
+  }, [searchActive, activeCategory, debouncedQuery, activeAddress?.district]);
 
   function activateSearch() {
     setSearchActive(true);
@@ -128,12 +127,16 @@ export function Home() {
 
   return (
     <Screen className="pb-4" fillHeight={false} maxWidth="wide">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-text-muted">Good to see you,</p>
-          <h1 className="text-2xl font-bold">{user.fullName.split(' ')[0]}</h1>
-        </div>
-        <Avatar name={user.fullName} imageUrl={user.profileImageUrl} size={48} />
+      <GreetingHeader name={user.fullName.split(' ')[0]} imageUrl={user.profileImageUrl} />
+
+      <div className="mt-3">
+        <AddressPicker
+          compact
+          value={activeAddress}
+          onChange={setActiveAddress}
+          oneOffLabel="+ Add a new address"
+          oneOffButtonLabel="Use this location"
+        />
       </div>
 
       {!searchActive ? (
