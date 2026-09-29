@@ -339,43 +339,54 @@ export function Profile() {
       )}
 
       <Card className="mt-4">
-        {editing ? (
-          <form onSubmit={handleSave} className="flex flex-col gap-4">
-            <Input
-              label="Full name"
-              name="fullName"
-              required
-              value={form.fullName}
-              onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-            />
-            <Input
-              label="Email"
-              name="email"
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-            />
-            {error && <p className="text-sm text-danger">{error}</p>}
-            <div className="flex gap-3">
-              <Button type="submit" disabled={saving} className="flex-1">
-                {saving ? 'Saving...' : 'Save'}
+        <p className="font-semibold">Account</p>
+        <div className="mt-3">
+          {editing ? (
+            <form onSubmit={handleSave} className="flex flex-col gap-4">
+              <Input
+                label="Full name"
+                name="fullName"
+                required
+                value={form.fullName}
+                onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+              />
+              <Input
+                label="Email"
+                name="email"
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
+              {error && <p className="text-sm text-danger">{error}</p>}
+              <div className="flex gap-3">
+                <Button type="submit" disabled={saving} className="flex-1">
+                  {saving ? 'Saving...' : 'Save'}
+                </Button>
+                <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <Row label="Phone" value={user.phone} />
+              <Row label="Email" value={user.email || '—'} />
+              {workerData?.profile.handle && <Row label="Worker ID" value={workerData.profile.handle} />}
+              {formatDate(user.createdAt) && <Row label="Member since" value={formatDate(user.createdAt)} />}
+              <Button variant="secondary" onClick={() => setEditing(true)}>
+                Edit profile
               </Button>
-              <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
-                Cancel
+              {/* Last row in the Account section, on purpose (not a
+                  standalone button floating after unrelated content lower
+                  on the page) - a plain block-level row like the others
+                  above it, not a narrow auto-width pill that reads as
+                  centered on a short page. */}
+              <Button variant="danger" className="w-full" onClick={logout}>
+                Log out
               </Button>
             </div>
-          </form>
-        ) : (
-          <div className="flex flex-col gap-3">
-            <Row label="Phone" value={user.phone} />
-            <Row label="Email" value={user.email || '—'} />
-            {workerData?.profile.handle && <Row label="Worker ID" value={workerData.profile.handle} />}
-            {formatDate(user.createdAt) && <Row label="Member since" value={formatDate(user.createdAt)} />}
-            <Button variant="secondary" onClick={() => setEditing(true)}>
-              Edit profile
-            </Button>
-          </div>
-        )}
+          )}
+        </div>
       </Card>
 
       {isWorker && workerData?.profile.verificationStatus === 'approved' && (
@@ -525,10 +536,6 @@ export function Profile() {
           )}
         </Card>
       )}
-
-      <Button variant="ghost" className="mt-8" onClick={logout}>
-        Log out
-      </Button>
 
       {isWorker && photoViewerOpen && (
         <PhotoViewer imageUrl={user.profileImageUrl} onClose={() => setPhotoViewerOpen(false)} />
