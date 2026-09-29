@@ -45,7 +45,13 @@ export function Notifications() {
       return;
     }
     if (notification.payload?.bookingId) {
-      navigate(`/booking/${notification.payload.bookingId}`);
+      // Chat notifications go straight to the conversation, not the
+      // booking summary - everything else keeps landing on Booking Detail.
+      navigate(
+        notification.type === 'chat_message'
+          ? `/booking/${notification.payload.bookingId}/chat`
+          : `/booking/${notification.payload.bookingId}`
+      );
     }
   }
 
