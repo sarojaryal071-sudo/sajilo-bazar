@@ -48,22 +48,27 @@ export function BookingRequest() {
       .catch((err) => setLoadError(err.message));
   }, [workerId]);
 
-  // Fuel/travel charge preview (Piece D) - quoted fresh once an address
-  // with coordinates is picked, never by reading the worker's own location
-  // client-side (that's never exposed to a customer - see workers.model.js
-  // findApprovedWorkerDetail). A one-off address with no coordinates
-  // simply shows no fuel line yet - the real one is computed and stored
-  // server-side the moment the booking is actually created.
+  // Fuel/travel charge preview (Piece D) - quoted fresh once any address is
+  // picked, never by reading the worker's own location client-side (that's
+  // never exposed to a customer - see workers.model.js
+  // findApprovedWorkerDetail). Bug-fix round (2026-09-29): this used to
+  // wait for coordinates, but a one-off address only has them if the
+  // customer explicitly taps "Use my current location" (AddressPicker.jsx)
+  // - so the preview got stuck on "Pick an address" for every address that
+  // never got one. The charge is now a flat platform fee regardless of
+  // distance (see computeFuelCharge's FLAT_FUEL_CHARGE), so it no longer
+  // needs coordinates at all - quoting as soon as an address label exists
+  // and passing coordinates through only when they happen to be present.
   useEffect(() => {
-    if (address?.latitude == null || address?.longitude == null) {
+    if (!address?.addressLabel) {
       setFuelCharge(null);
       return;
     }
     bookingsApi
-      .quoteFuelCharge(Number(workerId), address.latitude, address.longitude)
+      .quoteFuelCharge(Number(workerId), address.latitude ?? null, address.longitude ?? null)
       .then(({ fuelCharge }) => setFuelCharge(fuelCharge))
       .catch(() => setFuelCharge(null));
-  }, [workerId, address?.latitude, address?.longitude]);
+  }, [workerId, address?.addressLabel, address?.latitude, address?.longitude]);
 
   if (loadError) {
     return (

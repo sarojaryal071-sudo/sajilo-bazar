@@ -160,10 +160,16 @@ export const BookingDisputeInputSchema = z.object({
 // so the fuel charge is quoted without ever exposing the worker's raw
 // saved coordinates back to the client (same privacy principle as the
 // phone-scoping/trust-score raw-score rules elsewhere in this codebase).
+// latitude/longitude are nullable (bug-fix round, 2026-09-29): the fuel
+// charge is now a flat platform-wide fee regardless of distance (see
+// bookings.service.js computeFuelCharge's FLAT_FUEL_CHARGE), and a one-off
+// address (AddressPicker.jsx) doesn't always have coordinates - the
+// frontend quotes as soon as any address is picked, not just one with a
+// captured location.
 export const FuelChargeQuoteInputSchema = z.object({
   workerId: z.number().int().positive(),
-  latitude: z.number(),
-  longitude: z.number(),
+  latitude: z.number().nullable(),
+  longitude: z.number().nullable(),
 });
 
 export const BookingOfferSchema = z.object({

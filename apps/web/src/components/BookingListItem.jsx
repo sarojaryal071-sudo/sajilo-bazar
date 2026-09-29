@@ -3,6 +3,7 @@ import { Avatar } from './Avatar.jsx';
 import { NoWorkerAvatar } from './NoWorkerAvatar.jsx';
 import { Badge } from './Badge.jsx';
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_TONE, NO_WORKER_TERMINAL_STATUSES } from '../lib/bookingStatus.js';
+import { timeAgo } from '../lib/timeAgo.js';
 
 // Shared by the customer Bookings list and worker Jobs list - viewerRole
 // decides which side of the booking to show as "the other person". An
@@ -54,6 +55,7 @@ export function BookingListItem({ booking, viewerRole, onClick }) {
         ) : (
           <Badge tone={BOOKING_STATUS_TONE[booking.status]}>{BOOKING_STATUS_LABEL[booking.status]}</Badge>
         )}
+        {booking.createdAt && <p className="text-xs text-text-muted">{timeAgo(booking.createdAt)}</p>}
       </div>
     </Card>
   );
