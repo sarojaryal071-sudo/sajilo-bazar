@@ -13,6 +13,7 @@ import { SkeletonBlock } from '../../components/Skeleton.jsx';
 import { PromotionCarousel } from '../../components/PromotionCarousel.jsx';
 import { DocumentStatusList } from '../../components/DocumentStatusList.jsx';
 import { useIsDesktop } from '../../hooks/useIsDesktop.js';
+import { useSocket } from '../../context/SocketContext.jsx';
 import * as workersApi from '../../api/workers.api.js';
 import * as bookingsApi from '../../api/bookings.api.js';
 import * as commissionLedgerApi from '../../api/commissionLedger.api.js';
@@ -273,6 +274,7 @@ const ACTIVE_STATUSES = ['accepted', 'in_progress'];
 
 export function WorkerDashboard() {
   const navigate = useNavigate();
+  const socket = useSocket();
   const [data, setData] = useState(null);
   const [bookings, setBookings] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -311,6 +313,24 @@ export function WorkerDashboard() {
       .then(({ promotions }) => setPromotions(promotions))
       .catch(() => {});
   }, []);
+
+  // Bug-fix round (2026-09-29): a new pending request (or an existing
+  // booking's status changing) had no live push to this screen at all -
+  // same booking:status_changed event the customer's Bookings.jsx already
+  // listens for (see bookings.service.js), merge-updating by id or
+  // prepending when it's a booking this screen hasn't seen yet.
+  useEffect(() => {
+    if (!socket) return;
+    function onStatusChanged({ booking: updated }) {
+      setBookings((prev) => {
+        if (!prev) return prev;
+        const exists = prev.some((b) => b.id === updated.id);
+        return exists ? prev.map((b) => (b.id === updated.id ? updated : b)) : [updated, ...prev];
+      });
+    }
+    socket.on('booking:status_changed', onStatusChanged);
+    return () => socket.off('booking:status_changed', onStatusChanged);
+  }, [socket]);
 
   // Upserts by id rather than always appending - a retry on a rejected
   // service returns the same row (updated), not a new one (see
@@ -369,7 +389,15 @@ export function WorkerDashboard() {
 
   const copy = STATUS_COPY[data.profile.verificationStatus];
   const activeJobs = bookings?.filter((b) => ACTIVE_STATUSES.includes(b.status)) ?? [];
-  const pendingCount = bookings?.filter((b) => b.status === 'requested').length ?? 0;
+  // Bug-fix round (2026-09-29): a booking sitting at 'requested' (awaiting
+  // this worker's Accept/Decline/counter-quote) never appeared anywhere on
+  // the Dashboard - ACTIVE_STATUSES above deliberately excludes it, and the
+  // 3-stat "Pending" count was the only signal, easy to miss. Surfaced as
+  // its own section above Active jobs rather than folded in, since
+  // "awaiting a decision" and "already won, in motion" are different
+  // states a worker needs to act on differently.
+  const pendingRequests = bookings?.filter((b) => b.status === 'requested') ?? [];
+  const pendingCount = pendingRequests.length;
 
   async function handleToggleOnline(input) {
     const { profile } = await workersApi.setOnline(input);
@@ -447,6 +475,24 @@ export function WorkerDashboard() {
               sparkline={sparkline}
               onClick={() => navigate('/worker/earnings')}
             />
+          )}
+
+          {pendingRequests.length > 0 && (
+            <>
+              <p className="mt-6 mb-3 text-sm font-semibold uppercase tracking-wide text-warning">
+                Pending requests
+              </p>
+              <div className="flex flex-col gap-3">
+                {pendingRequests.map((booking) => (
+                  <BookingListItem
+                    key={booking.id}
+                    booking={booking}
+                    viewerRole="worker"
+                    onClick={() => navigate(`/booking/${booking.id}`)}
+                  />
+                ))}
+              </div>
+            </>
           )}
 
           <p className="mt-6 mb-3 text-sm font-semibold uppercase tracking-wide text-text-muted">

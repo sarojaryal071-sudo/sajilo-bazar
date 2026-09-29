@@ -42,18 +42,29 @@ function round2(n) {
   return Math.round(n * 100) / 100;
 }
 
-// Piece D (fuel/travel charge, 2026-09-27): one platform-wide formula -
-// base fee + per-km rate, both admin-editable via platform_settings (see
-// AdminSettings.jsx) and read fresh on every call, so a change takes
-// effect on the very next booking, no redeploy. A pass-through to the
-// worker - the result is stored on bookings.fuel_charge, never folded into
-// bookings.price, which is what commissionLedgerService calculates the 15%
-// commission against. Missing coordinates (a worker who's never gone
-// online, or a coordinate-less saved address) fall back to distance 0 -
-// base fee only, rather than refusing to price the booking at all.
+// Piece D (fuel/travel charge, 2026-09-27): base fee + per-km rate, both
+// admin-editable via platform_settings (see AdminSettings.jsx) and read
+// fresh on every call, so a change takes effect on the very next booking,
+// no redeploy. A pass-through to the worker - the result is stored on
+// bookings.fuel_charge, never folded into bookings.price, which is what
+// commissionLedgerService calculates the 15% commission against.
+//
+// Bug-fix round (2026-09-29): the per-km branch below depends on real
+// customer coordinates, which a one-off address only has if the customer
+// explicitly taps "Use my current location" (AddressPicker.jsx) - so most
+// bookings were silently falling through to base-fee-only anyway, and the
+// frontend's "wait for coordinates" quote preview got stuck showing "Pick
+// an address" for addresses that never got any. Decided to skip real
+// distance calculation entirely until GPS/maps integration exists: flat
+// base fee (now Rs. 100 - see migration 047) for every booking, regardless
+// of distance or whether coordinates are even present. The per-km branch
+// is deliberately left in place rather than deleted, ready to re-enable
+// once coordinates are reliably available.
+const FLAT_FUEL_CHARGE = true;
+
 async function computeFuelCharge(workerLat, workerLng, customerLat, customerLng) {
   const { baseFee, ratePerKm } = await platformSettingsService.getFuelPricing();
-  if (workerLat == null || workerLng == null || customerLat == null || customerLng == null) {
+  if (FLAT_FUEL_CHARGE || workerLat == null || workerLng == null || customerLat == null || customerLng == null) {
     return round2(baseFee);
   }
   const distanceKm = haversineDistanceKm(workerLat, workerLng, customerLat, customerLng);
@@ -129,6 +140,13 @@ export async function createBooking(
     customerName: booking.customerName,
     scheduledFor: booking.scheduledFor,
   });
+  // Bug-fix round (2026-09-29): a new manual request had no live push at
+  // all - the worker's Dashboard only found out via the durable
+  // notification (easy to miss/bury under older ones) or a manual refresh.
+  // Reuses the same event name/shape the dashboard list already listens
+  // for on status changes (WorkerDashboard.jsx), so a brand-new pending
+  // request shows up immediately, same as an existing one changing status.
+  emitToUser(workerId, 'booking:status_changed', { booking });
 
   return booking;
 }
