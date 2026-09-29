@@ -68,6 +68,11 @@ export const BookingSchema = z.object({
   // 'cash' at the DB level for every booking, but only meaningful once
   // completed (that's the only place it's surfaced in the UI).
   paymentMethod: z.enum(PAYMENT_METHODS),
+  // Manual counter-quote (Phase 2) - true while this booking has a quote
+  // (see quotes table) still awaiting the customer's accept/decline. Lets
+  // the dashboard list and Booking Detail surface "Quote received" without
+  // a second fetch; computed in bookings.model.js, not stored.
+  hasPendingQuote: z.boolean().optional(),
   createdAt: z.string().datetime().optional(),
   // Booking Detail's status timeline (Requested/Accepted/Job Started/
   // Completed) - each null until its transition happens, same idiom as

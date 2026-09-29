@@ -38,8 +38,12 @@ export async function list(req, res, next) {
 export async function decide(req, res, next) {
   try {
     const { decision } = QuoteDecisionInputSchema.parse(req.body);
-    const quote = await quotesService.decideQuote(parseId(req.params.id, 'quote id'), req.user.id, decision);
-    res.json({ quote });
+    const { quote, booking } = await quotesService.decideQuote(
+      parseId(req.params.id, 'quote id'),
+      req.user.id,
+      decision
+    );
+    res.json({ quote, booking });
   } catch (err) {
     next(err.issues ? new ApiError(400, 'Invalid decision', err.issues) : err);
   }

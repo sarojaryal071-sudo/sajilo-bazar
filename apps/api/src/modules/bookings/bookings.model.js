@@ -39,6 +39,7 @@ function toBooking(row) {
     workerImageUrl: row.worker_image_url,
     workerHandle: row.worker_handle,
     workerPhone: row.worker_id && PHONE_VISIBLE_STATUSES.includes(row.status) ? row.worker_phone : null,
+    hasPendingQuote: row.has_pending_quote,
     services: [],
   };
 }
@@ -47,7 +48,8 @@ const SELECT_BOOKING = `
   SELECT b.*,
     cu.full_name AS customer_name, cu.profile_image_url AS customer_image_url,
     wu.full_name AS worker_name, wu.profile_image_url AS worker_image_url, wu.phone AS worker_phone,
-    wp.handle AS worker_handle
+    wp.handle AS worker_handle,
+    EXISTS(SELECT 1 FROM quotes q WHERE q.booking_id = b.id AND q.status = 'submitted') AS has_pending_quote
   FROM bookings b
   JOIN users cu ON cu.id = b.customer_id
   LEFT JOIN users wu ON wu.id = b.worker_id
@@ -366,8 +368,25 @@ export async function setAccepted(id) {
   return findById(id);
 }
 
-export async function setDeclined(id) {
-  await pool.query(`UPDATE bookings SET status = 'declined' WHERE id = $1`, [id]);
+// Manual counter-quote (Phase 2) accept path - same transition as
+// setAccepted, but the customer is accepting a worker-proposed amount
+// instead of the booking's listed price, so that price overwrites it here
+// (mirrors how setCompleted's finalPrice overwrites the original estimate).
+export async function setAcceptedWithPrice(id, price) {
+  await pool.query(`UPDATE bookings SET status = 'accepted', accepted_at = now(), price = $2 WHERE id = $1`, [
+    id,
+    price,
+  ]);
+  return findById(id);
+}
+
+// reason is optional - the plain worker-decline path (bookings.service.js
+// declineBooking) still calls this with none, same as before. The Phase 2
+// quote-decline path passes one so the closed-out booking's reason is
+// visible wherever cancelReason is already displayed (see BookingDetail.jsx
+// isTerminalNonCompleted).
+export async function setDeclined(id, reason = null) {
+  await pool.query(`UPDATE bookings SET status = 'declined', cancel_reason = $2 WHERE id = $1`, [id, reason]);
   return findById(id);
 }
 

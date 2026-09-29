@@ -49,7 +49,11 @@ export function BookingListItem({ booking, viewerRole, onClick }) {
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1.5">
         {booking.price !== null && <p className="text-sm font-semibold">Rs. {booking.price}</p>}
-        <Badge tone={BOOKING_STATUS_TONE[booking.status]}>{BOOKING_STATUS_LABEL[booking.status]}</Badge>
+        {booking.hasPendingQuote ? (
+          <Badge tone="warning">{viewerRole === 'worker' ? 'Quote sent' : 'Quote received'}</Badge>
+        ) : (
+          <Badge tone={BOOKING_STATUS_TONE[booking.status]}>{BOOKING_STATUS_LABEL[booking.status]}</Badge>
+        )}
       </div>
     </Card>
   );

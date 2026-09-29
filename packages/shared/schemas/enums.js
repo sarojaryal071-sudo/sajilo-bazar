@@ -84,6 +84,12 @@ export const NOTIFICATION_TYPES = [
   'announcement',
   'dispute_resolved',
   'support_reply',
+  // Manual counter-quote (Phase 2) - quote_received tells the customer a
+  // worker countered instead of accepting at listed price; quote_accepted/
+  // quote_declined tell the worker the customer's decision.
+  'quote_received',
+  'quote_accepted',
+  'quote_declined',
 ];
 
 // Settings -> Notifications matrix rows. Coarser than NOTIFICATION_TYPES -
@@ -109,4 +115,7 @@ export const NOTIFICATION_TYPE_CATEGORY = {
   announcement: 'promos',
   dispute_resolved: 'support',
   support_reply: 'support',
+  quote_received: 'bookings',
+  quote_accepted: 'bookings',
+  quote_declined: 'bookings',
 };

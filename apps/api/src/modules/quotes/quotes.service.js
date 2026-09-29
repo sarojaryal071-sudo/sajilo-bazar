@@ -1,7 +1,8 @@
 import { ApiError } from '../../middleware/error.middleware.js';
 import { uploadBuffer } from '../../lib/cloudinary.js';
+import { emitToUser } from '../../realtime/socket.js';
+import { notify } from '../notifications/notifications.service.js';
 import * as bookingsModel from '../bookings/bookings.model.js';
-import * as platformSettingsService from '../platformSettings/platformSettings.service.js';
 import * as quotesModel from './quotes.model.js';
 
 async function requireBooking(bookingId) {
@@ -24,38 +25,42 @@ function assertCanSubmitQuote(booking, workerId) {
   }
 }
 
-// Bounded by the admin price band (platform_settings.service_price_bands),
-// same hard floor/ceiling workers.service.js's saveOnboardingWork already
-// enforces for a worker's own listed price - decided as the safer default
-// per the founder's instruction to flag this rather than guess, since a
-// quote is functionally "a worker setting a price for a service" the same
-// way onboarding pricing is. Summed across every service on the booking;
-// if any service has no band defined yet, no bound is enforced (same
-// leniency as the "no band -> not flagged" behavior elsewhere) rather than
-// guessing at a partial bound.
-async function assertWithinPriceBand(booking, amount) {
-  const bands = await platformSettingsService.getServicePriceBands();
-  let min = 0;
-  let max = 0;
-  for (const service of booking.services) {
-    const band = bands[String(service.serviceId)];
-    if (!band) return; // any unbanded service -> no bound enforced for this quote
-    min += Number(band.min);
-    max += Number(band.max);
-  }
-  if (amount < min || amount > max) {
-    throw new ApiError(400, `Quote amount must be between Rs. ${min} and Rs. ${max}`);
+// Phase 2 (manual counter-quote): only makes sense while the booking is
+// still awaiting a first decision - once it's accepted/declined/cancelled/
+// etc. there's nothing left for a quote to counter. Get Quotes (Phase 3,
+// not built here) will have its own open-window semantics on top of this,
+// but "requested" is the correct gate for both: a quote is only ever a
+// response to an outstanding request.
+function assertBookingAwaitingDecision(booking) {
+  if (booking.status !== 'requested') {
+    throw new ApiError(400, 'This booking is no longer awaiting a decision');
   }
 }
 
+// amount's only real check is Zod's z.number().positive() on the way in
+// (QuoteCreateInputSchema) plus the DB's own CHECK (amount > 0) - quotes
+// are deliberately unbounded (2026-09-28 fix): the whole point of a quote
+// is pricing a non-standard job (extra material, more time, unusual
+// complexity) that doesn't fit a normal listed-price band, so the same
+// min/max band saveOnboardingWork enforces for a worker's own listed price
+// does not apply here. That band enforcement itself is untouched - this
+// only removes it from quote submission.
 export async function submitQuote(bookingId, workerId, { amount, message }, file) {
   const booking = await requireBooking(bookingId);
   assertCanSubmitQuote(booking, workerId);
-  await assertWithinPriceBand(booking, amount);
+  assertBookingAwaitingDecision(booking);
 
-  const existing = await quotesModel.findSubmittedByBookingAndWorker(bookingId, workerId);
+  // At most one quote per worker per booking, EVER - not just "no second
+  // pending one" (see quotesModel.findAnyByBookingAndWorker). A worker
+  // whose quote was already declined can't come back with another.
+  const existing = await quotesModel.findAnyByBookingAndWorker(bookingId, workerId);
   if (existing) {
-    throw new ApiError(409, 'You already have a pending quote on this booking - wait for a decision before resubmitting');
+    throw new ApiError(
+      409,
+      existing.status === 'submitted'
+        ? 'You already have a pending quote on this booking - wait for a decision before resubmitting'
+        : 'You have already submitted a quote on this booking'
+    );
   }
 
   let photoUrl = null;
@@ -64,7 +69,22 @@ export async function submitQuote(bookingId, workerId, { amount, message }, file
     photoUrl = result.secure_url;
   }
 
-  return quotesModel.create({ bookingId, workerId, amount, message, photoUrl });
+  const quote = await quotesModel.create({ bookingId, workerId, amount, message, photoUrl });
+
+  // The customer's dashboard/Booking Detail need to know a quote is now
+  // awaiting them - reuses the same booking:status_changed event and
+  // notify() pattern bookings.service.js already pushes on every status
+  // transition, even though the booking's own status field hasn't moved
+  // (hasPendingQuote is what changed - see bookingsModel's SELECT_BOOKING).
+  const updatedBooking = await bookingsModel.findById(bookingId);
+  await notify(booking.customerId, 'quote_received', {
+    bookingId,
+    workerName: updatedBooking.workerName,
+    amount,
+  });
+  emitToUser(booking.customerId, 'booking:status_changed', { booking: updatedBooking });
+
+  return quote;
 }
 
 // Visibility: the customer sees every quote on their own booking (they're
@@ -84,19 +104,43 @@ export async function listQuotes(bookingId, userId) {
   throw new ApiError(403, 'Forbidden');
 }
 
-// Only transitions the quote row's own status - assigning the worker to
-// the booking, superseding sibling quotes on an accept, etc. is Phase 2/3
-// business logic that builds on this foundation, deliberately not done
-// here (see "explicit boundaries" in the Phase 1 spec: this phase doesn't
-// touch the existing booking flow).
+// The Phase 2 piece Phase 1 deliberately left undone: an accept doesn't
+// just flip the quote's own status, it moves the booking itself forward -
+// same "accepted" lifecycle state as if the worker had accepted at listed
+// price, just at the worker's quoted amount instead (setAcceptedWithPrice).
+// A decline closes the booking out ('declined', same status a plain
+// worker-decline produces) - no counter-negotiation loop, matching the
+// "declining just cancels that request" design in the spec. Either way the
+// OTHER party (the worker, since the customer is the one deciding here) is
+// the one who needs telling - same "notify whichever side didn't act"
+// pattern bookings.service.js's cancelBooking already uses.
 export async function decideQuote(quoteId, userId, decision) {
   const quote = await quotesModel.findRawById(quoteId);
   if (!quote) throw new ApiError(404, 'Quote not found');
   const booking = await requireBooking(quote.booking_id);
   if (booking.customerId !== userId) throw new ApiError(403, 'Forbidden');
   if (quote.status !== 'submitted') throw new ApiError(400, 'This quote has already been decided');
+  assertBookingAwaitingDecision(booking);
 
-  return quotesModel.updateStatus(quoteId, decision === 'accept' ? 'accepted' : 'declined');
+  const updatedQuote = await quotesModel.updateStatus(quoteId, decision === 'accept' ? 'accepted' : 'declined');
+
+  let updatedBooking;
+  if (decision === 'accept') {
+    updatedBooking = await bookingsModel.setAcceptedWithPrice(booking.id, Number(quote.amount));
+    await notify(quote.worker_id, 'quote_accepted', { bookingId: booking.id, amount: Number(quote.amount) });
+  } else {
+    updatedBooking = await bookingsModel.setDeclined(
+      booking.id,
+      `Your counter-quote of Rs. ${quote.amount} was declined`
+    );
+    await notify(quote.worker_id, 'quote_declined', { bookingId: booking.id, amount: Number(quote.amount) });
+  }
+  emitToUser(quote.worker_id, 'booking:status_changed', { booking: updatedBooking });
+
+  // The booking comes back too so the customer's own screen (the actor
+  // here) can update immediately from the HTTP response, same pattern
+  // BookingDetail.jsx's runAction already uses for accept/decline/etc.
+  return { quote: updatedQuote, booking: updatedBooking };
 }
 
 // Proxy stream target (GET /quotes/:id/photo) - same never-expose-the-raw-
