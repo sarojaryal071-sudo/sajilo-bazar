@@ -18,6 +18,7 @@ import { Signup } from './screens/Auth/Signup.jsx';
 import { Home } from './screens/Home/Home.jsx';
 import { Bookings } from './screens/Bookings/Bookings.jsx';
 import { Profile } from './screens/Profile/Profile.jsx';
+import { EditProfile } from './screens/EditProfile/EditProfile.jsx';
 import { Settings } from './screens/Settings/Settings.jsx';
 import { WorkerDetail } from './screens/WorkerDetail/WorkerDetail.jsx';
 import { WorkerApply } from './screens/WorkerApply/WorkerApply.jsx';
@@ -169,6 +170,14 @@ export default function App() {
             element={
               <ProtectedRoute role="worker">
                 <WorkerAvailability />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile/edit"
+            element={
+              <ProtectedRoute role="worker">
+                <EditProfile />
               </ProtectedRoute>
             }
           />
