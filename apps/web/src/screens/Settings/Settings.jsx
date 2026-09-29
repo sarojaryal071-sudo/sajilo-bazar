@@ -111,6 +111,35 @@ function ConfirmDialog({
   );
 }
 
+// Two-option segmented pill control, inline in a settings row - same
+// visual pattern as NotificationMatrix's channel switcher below, reused
+// here for Language/Theme instead of a plain chevron row that pushed to a
+// separate confirm step. Selecting an option applies immediately, like any
+// other toggle.
+function PillToggleRow({ label, options, value, onChange, last }) {
+  return (
+    <div
+      className={`flex items-center justify-between gap-3 px-4 py-3.5 ${!last ? 'border-b border-glass-border' : ''}`}
+    >
+      <span className="text-sm font-medium">{label}</span>
+      <div className="flex gap-1 rounded-full bg-surface-alt p-1">
+        {options.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onChange(option.value)}
+            className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+              value === option.value ? 'bg-brand text-text-onBrand shadow-resting' : 'text-text-muted'
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function MiniToggle({ checked, onChange, disabled }) {
   return (
     <button
@@ -547,15 +576,23 @@ export function Settings() {
       </SettingsSection>
 
       <SettingsSection title="Preferences">
-        <SettingsRow
+        <PillToggleRow
           label={t('menu.language')}
-          value={language === 'en' ? t('menu.english') : t('menu.nepali')}
-          onClick={() => setLanguage(language === 'en' ? 'ne' : 'en')}
+          options={[
+            { value: 'en', label: t('menu.english') },
+            { value: 'ne', label: t('menu.nepali') },
+          ]}
+          value={language}
+          onChange={setLanguage}
         />
-        <SettingsRow
+        <PillToggleRow
           label={t('menu.theme')}
-          value={theme === 'dark' ? t('menu.dark') : t('menu.light')}
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          options={[
+            { value: 'light', label: t('menu.light') },
+            { value: 'dark', label: t('menu.dark') },
+          ]}
+          value={theme}
+          onChange={setTheme}
           last
         />
       </SettingsSection>
