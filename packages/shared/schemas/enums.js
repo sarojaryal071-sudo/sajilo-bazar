@@ -40,6 +40,14 @@ export const BOOKING_OFFER_STATUSES = ['pending', 'accepted', 'expired', 'declin
 // platform_settings.get_quotes_window_minutes.
 export const QUOTE_STATUSES = ['submitted', 'accepted', 'declined', 'expired'];
 
+// Phase 3a (2026-09-29): distinguishes the original pre-acceptance
+// counter-quote (booking still 'requested') from a mid-job price-increase
+// request (booking already 'accepted'/'in_progress', extra material/time
+// discovered on-site) - both reuse the same quotes table/submit-decide
+// endpoints; only the accept/decline side effects differ (see
+// quotes.service.js decideQuote). See migration 048.
+export const QUOTE_CONTEXTS = ['counter_offer', 'price_increase'];
+
 // Who attached a given booking_photos row - the customer's problem photo at
 // request time, or the worker's before/after photos once the job is under
 // way (see BOOKING_PHOTO_TYPES below).

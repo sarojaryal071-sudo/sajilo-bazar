@@ -3,6 +3,7 @@ import { uploadBuffer } from '../../lib/cloudinary.js';
 import { notify } from '../notifications/notifications.service.js';
 import { emitToUser, isUserInBookingRoom } from '../../realtime/socket.js';
 import * as bookingsModel from '../bookings/bookings.model.js';
+import * as bookingPhotosModel from '../bookingPhotos/bookingPhotos.model.js';
 import * as chatModel from './chat.model.js';
 
 async function requireParticipant(bookingId, userId) {
@@ -43,6 +44,30 @@ async function notifyOtherParty(booking, userId, bookingId, preview) {
   if (recipientId) {
     await notify(recipientId, 'chat_message', { bookingId, senderName, preview });
   }
+}
+
+// Phase 3a: once a specific worker is confirmed for a Manual booking
+// (status 'requested' -> 'accepted', either via plain accept or an
+// accepted counter-quote - see bookings.service.js acceptBooking and
+// quotes.service.js decideQuote), auto-post the customer's problem photo
+// (attached at booking-request time, if any) as the first message in that
+// worker's now-open chat - attributed to the customer, using the same
+// attachment rendering as any other chat photo. Deliberately no
+// notifyOtherParty() call: this isn't new information to either side (the
+// customer already saw their own photo, the worker already saw it on the
+// booking request itself), so it must not fire a "new message"
+// notification - only genuine new messages sent after this point should.
+// A no-op if the customer never attached one.
+export async function postProblemPhotoIfAny(booking) {
+  const photo = await bookingPhotosModel.findRawProblemPhoto(booking.id);
+  if (!photo) return;
+  const created = await chatModel.create({
+    bookingId: booking.id,
+    senderId: booking.customerId,
+    attachmentUrl: photo.url,
+    attachmentType: 'image',
+  });
+  await maybeMarkDelivered(booking, created, resolveOtherPartyId(booking, booking.customerId));
 }
 
 export async function listMessages(bookingId, userId) {

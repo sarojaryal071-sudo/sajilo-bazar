@@ -63,8 +63,8 @@ export function start(id) {
   return apiFetch(`/bookings/${id}/start`, { method: 'PATCH' });
 }
 
-export function complete(id, { finalPrice, paymentMethod = 'cash' }) {
-  return apiFetch(`/bookings/${id}/complete`, { method: 'PATCH', body: { finalPrice, paymentMethod } });
+export function complete(id, { paymentMethod = 'cash', discount } = {}) {
+  return apiFetch(`/bookings/${id}/complete`, { method: 'PATCH', body: { paymentMethod, discount } });
 }
 
 export function cancel(id, reason) {

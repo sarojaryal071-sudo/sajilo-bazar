@@ -32,6 +32,23 @@ export async function findRawById(id) {
   return rows[0] ?? null;
 }
 
+// Phase 3a: the customer's problem photo (attached at booking-request
+// time, before a worker was confirmed) - looked up once, when a worker
+// gets confirmed, to auto-post it into that worker's now-open chat (see
+// chat.service.js postProblemPhotoIfAny). Raw row (url included), same
+// as findRawById - chat.service.js writes it straight onto a chat
+// message's own attachment_url, which (unlike booking_photos' proxy-only
+// rule) is already exposed directly to the client for every attachment.
+export async function findRawProblemPhoto(bookingId) {
+  const { rows } = await pool.query(
+    `SELECT * FROM booking_photos
+     WHERE booking_id = $1 AND photo_type = 'problem' AND uploaded_by = 'customer'
+     ORDER BY created_at ASC LIMIT 1`,
+    [bookingId]
+  );
+  return rows[0] ?? null;
+}
+
 export async function create({ bookingId, uploadedBy, photoType, url }) {
   const { rows } = await pool.query(
     `INSERT INTO booking_photos (booking_id, uploaded_by, photo_type, url)

@@ -380,6 +380,16 @@ export async function setAcceptedWithPrice(id, price) {
   return findById(id);
 }
 
+// Phase 3a: a mid-job price-increase request being accepted - unlike
+// setAcceptedWithPrice, this doesn't touch status/accepted_at at all (the
+// booking is already 'accepted'/'in_progress', this only updates the
+// agreed price - see quotes.service.js decideQuote's price_increase
+// branch).
+export async function updatePrice(id, price) {
+  await pool.query('UPDATE bookings SET price = $2 WHERE id = $1', [id, price]);
+  return findById(id);
+}
+
 // reason is optional - the plain worker-decline path (bookings.service.js
 // declineBooking) still calls this with none, same as before. The Phase 2
 // quote-decline path passes one so the closed-out booking's reason is

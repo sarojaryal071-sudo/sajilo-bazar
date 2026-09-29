@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Screen } from '../../components/Screen.jsx';
 import { Card } from '../../components/Card.jsx';
@@ -8,6 +8,7 @@ import { SkeletonBlock } from '../../components/Skeleton.jsx';
 import { AddressPicker } from '../../components/AddressPicker.jsx';
 import * as workersApi from '../../api/workers.api.js';
 import * as bookingsApi from '../../api/bookings.api.js';
+import * as bookingPhotosApi from '../../api/bookingPhotos.api.js';
 
 const RESPONSE_DEADLINE_PRESETS = [
   { hours: 1, label: '1 hour' },
@@ -35,6 +36,8 @@ export function BookingRequest() {
   const [responseDeadlineHours, setResponseDeadlineHours] = useState(6);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [problemPhoto, setProblemPhoto] = useState(null);
+  const photoInputRef = useRef(null);
 
   const selectedIds = serviceIds
     .split(',')
@@ -127,7 +130,7 @@ export function BookingRequest() {
     }
     setSubmitting(true);
     try {
-      await bookingsApi.create({
+      const { booking } = await bookingsApi.create({
         workerId: Number(workerId),
         serviceIds: services.map((s) => s.id),
         addressLabel: address.addressLabel.trim(),
@@ -138,6 +141,12 @@ export function BookingRequest() {
           ? { scheduledFor: new Date(scheduledFor).toISOString(), responseDeadlineHours }
           : {}),
       });
+      // Optional and non-blocking - the booking itself already succeeded,
+      // and a failed photo upload shouldn't strand the customer here (see
+      // bookingPhotosApi.upload's comment for what this photo is for).
+      if (problemPhoto) {
+        await bookingPhotosApi.upload(booking.id, problemPhoto, 'problem').catch(() => {});
+      }
       navigate('/bookings', { replace: true });
     } catch (err) {
       setError(err.message);
@@ -203,6 +212,43 @@ export function BookingRequest() {
 
       <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
         <AddressPicker value={address} onChange={setAddress} />
+
+        <div>
+          <span className="text-sm font-medium text-text-muted">Photo of the problem (optional)</span>
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => setProblemPhoto(e.target.files?.[0] ?? null)}
+          />
+          {problemPhoto ? (
+            <div className="mt-2 flex items-center justify-between rounded-md border border-border bg-surface px-4 py-2">
+              <span className="truncate text-sm text-text">{problemPhoto.name}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setProblemPhoto(null);
+                  if (photoInputRef.current) photoInputRef.current.value = '';
+                }}
+                className="ml-3 shrink-0 text-sm font-medium text-danger"
+              >
+                Remove
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => photoInputRef.current?.click()}
+              className="mt-2 w-full rounded-md border border-dashed border-border py-3 text-sm font-medium text-text-muted"
+            >
+              Attach a photo
+            </button>
+          )}
+          <p className="mt-1 text-xs text-text-muted">
+            Helps the worker see what they're dealing with - it'll be shared with them once the booking is confirmed.
+          </p>
+        </div>
 
         {mode === 'schedule' && (
           <>

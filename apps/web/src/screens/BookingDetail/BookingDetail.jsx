@@ -141,15 +141,23 @@ function CancelSection({ busy, onCancel }) {
   );
 }
 
-// Worker's "Mark complete" step - confirms the job's final price (prefilled
-// with the booking's current price, editable in case the actual job cost
-// differs from the original estimate) and payment method. Cash is the only
-// selectable option; eSewa is a disabled placeholder establishing the UI
-// seam for later (business plan §6) - the backend rejects anything but
-// 'cash' anyway (CompleteBookingInputSchema).
-function CompleteSection({ busy, defaultPrice, onComplete }) {
+// Worker's "Mark complete" step (Phase 3a: locked price, no free-edit).
+// agreedPrice is shown read-only - it's whatever was already agreed in-app
+// (listed price or an accepted counter-quote/price-increase), never
+// editable here. A worker who needs to charge more uses the "Request a
+// price increase" action instead (same quote flow, customer must accept
+// before this button even becomes usable - see the pending-increase guard
+// in BookingDetail). A worker who wants to charge less can apply a
+// discount right here, but it requires a reason and gets logged
+// server-side (bookingDiscounts.model.js) - no customer round-trip needed.
+// An optional "completed" photo reuses the plain chat-attachment upload,
+// same as any other chat photo.
+function CompleteSection({ busy, agreedPrice, onComplete }) {
   const [open, setOpen] = useState(false);
-  const [finalPrice, setFinalPrice] = useState(defaultPrice != null ? String(defaultPrice) : '');
+  const [discountOpen, setDiscountOpen] = useState(false);
+  const [discountedPrice, setDiscountedPrice] = useState('');
+  const [reason, setReason] = useState('');
+  const [photo, setPhoto] = useState(null);
 
   if (!open) {
     return (
@@ -159,25 +167,86 @@ function CompleteSection({ busy, defaultPrice, onComplete }) {
     );
   }
 
-  const priceValue = Number(finalPrice);
-  const priceValid = finalPrice.trim() !== '' && priceValue > 0;
+  const discountValue = Number(discountedPrice);
+  const discountValid =
+    !discountOpen ||
+    (discountedPrice.trim() !== '' && discountValue >= 0 && discountValue < agreedPrice && reason.trim() !== '');
+
+  function handleConfirm() {
+    const discount = discountOpen ? { discountedPrice: discountValue, reason: reason.trim() } : undefined;
+    onComplete({ discount, photo });
+  }
 
   return (
     <Card className="flex flex-col gap-4">
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-text-muted">Final price (agreed)</span>
+        <span className="font-semibold">Rs. {discountOpen && discountValid ? discountValue : agreedPrice}</span>
+      </div>
+
+      {!discountOpen ? (
+        <button
+          type="button"
+          onClick={() => setDiscountOpen(true)}
+          className="self-start text-sm font-medium text-brand-solid"
+        >
+          Apply a discount
+        </button>
+      ) : (
+        <div className="flex flex-col gap-3 rounded-md border border-border p-3">
+          <div>
+            <label className="text-sm text-text-muted" htmlFor="discount-price">
+              Discounted price (Rs.)
+            </label>
+            <input
+              id="discount-price"
+              type="number"
+              min="0"
+              step="1"
+              value={discountedPrice}
+              onChange={(e) => setDiscountedPrice(e.target.value)}
+              className="mt-1 w-full rounded-md border border-border bg-surface px-4 py-3 text-text outline-none focus:border-brand-solid"
+            />
+          </div>
+          <div>
+            <label className="text-sm text-text-muted" htmlFor="discount-reason">
+              Reason (required)
+            </label>
+            <textarea
+              id="discount-reason"
+              rows={2}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="mt-1 w-full rounded-md border border-border bg-surface px-4 py-3 text-text outline-none focus:border-brand-solid"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setDiscountOpen(false);
+              setDiscountedPrice('');
+              setReason('');
+            }}
+            className="self-start text-sm font-medium text-danger"
+          >
+            Remove discount
+          </button>
+        </div>
+      )}
+
       <div>
-        <label className="text-sm text-text-muted" htmlFor="final-price">
-          Final price (Rs.)
+        <label className="text-sm text-text-muted" htmlFor="completion-photo">
+          Photo of finished work (optional)
         </label>
         <input
-          id="final-price"
-          type="number"
-          min="1"
-          step="1"
-          value={finalPrice}
-          onChange={(e) => setFinalPrice(e.target.value)}
-          className="mt-1 w-full rounded-md border border-border bg-surface px-4 py-3 text-text outline-none focus:border-brand-solid"
+          id="completion-photo"
+          type="file"
+          accept="image/*"
+          onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
+          className="mt-1 w-full text-sm text-text-muted"
         />
       </div>
+
       <div>
         <p className="text-sm text-text-muted">Payment method</p>
         <div className="mt-1 flex gap-2">
@@ -194,7 +263,7 @@ function CompleteSection({ busy, defaultPrice, onComplete }) {
         <Button variant="secondary" className="flex-1" onClick={() => setOpen(false)}>
           Cancel
         </Button>
-        <Button className="flex-1" disabled={busy || !priceValid} onClick={() => onComplete(priceValue)}>
+        <Button className="flex-1" disabled={busy || !discountValid} onClick={handleConfirm}>
           Confirm complete
         </Button>
       </div>
@@ -204,8 +273,17 @@ function CompleteSection({ busy, defaultPrice, onComplete }) {
 
 // Manual counter-quote (Phase 2) - the worker's alternative to Accept as
 // listed price. amount + optional message only, no photo (that's a backend
-// capability from Phase 1 not part of this phase's UI).
-function QuoteSubmitForm({ busy, onSubmit }) {
+// capability from Phase 1 not part of this phase's UI). Phase 3a reuses
+// this same form for a mid-job "price increase" request via the
+// buttonLabel/title/priceLabel/submitLabel props - the server derives
+// which kind it is from booking status, not from anything sent here.
+function QuoteSubmitForm({
+  busy,
+  onSubmit,
+  buttonLabel = 'Send a counter-quote',
+  priceLabel = 'Your price (Rs.)',
+  submitLabel = 'Send quote',
+}) {
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState('');
   const [message, setMessage] = useState('');
@@ -213,7 +291,7 @@ function QuoteSubmitForm({ busy, onSubmit }) {
   if (!open) {
     return (
       <Button variant="secondary" disabled={busy} onClick={() => setOpen(true)}>
-        Send a counter-quote
+        {buttonLabel}
       </Button>
     );
   }
@@ -225,7 +303,7 @@ function QuoteSubmitForm({ busy, onSubmit }) {
     <Card className="flex flex-col gap-4">
       <div>
         <label className="text-sm text-text-muted" htmlFor="quote-amount">
-          Your price (Rs.)
+          {priceLabel}
         </label>
         <input
           id="quote-amount"
@@ -259,7 +337,7 @@ function QuoteSubmitForm({ busy, onSubmit }) {
           disabled={busy || !amountValid}
           onClick={() => onSubmit(amountValue, message.trim() || null)}
         >
-          Send quote
+          {submitLabel}
         </Button>
       </div>
     </Card>
@@ -269,24 +347,26 @@ function QuoteSubmitForm({ busy, onSubmit }) {
 // The worker's own submitted quote, shown while it's still awaiting the
 // customer - hides the plain Accept/Decline-as-listed buttons below so the
 // two paths (accept at listed price vs. counter) never look simultaneously
-// available once one has actually been chosen.
-function MyQuoteStatus({ quote }) {
+// available once one has actually been chosen. title/waitingCopy let Phase
+// 3a's price-increase reuse this for its own pending state.
+function MyQuoteStatus({ quote, title = 'Counter-quote sent', waitingCopy = "Waiting for the customer's decision." }) {
   return (
     <Card className="mt-6 border-2 border-warning/40">
-      <p className="font-semibold">Counter-quote sent</p>
+      <p className="font-semibold">{title}</p>
       <p className="mt-1 text-2xl font-bold">Rs. {quote.amount}</p>
       {quote.message && <p className="mt-1 text-sm text-text-muted">{quote.message}</p>}
-      <p className="mt-2 text-sm text-text-muted">Waiting for the customer's decision.</p>
+      <p className="mt-2 text-sm text-text-muted">{waitingCopy}</p>
     </Card>
   );
 }
 
 // The customer's view of an incoming counter-quote - surfaced as its own
 // card above the status timeline (not a timeline step), per the spec.
-function QuoteCard({ quote, busy, onDecide }) {
+// title/acceptLabel let Phase 3a's price-increase reuse this same card.
+function QuoteCard({ quote, busy, onDecide, title = 'Counter-quote received' }) {
   return (
     <Card className="mt-6 border-2 border-brand-solid">
-      <p className="font-semibold">Counter-quote received</p>
+      <p className="font-semibold">{title}</p>
       <p className="mt-1 text-2xl font-bold">Rs. {quote.amount}</p>
       {quote.message && <p className="mt-1 text-sm text-text-muted">{quote.message}</p>}
       <div className="mt-4 flex gap-3">
@@ -501,10 +581,22 @@ export function BookingDetail() {
   const neverMatched = !otherName && NO_WORKER_TERMINAL_STATUSES.includes(booking.status);
   const headerName = neverMatched ? 'No worker found' : otherName;
 
-  // At most one quote per worker per booking, ever (see quotes.service.js),
-  // so this worker's own quote (if any) is a single row, not a list.
-  const myQuote = isWorker ? (quotes.find((q) => q.workerId === user.id) ?? null) : null;
-  const pendingQuoteForCustomer = !isWorker ? (quotes.find((q) => q.status === 'submitted') ?? null) : null;
+  // At most one quote per worker per booking PER CONTEXT, ever (see
+  // quotes.service.js/migration 048) - a counter-quote (pre-acceptance) and
+  // a later price-increase (mid-job) are each their own one-shot, so both
+  // are looked up separately even though they share the same table/API.
+  const myCounterQuote = isWorker
+    ? (quotes.find((q) => q.workerId === user.id && q.context === 'counter_offer') ?? null)
+    : null;
+  const pendingQuoteForCustomer = !isWorker
+    ? (quotes.find((q) => q.status === 'submitted' && q.context === 'counter_offer') ?? null)
+    : null;
+  const myPriceIncrease = isWorker
+    ? (quotes.find((q) => q.workerId === user.id && q.context === 'price_increase') ?? null)
+    : null;
+  const pendingPriceIncreaseForCustomer = !isWorker
+    ? (quotes.find((q) => q.status === 'submitted' && q.context === 'price_increase') ?? null)
+    : null;
 
   async function runAction(action) {
     setActionError('');
@@ -533,8 +625,28 @@ export function BookingDetail() {
     }
   }
 
-  function handleDecideQuote(decision) {
-    runAction(() => quotesApi.decideQuote(pendingQuoteForCustomer.id, decision));
+  function handleDecideQuote(quoteId, decision) {
+    runAction(() => quotesApi.decideQuote(quoteId, decision));
+  }
+
+  async function handleCompleteBooking({ discount, photo }) {
+    setActionError('');
+    setBusy(true);
+    try {
+      const { booking: updated } = await bookingsApi.complete(id, { paymentMethod: 'cash', discount });
+      setBooking(updated);
+      loadQuotes();
+      // Optional and non-blocking, same reasoning as the customer's
+      // problem-photo upload (BookingRequest.jsx) - the completion itself
+      // already succeeded, a failed attachment shouldn't undo that.
+      if (photo) {
+        await bookingsApi.sendAttachment(id, photo).catch(() => {});
+      }
+    } catch (err) {
+      setActionError(err.message);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleReviewSubmit({ rating, comment }) {
@@ -611,9 +723,28 @@ export function BookingDetail() {
       )}
 
       {!isWorker && pendingQuoteForCustomer && (
-        <QuoteCard quote={pendingQuoteForCustomer} busy={busy} onDecide={handleDecideQuote} />
+        <QuoteCard
+          quote={pendingQuoteForCustomer}
+          busy={busy}
+          onDecide={(decision) => handleDecideQuote(pendingQuoteForCustomer.id, decision)}
+        />
       )}
-      {isWorker && myQuote?.status === 'submitted' && <MyQuoteStatus quote={myQuote} />}
+      {isWorker && myCounterQuote?.status === 'submitted' && <MyQuoteStatus quote={myCounterQuote} />}
+      {!isWorker && pendingPriceIncreaseForCustomer && (
+        <QuoteCard
+          quote={pendingPriceIncreaseForCustomer}
+          busy={busy}
+          onDecide={(decision) => handleDecideQuote(pendingPriceIncreaseForCustomer.id, decision)}
+          title="Price increase requested"
+        />
+      )}
+      {isWorker && myPriceIncrease?.status === 'submitted' && (
+        <MyQuoteStatus
+          quote={myPriceIncrease}
+          title="Price increase requested"
+          waitingCopy="Waiting for the customer to accept before you can mark this complete."
+        />
+      )}
 
       {isInstantWaiting ? (
         <WaitingForWorker />
@@ -695,7 +826,7 @@ export function BookingDetail() {
           </Button>
         )}
 
-        {isWorker && booking.status === 'requested' && !myQuote && (
+        {isWorker && booking.status === 'requested' && !myCounterQuote && (
           <div className="flex gap-3">
             <Button
               variant="secondary"
@@ -710,7 +841,7 @@ export function BookingDetail() {
             </Button>
           </div>
         )}
-        {isWorker && booking.type === 'manual' && booking.status === 'requested' && !myQuote && (
+        {isWorker && booking.type === 'manual' && booking.status === 'requested' && !myCounterQuote && (
           <QuoteSubmitForm busy={busy} onSubmit={handleSubmitQuote} />
         )}
         {isWorker && booking.status === 'accepted' && (
@@ -718,14 +849,17 @@ export function BookingDetail() {
             Start job
           </Button>
         )}
-        {isWorker && booking.status === 'in_progress' && (
-          <CompleteSection
+        {isWorker && ['accepted', 'in_progress'].includes(booking.status) && !myPriceIncrease && (
+          <QuoteSubmitForm
             busy={busy}
-            defaultPrice={booking.price}
-            onComplete={(finalPrice) =>
-              runAction(() => bookingsApi.complete(id, { finalPrice, paymentMethod: 'cash' }))
-            }
+            onSubmit={handleSubmitQuote}
+            buttonLabel="Request a price increase"
+            priceLabel="New total price (Rs.)"
+            submitLabel="Send request"
           />
+        )}
+        {isWorker && booking.status === 'in_progress' && myPriceIncrease?.status !== 'submitted' && (
+          <CompleteSection busy={busy} agreedPrice={booking.price} onComplete={handleCompleteBooking} />
         )}
         {!isWorker && ['requested', 'accepted'].includes(booking.status) && (
           <CancelSection busy={busy} onCancel={(reason) => runAction(() => bookingsApi.cancel(id, reason))} />

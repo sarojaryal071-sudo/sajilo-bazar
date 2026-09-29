@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { QUOTE_STATUSES } from './enums.js';
+import { QUOTE_STATUSES, QUOTE_CONTEXTS } from './enums.js';
 
 // One quotes row serves both the manual counter-quote flow (Phase 2 - a
 // single row, from the booking's already-assigned worker) and Get Quotes
@@ -11,6 +11,11 @@ export const QuoteSchema = z.object({
   workerId: z.number().int().positive(),
   amount: z.number().positive(),
   message: z.string().max(500).nullable().optional(),
+  // 'counter_offer' (Phase 2, booking still 'requested') vs
+  // 'price_increase' (Phase 3a, booking already 'accepted'/'in_progress') -
+  // derived server-side from the booking's status at submit time, never
+  // client-supplied (see quotes.service.js submitQuote). See migration 048.
+  context: z.enum(QUOTE_CONTEXTS),
   // Deliberately no photoUrl - same proxy-only rule as
   // VerificationDocumentSchema (see packages/shared/schemas/
   // verificationDocument.schema.js): the underlying Cloudinary URL never

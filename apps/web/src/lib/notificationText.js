@@ -45,14 +45,23 @@ export function describeNotification({ type, payload }) {
     case 'support_reply':
       return { title: `Reply: ${payload.subject || 'Support ticket'}`, body: payload.message || '' };
     case 'quote_received':
-      return {
-        title: 'Counter-quote received',
-        body: `${payload.workerName || 'The worker'} sent a quote of Rs. ${payload.amount}`,
-      };
+      return payload.context === 'price_increase'
+        ? {
+            title: 'Price increase requested',
+            body: `${payload.workerName || 'The worker'} requested a new price of Rs. ${payload.amount}`,
+          }
+        : {
+            title: 'Counter-quote received',
+            body: `${payload.workerName || 'The worker'} sent a quote of Rs. ${payload.amount}`,
+          };
     case 'quote_accepted':
-      return { title: 'Quote accepted', body: `Your quote of Rs. ${payload.amount} was accepted` };
+      return payload.context === 'price_increase'
+        ? { title: 'Price increase accepted', body: `Your new price of Rs. ${payload.amount} was accepted` }
+        : { title: 'Quote accepted', body: `Your quote of Rs. ${payload.amount} was accepted` };
     case 'quote_declined':
-      return { title: 'Quote declined', body: `Your quote of Rs. ${payload.amount} was declined` };
+      return payload.context === 'price_increase'
+        ? { title: 'Price increase declined', body: `Your requested price of Rs. ${payload.amount} was declined` }
+        : { title: 'Quote declined', body: `Your quote of Rs. ${payload.amount} was declined` };
     default:
       return { title: 'Notification', body: '' };
   }

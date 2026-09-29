@@ -4,12 +4,15 @@ import { haversineDistanceKm } from '../../lib/geo.js';
 import { notify } from '../notifications/notifications.service.js';
 import * as commissionLedgerService from '../commissionLedger/commissionLedger.service.js';
 import * as bookingsModel from './bookings.model.js';
+import * as bookingDiscountsModel from './bookingDiscounts.model.js';
 import * as adminModel from '../admin/admin.model.js';
 import * as trustScoreService from '../trustScore/trustScore.service.js';
 import * as workersService from '../workers/workers.service.js';
 import * as workersModel from '../workers/workers.model.js';
 import * as usersModel from '../users/users.model.js';
 import * as platformSettingsService from '../platformSettings/platformSettings.service.js';
+import * as chatService from '../chat/chat.service.js';
+import * as quotesModel from '../quotes/quotes.model.js';
 
 // Hard cutoff (Part 3 of the trust-score spec) - a dispute can only be
 // filed within this many hours of the booking's completion, enforced here
@@ -285,6 +288,11 @@ export async function acceptBooking(bookingId, workerId) {
     workerName: updated.workerName,
   });
   emitToUser(updated.customerId, 'booking:status_changed', { booking: updated });
+  // Phase 3a: this worker is now confirmed - auto-post the customer's
+  // problem photo (if any) into the chat that's now open. See
+  // chat.service.js postProblemPhotoIfAny for why this deliberately
+  // doesn't notify.
+  await chatService.postProblemPhotoIfAny(updated);
   return updated;
 }
 
@@ -317,11 +325,43 @@ export async function startBooking(bookingId, workerId) {
   return updated;
 }
 
-export async function completeBooking(bookingId, workerId, { finalPrice, paymentMethod }) {
+// Phase 3a: the price is locked here, not freely editable - booking.price
+// already holds whatever was agreed in-app (original listed price, or an
+// accepted counter-quote/price-increase amount), so that's what's used
+// unless the worker applies a discount (see below). A price INCREASE
+// instead has to go through the quotes flow first (submit a
+// 'price_increase' quote, customer accepts it, which itself updates
+// booking.price - see quotes.service.js decideQuote) - this endpoint
+// can't raise the price, only complete at it or lower it.
+export async function completeBooking(bookingId, workerId, { paymentMethod, discount }) {
   const booking = await requireWorkerOwned(bookingId, workerId);
   if (booking.status !== 'in_progress') {
     throw new ApiError(400, 'Booking cannot be completed from its current status');
   }
+
+  const pendingIncrease = await quotesModel.findPendingByBookingAndContext(bookingId, 'price_increase');
+  if (pendingIncrease) {
+    throw new ApiError(
+      400,
+      'You have a price-increase request still awaiting the customer’s decision - it must be accepted or declined before this job can be marked complete'
+    );
+  }
+
+  let finalPrice = booking.price;
+  if (discount) {
+    if (discount.discountedPrice >= booking.price) {
+      throw new ApiError(400, 'Discounted price must be lower than the current agreed price');
+    }
+    await bookingDiscountsModel.create({
+      bookingId,
+      workerId,
+      originalPrice: booking.price,
+      discountedPrice: discount.discountedPrice,
+      reason: discount.reason,
+    });
+    finalPrice = discount.discountedPrice;
+  }
+
   const updated = await bookingsModel.setCompleted(bookingId, finalPrice, paymentMethod);
   await commissionLedgerService.recordCompletion(updated);
   await trustScoreService.recomputeAndStore(updated.workerId);
