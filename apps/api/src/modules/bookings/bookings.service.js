@@ -50,7 +50,8 @@ function round2(n) {
 // fresh on every call, so a change takes effect on the very next booking,
 // no redeploy. A pass-through to the worker - the result is stored on
 // bookings.fuel_charge, never folded into bookings.price, which is what
-// commissionLedgerService calculates the 15% commission against.
+// commissionLedgerService calculates the platform's commission against
+// (also an admin-editable platform_setting, see commissionLedger.service.js).
 //
 // Bug-fix round (2026-09-29): the per-km branch below depends on real
 // customer coordinates, which a one-off address only has if the customer

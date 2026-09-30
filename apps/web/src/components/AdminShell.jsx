@@ -179,7 +179,7 @@ const NAV_GROUPS = [
       USERS_ITEM,
       { to: '/admin/approvals', label: 'Approvals', icon: ApprovalsIcon },
       { to: '/admin/staff', label: 'Staff', icon: StaffIcon },
-      { to: '/admin/categories', label: 'Categories/Services', icon: CategoriesIcon },
+      { to: '/admin/categories', label: 'Catalog & Pricing', icon: CategoriesIcon },
       { to: '/admin/publications', label: 'Publications', icon: PublicationsIcon },
       { to: '/admin/policies', label: 'Policies', icon: PoliciesIcon },
     ],

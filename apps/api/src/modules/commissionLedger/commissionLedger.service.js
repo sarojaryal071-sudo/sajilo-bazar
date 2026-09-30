@@ -1,10 +1,6 @@
 import * as commissionLedgerModel from './commissionLedger.model.js';
+import { getCommissionRate } from '../platformSettings/platformSettings.service.js';
 import { ApiError } from '../../middleware/error.middleware.js';
-
-// Judgment call: no commission rate is specified anywhere in the docs, so
-// this picks a flat 15% platform cut - a common rate for local-services
-// marketplaces. Revisit once the business has an actual number.
-export const COMMISSION_RATE = 0.15;
 
 function round2(n) {
   return Math.round(n * 100) / 100;
@@ -14,9 +10,16 @@ function round2(n) {
 // full job price directly from the customer (no in-app payment until Phase
 // 8), so each completed job books a commission debt against the worker's
 // running balance rather than deducting from a prepaid credit.
+//
+// The rate itself used to be a hardcoded constant here (COMMISSION_RATE) -
+// it's now the admin-editable commission_rate platform_setting (Catalog &
+// Pricing merge, target-spec Phase 4), read fresh so a rate change takes
+// effect on the very next booking completed, same as fuel pricing already
+// works.
 export async function recordCompletion(booking) {
   const jobPrice = booking.price;
-  const commissionAmount = round2(jobPrice * COMMISSION_RATE);
+  const commissionRate = await getCommissionRate();
+  const commissionAmount = round2(jobPrice * commissionRate);
   const previousBalance = await commissionLedgerModel.findLatestBalance(booking.workerId);
   const creditBalanceAfter = round2(previousBalance - commissionAmount);
 
@@ -40,7 +43,7 @@ export async function getSummary(workerId) {
     commissionLedgerModel.findTotals(workerId),
     commissionLedgerModel.findLatestBalance(workerId),
   ]);
-  // No repayment flow exists yet (see COMMISSION_RATE comment), so a
+  // No repayment flow exists yet (see recordCompletion above), so a
   // negative balance is entirely unpaid commission - what's owed is just
   // its magnitude, and whatever commission isn't currently owed must have
   // been paid (always 0 today, but this stays correct once repayments

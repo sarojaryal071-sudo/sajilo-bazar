@@ -23,7 +23,6 @@
 
 import 'dotenv/config';
 import { pool } from './pool.js';
-import { COMMISSION_RATE } from '../modules/commissionLedger/commissionLedger.service.js';
 
 function round2(n) {
   return Math.round(n * 100) / 100;
@@ -31,6 +30,18 @@ function round2(n) {
 
 async function main() {
   console.log('Backfilling commission_ledger for completed bookings missing an entry...');
+
+  // commission_rate used to be a hardcoded COMMISSION_RATE constant this
+  // script imported directly - now the admin-editable platform_setting
+  // (Catalog & Pricing merge, target-spec Phase 4). Read once, same
+  // "whatever the rate is right now" semantics the old constant had - a
+  // backfilled job is still priced at today's rate, not whatever was
+  // configured when that job actually completed (no history of past rate
+  // changes exists to do better than that).
+  const { rows: rateRows } = await pool.query(
+    "SELECT value FROM platform_settings WHERE key = 'commission_rate'"
+  );
+  const COMMISSION_RATE = rateRows[0] ? Number(rateRows[0].value) : 0.15;
 
   const { rows: affectedWorkers } = await pool.query(
     `SELECT DISTINCT b.worker_id

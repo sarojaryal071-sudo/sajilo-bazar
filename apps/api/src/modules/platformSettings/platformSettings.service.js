@@ -14,12 +14,18 @@ import * as platformSettingsModel from './platformSettings.model.js';
 // foundation round) are unused until Phase 3 wires up the actual Get Quotes
 // flow - added now so they're admin-editable through this same mechanism
 // from day one rather than needing a second migration later.
+// 'commission_rate' (Catalog & Pricing merge, target-spec Phase 4) used to
+// be a hardcoded JS constant (commissionLedger.service.js's
+// COMMISSION_RATE) - this is that same number, migrated here so there's
+// one source of truth and an admin can actually change it. See
+// getCommissionRate below for the read side.
 export const EDITABLE_KEYS = [
   'fuel_base_fee',
   'fuel_rate_per_km',
   'service_price_bands',
   'get_quotes_window_minutes',
   'get_quotes_cap',
+  'commission_rate',
 ];
 
 export async function listSettings() {
@@ -28,6 +34,13 @@ export async function listSettings() {
 
 export async function updateSetting(key, value, adminId) {
   if (!EDITABLE_KEYS.includes(key)) throw new ApiError(404, 'Unknown setting');
+  // A fraction of the job price (0.15 = 15%), not a percentage - the
+  // generic "value: nonnegative number" validation every other key here
+  // gets would otherwise let an admin fat-finger 15 (1500%) straight into
+  // every future commission calculation.
+  if (key === 'commission_rate' && (value < 0 || value > 1)) {
+    throw new ApiError(400, 'Commission rate must be between 0 and 1 (e.g. 0.15 for 15%)');
+  }
   const updated = await platformSettingsModel.setValue(key, value, adminId);
   if (!updated) throw new ApiError(404, 'Unknown setting');
   return updated;
@@ -53,6 +66,18 @@ export async function getFuelPricing() {
 export async function getServicePriceBands() {
   const value = await platformSettingsModel.getValue('service_price_bands');
   return value ?? {};
+}
+
+// The platform's cut of a completed job's price - read fresh every call
+// (same "no redeploy needed" pattern as getFuelPricing above), not cached
+// or read once at boot. DEFAULT_COMMISSION_RATE only matters if the seed
+// row (migration 051) were ever somehow missing - the real default the
+// table is seeded with is the same 0.15 this constant documents.
+const DEFAULT_COMMISSION_RATE = 0.15;
+
+export async function getCommissionRate() {
+  const value = await platformSettingsModel.getValue('commission_rate');
+  return value === null ? DEFAULT_COMMISSION_RATE : Number(value);
 }
 
 // Get Quotes (Phase 3) config - not read by anything yet in this round

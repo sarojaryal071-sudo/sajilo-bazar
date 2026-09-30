@@ -3,8 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '../../components/Card.jsx';
 import { Badge } from '../../components/Badge.jsx';
 import { Button } from '../../components/Button.jsx';
+import { SettingEditor } from '../../components/SettingEditor.jsx';
 import * as adminApi from '../../api/admin.api.js';
 import { humanizeCategory } from '../../lib/humanize.js';
+import { SETTING_LABEL, SETTING_HELP } from '../../lib/platformSettingsLabels.js';
+
+// Catalog & Pricing merge (target-spec Phase 4) - the platform_settings
+// keys that actually price something, shown together above the category
+// list. service_price_bands was already edited here (per-service, via
+// PriceBandEditor below) before this phase; fuel_base_fee/fuel_rate_per_km
+// moved from Admin -> Settings, and commission_rate is new (used to be a
+// hardcoded JS constant - see commissionLedger.service.js).
+const PRICING_KEYS = ['fuel_base_fee', 'fuel_rate_per_km', 'commission_rate'];
 
 const EMPTY_FORM = { category: '', name: '', description: '' };
 
@@ -107,6 +117,11 @@ export function AdminCategories() {
   // a row-per-service setting, so editing here never needs a migration.
   const [priceBands, setPriceBands] = useState({});
   const [bandBusyId, setBandBusyId] = useState(null);
+  // Fuel base fee/rate + commission rate (PRICING_KEYS) - plain single-
+  // value settings, rendered via the shared SettingEditor below rather
+  // than the per-service band editor.
+  const [pricingSettings, setPricingSettings] = useState(null);
+  const [pricingBusyKey, setPricingBusyKey] = useState(null);
 
   function load() {
     adminApi
@@ -118,6 +133,7 @@ export function AdminCategories() {
       .then(({ settings }) => {
         const row = settings.find((s) => s.key === 'service_price_bands');
         setPriceBands(row?.value ?? {});
+        setPricingSettings(settings.filter((s) => PRICING_KEYS.includes(s.key)));
       })
       .catch(() => {});
   }
@@ -135,6 +151,19 @@ export function AdminCategories() {
       setError(err.message);
     } finally {
       setBandBusyId(null);
+    }
+  }
+
+  async function handleSavePricingSetting(key, value) {
+    setPricingBusyKey(key);
+    setError('');
+    try {
+      await adminApi.updatePlatformSetting(key, value);
+      load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setPricingBusyKey(null);
     }
   }
 
@@ -206,7 +235,7 @@ export function AdminCategories() {
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Categories/Services</h1>
+        <h1 className="text-2xl font-bold">Catalog &amp; Pricing</h1>
         {!showAddForm && (
           <Button onClick={() => setShowAddForm(true)} className="px-4 py-2 text-sm">
             Add service
@@ -215,6 +244,24 @@ export function AdminCategories() {
       </div>
 
       {error && <p className="mt-4 text-sm text-danger">{error}</p>}
+
+      <div className="mt-4">
+        <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-text-muted">Platform pricing</p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {!pricingSettings && <p className="text-sm text-text-muted">Loading...</p>}
+          {pricingSettings?.map((setting) => (
+            <SettingEditor
+              key={setting.key}
+              setting={setting}
+              label={SETTING_LABEL[setting.key]}
+              help={SETTING_HELP[setting.key]}
+              busy={pricingBusyKey === setting.key}
+              onSave={(value) => handleSavePricingSetting(setting.key, value)}
+              max={setting.key === 'commission_rate' ? '1' : undefined}
+            />
+          ))}
+        </div>
+      </div>
 
       {showAddForm && (
         <div className="mt-4">
