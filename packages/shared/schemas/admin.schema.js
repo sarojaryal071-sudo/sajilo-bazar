@@ -139,3 +139,10 @@ export const AdminExpenseInputSchema = z.object({
   status: z.enum(['pending', 'paid']).default('pending'),
   expenseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD'),
 });
+
+// Admin Users & Verification screen's password-reset queue (target-spec
+// Phase 9/10) - the reason shown back to the worker when their reset
+// request is denied, same shape as AdminDocumentRejectInputSchema.
+export const AdminPasswordResetDenyInputSchema = z.object({
+  reason: z.string().max(500).nullable().optional(),
+});

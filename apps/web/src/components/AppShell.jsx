@@ -47,6 +47,13 @@ export function AppShell() {
   // Also where a logout lands (see AuthContext.jsx logout) - the landing
   // page, not straight into the login form.
   if (!user) return <Navigate to="/" replace />;
+  // A worker who just logged in with an admin-issued temp password
+  // (document-based password reset, target-spec Phase 9/10) - blocks the
+  // whole shell, not just nav, until they set a real password. Same
+  // `user`-keyed pattern as `restricted` above (no extra fetch), but a
+  // full redirect rather than a nav restriction: unlike onboarding, there's
+  // no legitimate screen to leave reachable here.
+  if (user.mustChangePassword) return <Navigate to="/change-password" replace />;
 
   return (
     <div className="flex min-h-dvh flex-col lg:flex-row">

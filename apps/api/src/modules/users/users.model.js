@@ -17,6 +17,7 @@ function toUser(row) {
     deactivatedAt: row.deactivated_at,
     deletedAt: row.deleted_at,
     createdAt: row.created_at,
+    mustChangePassword: row.must_change_password,
   };
 }
 

@@ -5,6 +5,7 @@ import { ApiError } from '../../middleware/error.middleware.js';
 import * as authModel from './auth.model.js';
 import { attachWorkerVerificationStatus } from '../users/users.model.js';
 import { logAudit } from '../auditLog/auditLog.service.js';
+import * as passwordResetModel from '../passwordReset/passwordReset.model.js';
 
 const SALT_ROUNDS = 10;
 
@@ -213,4 +214,34 @@ export async function forgotPassword({ phone, newPassword }) {
   // needless friction.
   const activeUser = await attachWorkerVerificationStatus(await assertLoginAllowedAndReactivate(user));
   return { token: issueToken(activeUser), user: activeUser };
+}
+
+// Document-based password reset for locked-out workers (target-spec Phase
+// 9/10) - the alternative to the open forgotPassword above for a worker who
+// wants an admin to actually verify identity first. Public (no requireAuth)
+// for the same reason forgotPassword is: a locked-out worker has no token.
+// Deliberately worker-only - a customer/admin locked out still has the open
+// forgotPassword flow, and a queue an admin has to work through shouldn't
+// fill up with accounts that don't need it.
+export async function requestPasswordReset({ phone }) {
+  const user = await authModel.findByPhone(phone);
+  if (!user || user.role !== 'worker') {
+    throw new ApiError(404, 'No worker account found with that phone number');
+  }
+
+  const existing = await passwordResetModel.findPendingByWorkerId(user.id);
+  if (existing) return existing;
+
+  return passwordResetModel.create(user.id);
+}
+
+// The forced-change screen after a temp-password login - requireAuth
+// already proves req.user holds that temp password's token, so this just
+// needs the new value. Clears must_change_password in the same statement
+// (see auth.model.js updatePasswordAndClearMustChange).
+export async function changePassword(userId, { newPassword }) {
+  const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+  const user = await authModel.updatePasswordAndClearMustChange(userId, passwordHash);
+  if (!user) throw new ApiError(404, 'User not found');
+  return attachWorkerVerificationStatus(user);
 }

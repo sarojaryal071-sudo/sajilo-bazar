@@ -46,6 +46,11 @@ const ACTION_LENS = {
   'expense.updated': 'finance',
   'expense.paid': 'finance',
   'expense.deleted': 'finance',
+  // Document-based password reset (target-spec Phase 9/10) - an admin
+  // issuing a worker a temp password is an identity/access grant, same
+  // lens as auth.password_reset above, not a routine case-work action.
+  'password_reset_request.approved': 'security',
+  'password_reset_request.denied': 'security',
 };
 
 const LENSES = ['security', 'operations', 'finance'];

@@ -113,6 +113,12 @@ export function Login() {
           <Link to="/forgot-password" className="mt-1.5 inline-block text-sm font-medium text-brand-solid">
             Forgot password?
           </Link>
+          <Link
+            to="/worker/password-reset-request"
+            className="mt-1 block text-xs font-medium text-text-muted underline"
+          >
+            Worker locked out? Request identity verification instead
+          </Link>
         </div>
         <label className="flex items-center gap-2 text-sm text-text-muted">
           <input

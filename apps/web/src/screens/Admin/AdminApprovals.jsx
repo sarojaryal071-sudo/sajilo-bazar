@@ -134,6 +134,30 @@ function ServiceApprovalRow({ item, onDecide }) {
   );
 }
 
+// Document-based password reset queue (target-spec Phase 9/10) - same
+// "link to the shared detail page rather than review inline" pattern as
+// WorkerVerificationCard above: the actual approve/deny controls live on
+// AdminUserDetail (PasswordResetRequestCard) next to the verification
+// documents an admin needs open to confirm identity before deciding.
+function PasswordResetRequestCard({ item }) {
+  return (
+    <Link to={`/admin/approvals/${item.workerId}`}>
+      <Card className="flex items-center gap-4 hover:bg-surface-alt">
+        <Avatar name={item.workerName} imageUrl={item.profileImageUrl} size={44} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="font-semibold">{item.workerName}</p>
+            <Badge tone="warning">Password reset</Badge>
+          </div>
+          <p className="mt-1 text-sm text-text-muted">Locked out - requesting a temp password</p>
+          <p className="mt-1 text-xs text-text-muted">Requested {timeAgo(item.createdAt)}</p>
+        </div>
+        <span className="shrink-0 text-sm font-medium text-brand-solid">Review &rarr;</span>
+      </Card>
+    </Link>
+  );
+}
+
 export function AdminApprovals() {
   const [queue, setQueue] = useState(null);
   const [error, setError] = useState('');
@@ -161,13 +185,15 @@ export function AdminApprovals() {
       {queue?.length === 0 && <p className="mt-4 text-sm text-text-muted">Nothing pending - all caught up.</p>}
 
       <div className="mt-6 flex flex-col gap-3">
-        {queue?.map((item) =>
-          item.kind === 'worker_verification' ? (
-            <WorkerVerificationCard key={`worker-${item.workerId}`} item={item} />
-          ) : (
-            <ServiceApprovalRow key={`service-${item.id}`} item={item} onDecide={handleDecided} />
-          )
-        )}
+        {queue?.map((item) => {
+          if (item.kind === 'worker_verification') {
+            return <WorkerVerificationCard key={`worker-${item.workerId}`} item={item} />;
+          }
+          if (item.kind === 'password_reset_request') {
+            return <PasswordResetRequestCard key={`password-reset-${item.id}`} item={item} />;
+          }
+          return <ServiceApprovalRow key={`service-${item.id}`} item={item} onDecide={handleDecided} />;
+        })}
       </div>
     </div>
   );

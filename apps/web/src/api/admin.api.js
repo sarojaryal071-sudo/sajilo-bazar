@@ -115,6 +115,15 @@ export function rejectService(id, comment) {
   return apiFetch(`/admin/approvals/services/${id}/reject`, { method: 'PATCH', body: { comment } });
 }
 
+// Returns { tempPassword } - shown to the admin exactly once.
+export function approvePasswordReset(id) {
+  return apiFetch(`/admin/approvals/password-resets/${id}/approve`, { method: 'PATCH' });
+}
+
+export function denyPasswordReset(id, reason) {
+  return apiFetch(`/admin/approvals/password-resets/${id}/deny`, { method: 'PATCH', body: { reason } });
+}
+
 export function listUsers({ role, status, q, flagged, tier, sort } = {}) {
   const params = new URLSearchParams();
   if (role) params.set('role', role);
@@ -129,6 +138,10 @@ export function listUsers({ role, status, q, flagged, tier, sort } = {}) {
 
 export function getUserDetail(id) {
   return apiFetch(`/admin/users/${id}`);
+}
+
+export function getUserPerformance(id) {
+  return apiFetch(`/admin/users/${id}/performance`);
 }
 
 export function suspendUser(id) {

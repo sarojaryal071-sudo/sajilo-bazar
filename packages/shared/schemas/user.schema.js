@@ -39,6 +39,11 @@ export const UserSchema = z.object({
   deactivatedAt: z.string().datetime().nullable().optional(),
   deletedAt: z.string().datetime().nullable().optional(),
   createdAt: z.string().datetime().optional(),
+  // Set when an admin issues a temp password via the document-based
+  // password-reset flow (target-spec Phase 9/10, Users & Verification) -
+  // AppShell reads this the same way it already reads verificationStatus,
+  // to force the change-password screen before anything else is reachable.
+  mustChangePassword: z.boolean().optional(),
 });
 
 export const SignupInputSchema = z.object({
@@ -93,6 +98,27 @@ export const GoogleCompleteSignupInputSchema = z.object({
 // client-side only; the server only ever needs the final value.
 export const ForgotPasswordInputSchema = z.object({
   phone: phoneSchema,
+  newPassword: z.string().min(8).max(72),
+});
+
+// Document-based password reset for locked-out workers (target-spec Phase
+// 9/10) - no SMS/OTP in this app, so a worker who can't log in submits
+// their phone; an admin confirms identity against the same verification
+// documents already on file and issues a temp password. The forgotPassword
+// flow above stays exactly as-is (still open, still used by Settings ->
+// "Change password" and by staff resets) - this is a separate, reviewed
+// path, not a replacement.
+export const PasswordResetRequestInputSchema = z.object({
+  phone: phoneSchema,
+});
+
+// The forced-change screen a worker lands on after logging in with a temp
+// password (mustChangePassword true) - the one authenticated
+// change-password endpoint in this app. Deliberately just newPassword, no
+// currentPassword field: requireAuth already proves they hold the temp
+// password's token, and asking them to retype the temp password they were
+// just handed is friction the JWT already removes the need for.
+export const ChangePasswordInputSchema = z.object({
   newPassword: z.string().min(8).max(72),
 });
 

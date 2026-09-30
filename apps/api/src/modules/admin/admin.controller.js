@@ -17,6 +17,7 @@ import {
   AdminPlatformSettingUpdateInputSchema,
   AdminDistrictCreateInputSchema,
   AdminExpenseInputSchema,
+  AdminPasswordResetDenyInputSchema,
 } from '@sajilo-bazar/shared';
 import { ApiError } from '../../middleware/error.middleware.js';
 import * as adminService from './admin.service.js';
@@ -264,6 +265,28 @@ export async function rejectWorkerService(req, res, next) {
   }
 }
 
+// Returns the temp password in plaintext exactly once, in this response -
+// the reviewing admin reads it off screen to hand to the worker; it's never
+// retrievable again after this (see admin.service.js approvePasswordReset).
+export async function approvePasswordReset(req, res, next) {
+  try {
+    const result = await adminService.approvePasswordReset(parseId(req), req.user.id);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function denyPasswordReset(req, res, next) {
+  try {
+    const { reason } = AdminPasswordResetDenyInputSchema.parse(req.body ?? {});
+    const request = await adminService.denyPasswordReset(parseId(req), req.user.id, reason);
+    res.json({ request });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid denial', err.issues) : err);
+  }
+}
+
 // ---- Users ----
 
 export async function listUsers(req, res, next) {
@@ -280,6 +303,17 @@ export async function getUserDetail(req, res, next) {
   try {
     const detail = await adminService.getUserDetail(parseId(req));
     res.json(detail);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Worker Performance tab (target-spec Phase 9/10) - same access as the
+// user-detail page it's a tab on.
+export async function getUserPerformance(req, res, next) {
+  try {
+    const performance = await adminService.getWorkerPerformance(parseId(req));
+    res.json({ performance });
   } catch (err) {
     next(err);
   }

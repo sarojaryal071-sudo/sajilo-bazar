@@ -66,6 +66,24 @@ export function AuthProvider({ children }) {
     return user;
   }, []);
 
+  // Document-based password reset request (target-spec Phase 9/10) - public,
+  // doesn't touch the stored token/user at all; it just submits into the
+  // admin-reviewed queue. Distinct from forgotPassword above, which resets
+  // immediately with no review.
+  const requestPasswordReset = useCallback(async (input) => {
+    return authApi.requestPasswordReset(input);
+  }, []);
+
+  // The forced-change screen after a temp-password login - already
+  // authenticated (that's how they got the temp password's token in the
+  // first place), so this just updates the stored user in place; no new
+  // token is issued.
+  const changePassword = useCallback(async (input) => {
+    const { user } = await authApi.changePassword(input);
+    setUser(user);
+    return user;
+  }, []);
+
   // Doesn't navigate itself - clearing `user` makes AppShell/ProtectedRoute
   // fall through to their own `!user` redirect, which lands on "/" (the
   // landing page), not straight into the login form.
@@ -82,7 +100,19 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, signup, login, googleAuth, completeGoogleSignup, forgotPassword, logout, refreshUser }}
+      value={{
+        user,
+        loading,
+        signup,
+        login,
+        googleAuth,
+        completeGoogleSignup,
+        forgotPassword,
+        requestPasswordReset,
+        changePassword,
+        logout,
+        refreshUser,
+      }}
     >
       {children}
     </AuthContext.Provider>

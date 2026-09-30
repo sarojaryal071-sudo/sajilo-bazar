@@ -15,6 +15,7 @@ function toUser(row) {
     deactivatedAt: row.deactivated_at,
     deletedAt: row.deleted_at,
     createdAt: row.created_at,
+    mustChangePassword: row.must_change_password,
   };
 }
 
@@ -84,6 +85,18 @@ export async function updatePasswordByPhone(phone, passwordHash) {
   const { rows } = await pool.query(
     'UPDATE users SET password_hash = $1 WHERE phone = $2 RETURNING *',
     [passwordHash, phone]
+  );
+  return rows[0] ? toUser(rows[0]) : null;
+}
+
+// The forced change-password screen after a temp-password login - unlike
+// updatePasswordByPhone above (the open "forgot password" flow), this also
+// clears must_change_password in the same statement, since setting a new
+// password IS what satisfies the requirement.
+export async function updatePasswordAndClearMustChange(userId, passwordHash) {
+  const { rows } = await pool.query(
+    'UPDATE users SET password_hash = $1, must_change_password = false, updated_at = now() WHERE id = $2 RETURNING *',
+    [passwordHash, userId]
   );
   return rows[0] ? toUser(rows[0]) : null;
 }

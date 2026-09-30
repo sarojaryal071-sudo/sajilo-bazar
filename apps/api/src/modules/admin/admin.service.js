@@ -6,6 +6,7 @@ import * as workersModel from '../workers/workers.model.js';
 import * as bookingsModel from '../bookings/bookings.model.js';
 import * as chatModel from '../chat/chat.model.js';
 import * as commissionLedgerModel from '../commissionLedger/commissionLedger.model.js';
+import * as passwordResetModel from '../passwordReset/passwordReset.model.js';
 import { notify } from '../notifications/notifications.service.js';
 import * as trustScoreService from '../trustScore/trustScore.service.js';
 import * as platformSettingsService from '../platformSettings/platformSettings.service.js';
@@ -232,11 +233,78 @@ export async function updatePlatformSetting(key, value, adminId) {
 // rows. Cross-category service requests (listPendingServices) are a
 // separate, unrelated queue and keep their existing per-request shape.
 export async function getApprovalsQueue() {
-  const [workerVerifications, services] = await Promise.all([
+  const [workerVerifications, services, passwordResets] = await Promise.all([
     adminModel.listPendingWorkerVerifications(),
     adminModel.listPendingServices(),
+    passwordResetModel.listPending(),
   ]);
-  return [...workerVerifications, ...services].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  return [...workerVerifications, ...services, ...passwordResets].sort(
+    (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+  );
+}
+
+// Temp-password format (target-spec Phase 9/10, "Hardcoded business
+// values" backlog): 10 chars from a charset with ambiguous characters
+// (0/O, 1/l/I) removed, since this is read off a screen and typed back in
+// by the worker on their next login, not copy-pasted.
+const TEMP_PASSWORD_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+const TEMP_PASSWORD_LENGTH = 10;
+
+function generateTempPassword() {
+  let password = '';
+  for (let i = 0; i < TEMP_PASSWORD_LENGTH; i++) {
+    password += TEMP_PASSWORD_CHARS[Math.floor(Math.random() * TEMP_PASSWORD_CHARS.length)];
+  }
+  return password;
+}
+
+// Document-based password reset queue (target-spec Phase 9/10) - the admin
+// has already opened this worker's verification documents (same
+// DocumentViewerModal the worker-verification queue uses) to confirm
+// identity manually before calling this; there's no OTP/SMS step to check
+// here, only the request's own pending status. Returns the temp password
+// in plaintext exactly once, to the admin who just approved it - it's
+// never stored anywhere except as its bcrypt hash on the user row.
+export async function approvePasswordReset(requestId, adminId) {
+  const request = await passwordResetModel.findById(requestId);
+  if (!request) throw new ApiError(404, 'Password reset request not found');
+  if (request.status !== 'pending') throw new ApiError(400, 'This request has already been reviewed');
+
+  const tempPassword = generateTempPassword();
+  const passwordHash = await bcrypt.hash(tempPassword, SALT_ROUNDS);
+  await passwordResetModel.approve(requestId, adminId, passwordHash);
+
+  await logAudit({
+    actorId: adminId,
+    action: 'password_reset_request.approved',
+    severity: 'high',
+    targetType: 'user',
+    targetId: request.workerId,
+    oldValue: { status: 'pending' },
+    newValue: { status: 'approved' },
+  });
+
+  return { tempPassword };
+}
+
+export async function denyPasswordReset(requestId, adminId, reason) {
+  const request = await passwordResetModel.findById(requestId);
+  if (!request) throw new ApiError(404, 'Password reset request not found');
+  if (request.status !== 'pending') throw new ApiError(400, 'This request has already been reviewed');
+
+  const updated = await passwordResetModel.deny(requestId, adminId, reason);
+
+  await logAudit({
+    actorId: adminId,
+    action: 'password_reset_request.denied',
+    severity: 'high',
+    targetType: 'user',
+    targetId: request.workerId,
+    oldValue: { status: 'pending' },
+    newValue: { status: 'denied', reason: reason ?? null },
+  });
+
+  return updated;
 }
 
 const REJECTION_ESCALATION_THRESHOLD = 3;
@@ -368,16 +436,42 @@ export async function getUserDetail(id) {
 
   let worker = null;
   if (user.role === 'worker') {
-    const [profile, services, documents, reviewData] = await Promise.all([
+    const [profile, services, documents, reviewData, passwordResetRequest] = await Promise.all([
       workersModel.findProfile(id),
       workersModel.listWorkerServices(id),
       workersModel.listDocuments(id),
       workersModel.findReviewsForWorker(id),
+      passwordResetModel.findPendingByWorkerId(id),
     ]);
-    worker = { profile, services, documents, reviewsCount: reviewData.reviewsCount };
+    worker = { profile, services, documents, reviewsCount: reviewData.reviewsCount, passwordResetRequest };
   }
 
   return { user, worker, bookings };
+}
+
+// Worker Performance tab (target-spec Phase 9/10) - the individual view of
+// numbers already computed elsewhere for the Dashboard (Phase 7's flags/
+// tier queries, Phase 1's earnings ledger), scoped to this one worker
+// rather than rebuilt. reviewsCount comes from the same call getUserDetail
+// above already makes.
+export async function getWorkerPerformance(workerId) {
+  const user = await adminModel.findUserById(workerId);
+  if (!user || user.role !== 'worker') throw new ApiError(404, 'Worker not found');
+
+  const [flagsAndTier, earningsTotals, earningsTrend, reviewData] = await Promise.all([
+    adminModel.getWorkerPerformance(workerId),
+    commissionLedgerModel.findTotals(workerId),
+    commissionLedgerModel.findMonthlySeries(workerId),
+    workersModel.findReviewsForWorker(workerId),
+  ]);
+
+  return {
+    ...flagsAndTier,
+    reviewsCount: reviewData.reviewsCount,
+    totalEarned: earningsTotals.totalEarned,
+    thisMonthEarned: earningsTotals.thisMonthEarned,
+    monthlyEarnings: earningsTrend,
+  };
 }
 
 // Judgment call: admin accounts can't be suspended from this screen - with

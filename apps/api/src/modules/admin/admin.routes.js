@@ -74,6 +74,19 @@ adminRoutes.patch(
   requireDepartment('people_content'),
   adminController.rejectWorkerService
 );
+// Document-based password reset queue (target-spec Phase 9/10) - same
+// access as the rest of the verification queue above: whoever already
+// handles document approval is who confirms identity here too.
+adminRoutes.patch(
+  '/approvals/password-resets/:id/approve',
+  requireDepartment('people_content'),
+  adminController.approvePasswordReset
+);
+adminRoutes.patch(
+  '/approvals/password-resets/:id/deny',
+  requireDepartment('people_content'),
+  adminController.denyPasswordReset
+);
 
 // Users: People & Content owns it (create/edit actions below), but Support
 // gets the one deliberate cross-department exception - read-only access,
@@ -82,6 +95,13 @@ adminRoutes.patch(
 // Content-only, gated separately below.
 adminRoutes.get('/users', requireDepartment('people_content', 'support'), adminController.listUsers);
 adminRoutes.get('/users/:id', requireDepartment('people_content', 'support'), adminController.getUserDetail);
+// Worker Performance tab (target-spec Phase 9/10) - same access as the
+// user-detail route above, it's a tab on the same page.
+adminRoutes.get(
+  '/users/:id/performance',
+  requireDepartment('people_content', 'support'),
+  adminController.getUserPerformance
+);
 // Same access/streaming pattern as /documents/:id/file above, for a user's
 // profile photo - lets it open in the same viewer modal during review.
 adminRoutes.get(

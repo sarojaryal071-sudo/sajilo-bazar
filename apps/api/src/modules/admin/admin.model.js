@@ -279,6 +279,63 @@ export async function getPaymentBreakdown() {
   };
 }
 
+// ---- Worker Performance tab (target-spec Phase 9/10, Users & Verification) ----
+// The individual view of numbers already computed elsewhere for the
+// Dashboard - same FLAGGED_CTES_SQL/TIER_CASE_SQL fragments as
+// getFlaggedRate/getPerformanceTierSplit/listUsers above, just scoped to
+// one worker_id instead of aggregated across all of them. Earnings (with
+// its monthly trend) comes from commissionLedgerModel.findTotals/
+// findMonthlySeries in admin.service.js, not duplicated here - those
+// already exist, worker-scoped, for the Earnings screen.
+export async function getWorkerPerformance(workerId) {
+  const { rows } = await pool.query(
+    `WITH ${FLAGGED_CTES_SQL}
+     SELECT wp.rating_avg,
+            wp.jobs_completed_count,
+            wp.trust_score,
+            ${TIER_CASE_SQL} AS tier,
+            COALESCE(t.completed_count, 0)::int AS completed_count,
+            COALESCE(t.worker_cancelled_count, 0)::int AS worker_cancelled_count,
+            f.high_cancellation_rate,
+            f.low_rating,
+            f.inactive
+     FROM worker_profiles wp
+     LEFT JOIN terminal t ON t.worker_id = wp.user_id
+     LEFT JOIN flags f ON f.worker_id = wp.user_id
+     WHERE wp.user_id = $1`,
+    [workerId]
+  );
+  const r = rows[0];
+  if (!r) return null;
+
+  const terminalCount = r.completed_count + r.worker_cancelled_count;
+  return {
+    ratingAvg: Number(r.rating_avg),
+    jobsCompletedCount: r.jobs_completed_count,
+    trustScore: r.trust_score,
+    tier: r.tier,
+    completedCount: r.completed_count,
+    workerCancelledCount: r.worker_cancelled_count,
+    // null (not 0) when the worker has no terminal jobs yet - "0%
+    // cancellation rate" would otherwise misread as a clean record rather
+    // than "not enough data", same reasoning FLAG_MIN_TERMINAL_JOBS below
+    // already applies to whether this worker is flagged for it at all.
+    cancellationRate: terminalCount > 0 ? r.worker_cancelled_count / terminalCount : null,
+    // Null (not false) when this worker isn't currently eligible to be
+    // flagged at all (verification_status != 'approved' - see
+    // FLAGGED_CTES_SQL's own WHERE clause), rather than reading as "flagged
+    // false" for a worker the flagging logic never actually evaluated.
+    flags:
+      r.high_cancellation_rate === null
+        ? null
+        : {
+            highCancellationRate: r.high_cancellation_rate,
+            lowRating: r.low_rating,
+            inactive: r.inactive,
+          },
+  };
+}
+
 // ---- Finance (lean, target-spec Phase 8/9) ----
 // Supersedes the old thin "Accounting" stub above (a coming-soon page with
 // only a backend summary nobody ever surfaced) - this is the real section

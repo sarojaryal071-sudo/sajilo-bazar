@@ -96,6 +96,209 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
+function formatDateTime(iso) {
+  return new Date(iso).toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+// Document-based password reset review (target-spec Phase 9/10) - the
+// admin is expected to have already opened this worker's verification
+// documents in the card just above (same DocumentViewerModal, no separate
+// upload/viewer UI built for this) before deciding. Approving shows the
+// issued temp password exactly once, inline, since the backend never
+// returns it again after this response.
+function PasswordResetRequestCard({ request, canEdit, onDecided }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [denying, setDenying] = useState(false);
+  const [reason, setReason] = useState('');
+  const [tempPassword, setTempPassword] = useState('');
+
+  async function handleApprove() {
+    setError('');
+    setBusy(true);
+    try {
+      const { tempPassword: issued } = await adminApi.approvePasswordReset(request.id);
+      setTempPassword(issued);
+    } catch (err) {
+      setError(err.message);
+      setBusy(false);
+    }
+  }
+
+  async function handleDeny() {
+    setError('');
+    setBusy(true);
+    try {
+      await adminApi.denyPasswordReset(request.id, reason.trim() || null);
+      onDecided();
+    } catch (err) {
+      setError(err.message);
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card className="mt-4 border border-warning/40">
+      <div className="flex items-center justify-between">
+        <p className="font-semibold">Password reset request</p>
+        <Badge tone="warning">pending</Badge>
+      </div>
+      <p className="mt-1 text-xs text-text-muted">
+        Requested {formatDateTime(request.requestedAt)}. Confirm identity against the verification documents above
+        before approving.
+      </p>
+
+      {tempPassword ? (
+        <div className="mt-3 rounded-md border border-success/40 bg-success/5 p-3 text-sm">
+          <p className="font-medium text-success">Temp password issued - share it with the worker now:</p>
+          <p className="mt-1 font-mono text-base tracking-wide">{tempPassword}</p>
+          <p className="mt-1 text-xs text-text-muted">
+            This is shown once. The worker will be required to change it on their next login.
+          </p>
+        </div>
+      ) : (
+        canEdit && (
+          <div className="mt-3">
+            {error && <p className="mb-2 text-xs text-danger">{error}</p>}
+            {denying ? (
+              <div className="flex flex-col gap-1.5">
+                <input
+                  autoFocus
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="Reason for denying (shown to the worker)"
+                  className="w-full rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs outline-none focus:border-brand-solid"
+                />
+                <div className="flex gap-2">
+                  <Button variant="secondary" disabled={busy} onClick={() => setDenying(false)} className="px-2.5 py-1 text-xs">
+                    Cancel
+                  </Button>
+                  <Button disabled={busy} onClick={handleDeny} className="px-2.5 py-1 text-xs">
+                    Confirm deny
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Button variant="secondary" disabled={busy} onClick={() => setDenying(true)} className="px-2.5 py-1 text-xs">
+                  Deny
+                </Button>
+                <Button disabled={busy} onClick={handleApprove} className="px-2.5 py-1 text-xs">
+                  Approve &amp; issue temp password
+                </Button>
+              </div>
+            )}
+          </div>
+        )
+      )}
+    </Card>
+  );
+}
+
+const TIER_LABEL = { top_performer: 'Top performer', standard: 'Standard', below_threshold: 'Below threshold' };
+const TIER_TONE = { top_performer: 'success', standard: 'neutral', below_threshold: 'warning' };
+
+// Worker Performance tab (target-spec Phase 9/10) - the individual view of
+// the same Dashboard-wide numbers Phase 7 already built (flags/tier) plus
+// Phase 1's earnings ledger, scoped to one worker. Fetched lazily, only
+// once the tab is actually opened.
+function WorkerPerformanceTab({ workerId }) {
+  const [performance, setPerformance] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    adminApi
+      .getUserPerformance(workerId)
+      .then(({ performance: p }) => setPerformance(p))
+      .catch((err) => setError(err.message));
+  }, [workerId]);
+
+  if (error) return <p className="text-sm text-danger">{error}</p>;
+  if (!performance) return <p className="text-sm text-text-muted">Loading...</p>;
+
+  const flaggedReasons = performance.flags
+    ? Object.entries({
+        'High cancellation rate': performance.flags.highCancellationRate,
+        'Low rating': performance.flags.lowRating,
+        Inactive: performance.flags.inactive,
+      }).filter(([, v]) => v)
+    : [];
+
+  return (
+    <div className="flex flex-col gap-4">
+      <Card>
+        <div className="grid grid-cols-2 gap-4 text-center text-sm sm:grid-cols-4">
+          <div>
+            <p className="text-lg font-bold">
+              {performance.ratingAvg.toFixed(1)} <span className="text-xs font-normal text-text-muted">({performance.reviewsCount})</span>
+            </p>
+            <p className="text-xs text-text-muted">Rating (reviews)</p>
+          </div>
+          <div>
+            <p className="text-lg font-bold">
+              {performance.cancellationRate === null ? '—' : `${(performance.cancellationRate * 100).toFixed(0)}%`}
+            </p>
+            <p className="text-xs text-text-muted">Cancellation rate ({performance.workerCancelledCount})</p>
+          </div>
+          <div>
+            <p className="text-lg font-bold">{performance.completedCount}</p>
+            <p className="text-xs text-text-muted">Jobs completed</p>
+          </div>
+          <div>
+            <p className="text-lg font-bold">Rs. {performance.totalEarned.toLocaleString()}</p>
+            <p className="text-xs text-text-muted">Total earned</p>
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="flex items-center justify-between">
+          <p className="font-semibold">Standing</p>
+          {performance.tier && <Badge tone={TIER_TONE[performance.tier]}>{TIER_LABEL[performance.tier]}</Badge>}
+        </div>
+        {performance.flags === null ? (
+          <p className="mt-2 text-sm text-text-muted">
+            Not evaluated - flagging only applies to approved workers.
+          </p>
+        ) : flaggedReasons.length === 0 ? (
+          <p className="mt-2 text-sm text-text-muted">Not currently flagged.</p>
+        ) : (
+          <ul className="mt-2 list-inside list-disc text-sm text-danger">
+            {flaggedReasons.map(([label]) => (
+              <li key={label}>{label}</li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      <Card>
+        <p className="font-semibold">Earnings by month</p>
+        <p className="mt-1 text-xs text-text-muted">This month: Rs. {performance.thisMonthEarned.toLocaleString()}</p>
+        {performance.monthlyEarnings.length === 0 ? (
+          <p className="mt-2 text-sm text-text-muted">No completed jobs yet.</p>
+        ) : (
+          <div className="mt-3 flex flex-col gap-1.5 text-sm">
+            {performance.monthlyEarnings.map((m) => (
+              <div key={m.period} className="flex justify-between">
+                <span className="text-text-muted">
+                  {new Date(m.period).toLocaleDateString(undefined, { year: 'numeric', month: 'long' })}
+                </span>
+                <span className="font-medium">Rs. {m.amount.toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
 export function AdminUserDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -111,6 +314,7 @@ export function AdminUserDetail() {
   const [notesSaved, setNotesSaved] = useState(false);
   const [togglingStatus, setTogglingStatus] = useState(false);
   const [viewingPhoto, setViewingPhoto] = useState(false);
+  const [tab, setTab] = useState('overview');
 
   useEffect(() => {
     adminApi
@@ -239,66 +443,101 @@ export function AdminUserDetail() {
       </Card>
 
       {worker && (
-        <Card className="mt-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-semibold">Worker profile</p>
-              {worker.profile.handle && (
-                <p className="text-xs text-text-muted">{worker.profile.handle}</p>
-              )}
-            </div>
-            <Badge tone={VERIFICATION_TONE[worker.profile.verificationStatus]}>
-              {worker.profile.verificationStatus}
-            </Badge>
-          </div>
-          <div className="mt-3 grid grid-cols-3 gap-3 text-center text-sm">
-            <div>
-              <p className="text-lg font-bold">{worker.profile.ratingAvg.toFixed(1)}</p>
-              <p className="text-xs text-text-muted">Rating</p>
-            </div>
-            <div>
-              <p className="text-lg font-bold">{worker.profile.jobsCompletedCount}</p>
-              <p className="text-xs text-text-muted">Jobs done</p>
-            </div>
-            <div>
-              <p className="text-lg font-bold">{worker.reviewsCount}</p>
-              <p className="text-xs text-text-muted">Reviews</p>
-            </div>
-          </div>
+        <div className="mt-4 flex gap-2 border-b border-border">
+          {[
+            { key: 'overview', label: 'Overview' },
+            { key: 'performance', label: 'Performance' },
+          ].map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`px-3 py-2 text-sm font-medium ${
+                tab === t.key ? 'border-b-2 border-brand-solid text-text' : 'text-text-muted hover:text-text'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
 
-          {worker.profile.bio && (
-            <>
-              <p className="mt-4 mb-1 text-xs font-semibold uppercase tracking-wide text-text-muted">
-                About (from applicant)
-              </p>
-              <p className="text-sm text-text-muted">{worker.profile.bio}</p>
-            </>
-          )}
-
-          <p className="mt-4 mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">Services</p>
-          <div className="flex flex-col gap-1.5 text-sm">
-            {worker.services.map((s) => (
-              <div key={s.id} className="flex items-center justify-between">
-                <span className="text-text-muted">{s.serviceName}</span>
-                <div className="flex items-center gap-2">
-                  {SERVICE_STATUS_TONE[s.approvalStatus] && (
-                    <Badge tone={SERVICE_STATUS_TONE[s.approvalStatus]}>{s.approvalStatus}</Badge>
-                  )}
-                  <span className="font-medium">Rs. {s.price}</span>
-                </div>
+      {worker && tab === 'overview' && (
+        <>
+          <Card className="mt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-semibold">Worker profile</p>
+                {worker.profile.handle && (
+                  <p className="text-xs text-text-muted">{worker.profile.handle}</p>
+                )}
               </div>
-            ))}
-          </div>
+              <Badge tone={VERIFICATION_TONE[worker.profile.verificationStatus]}>
+                {worker.profile.verificationStatus}
+              </Badge>
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-3 text-center text-sm">
+              <div>
+                <p className="text-lg font-bold">{worker.profile.ratingAvg.toFixed(1)}</p>
+                <p className="text-xs text-text-muted">Rating</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold">{worker.profile.jobsCompletedCount}</p>
+                <p className="text-xs text-text-muted">Jobs done</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold">{worker.reviewsCount}</p>
+                <p className="text-xs text-text-muted">Reviews</p>
+              </div>
+            </div>
 
-          <p className="mt-4 mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
-            Verification documents
-          </p>
-          <div className="flex flex-col gap-2.5 text-sm">
-            {worker.documents.map((doc) => (
-              <DocumentRow key={doc.id} doc={doc} canEdit={canEdit} onDecided={refetchDetail} />
-            ))}
-          </div>
-        </Card>
+            {worker.profile.bio && (
+              <>
+                <p className="mt-4 mb-1 text-xs font-semibold uppercase tracking-wide text-text-muted">
+                  About (from applicant)
+                </p>
+                <p className="text-sm text-text-muted">{worker.profile.bio}</p>
+              </>
+            )}
+
+            <p className="mt-4 mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">Services</p>
+            <div className="flex flex-col gap-1.5 text-sm">
+              {worker.services.map((s) => (
+                <div key={s.id} className="flex items-center justify-between">
+                  <span className="text-text-muted">{s.serviceName}</span>
+                  <div className="flex items-center gap-2">
+                    {SERVICE_STATUS_TONE[s.approvalStatus] && (
+                      <Badge tone={SERVICE_STATUS_TONE[s.approvalStatus]}>{s.approvalStatus}</Badge>
+                    )}
+                    <span className="font-medium">Rs. {s.price}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <p className="mt-4 mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
+              Verification documents
+            </p>
+            <div className="flex flex-col gap-2.5 text-sm">
+              {worker.documents.map((doc) => (
+                <DocumentRow key={doc.id} doc={doc} canEdit={canEdit} onDecided={refetchDetail} />
+              ))}
+            </div>
+          </Card>
+
+          {worker.passwordResetRequest && (
+            <PasswordResetRequestCard
+              request={worker.passwordResetRequest}
+              canEdit={canEdit}
+              onDecided={refetchDetail}
+            />
+          )}
+        </>
+      )}
+
+      {worker && tab === 'performance' && (
+        <div className="mt-4">
+          <WorkerPerformanceTab workerId={user.id} />
+        </div>
       )}
 
       <Card className="mt-4">

@@ -14,6 +14,8 @@ import { Terms } from './screens/Legal/Terms.jsx';
 import { Privacy } from './screens/Legal/Privacy.jsx';
 import { Login } from './screens/Auth/Login.jsx';
 import { ForgotPassword } from './screens/Auth/ForgotPassword.jsx';
+import { WorkerPasswordResetRequest } from './screens/Auth/WorkerPasswordResetRequest.jsx';
+import { ChangePassword } from './screens/Auth/ChangePassword.jsx';
 import { Signup } from './screens/Auth/Signup.jsx';
 import { Home } from './screens/Home/Home.jsx';
 import { Bookings } from './screens/Bookings/Bookings.jsx';
@@ -61,6 +63,8 @@ export default function App() {
               <Route path="/" element={<Landing />} />
               <Route path="/login" element={<Login />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/worker/password-reset-request" element={<WorkerPasswordResetRequest />} />
+              <Route path="/change-password" element={<ChangePassword />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/privacy" element={<Privacy />} />
