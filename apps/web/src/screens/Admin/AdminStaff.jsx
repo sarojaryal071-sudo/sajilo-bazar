@@ -167,7 +167,7 @@ function StaffRow({ staff, busy, onChange }) {
   );
 }
 
-export function AdminStaff() {
+function StaffTab() {
   const [staff, setStaff] = useState(null);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -212,7 +212,6 @@ export function AdminStaff() {
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Staff</h1>
         {!showForm && (
           <Button onClick={() => setShowForm(true)} className="px-4 py-2 text-sm">
             New staff account
@@ -238,6 +237,243 @@ export function AdminStaff() {
         {staff?.map((s) => (
           <StaffRow key={s.id} staff={s} busy={busyId === s.id} onChange={handleAccessChange} />
         ))}
+      </div>
+    </div>
+  );
+}
+
+const LENS_OPTIONS = [
+  { value: '', label: 'All lenses' },
+  { value: 'security', label: 'Security' },
+  { value: 'operations', label: 'Operations' },
+  { value: 'finance', label: 'Finance' },
+];
+
+const SEVERITY_OPTIONS = ['low', 'medium', 'high', 'critical'];
+
+const SEVERITY_TONE = { low: 'neutral', medium: 'warning', high: 'danger', critical: 'danger' };
+
+const ACTION_LABEL = {
+  'auth.login_success': 'Login succeeded',
+  'auth.login_failed': 'Login failed',
+  'auth.password_reset': 'Password reset',
+  'staff.created': 'Staff account created',
+  'staff.access_updated': 'Staff access changed',
+  'user.suspended': 'User suspended',
+  'user.reinstated': 'User reinstated',
+  'verification.document_approved': 'Verification document approved',
+  'verification.document_rejected': 'Verification document rejected',
+  'worker_service.approved': 'Worker service approved',
+  'worker_service.rejected': 'Worker service rejected',
+  'dispute.resolved': 'Dispute resolved',
+  'dispute.escalated': 'Dispute escalated',
+  'service.updated': 'Service updated',
+  'platform_setting.updated': 'Platform setting changed',
+};
+
+function formatTimestamp(iso) {
+  return new Date(iso).toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function AuditLogRow({ entry, expanded, onToggle }) {
+  const hasDiff = entry.oldValue || entry.newValue;
+  return (
+    <>
+      <tr
+        className={`border-t border-border text-sm ${hasDiff ? 'cursor-pointer hover:bg-surface-alt' : ''}`}
+        onClick={() => hasDiff && onToggle(entry.id)}
+      >
+        <td className="whitespace-nowrap px-3 py-2 text-text-muted">{formatTimestamp(entry.createdAt)}</td>
+        <td className="px-3 py-2">{entry.actorName || (entry.actorId ? `User #${entry.actorId}` : 'Unknown')}</td>
+        <td className="px-3 py-2">{ACTION_LABEL[entry.action] || entry.action}</td>
+        <td className="px-3 py-2">
+          <Badge tone={SEVERITY_TONE[entry.severity]}>{entry.severity}</Badge>
+        </td>
+        <td className="px-3 py-2 text-text-muted">
+          {entry.targetType ? `${entry.targetType}${entry.targetId ? ` #${entry.targetId}` : ''}` : '-'}
+        </td>
+      </tr>
+      {expanded && hasDiff && (
+        <tr className="border-t border-border bg-surface-alt text-xs">
+          <td colSpan={5} className="px-3 py-3">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="mb-1 font-semibold text-text-muted">Before</p>
+                <pre className="whitespace-pre-wrap break-words rounded-md bg-surface p-2">
+                  {entry.oldValue ? JSON.stringify(entry.oldValue, null, 2) : '-'}
+                </pre>
+              </div>
+              <div>
+                <p className="mb-1 font-semibold text-text-muted">After</p>
+                <pre className="whitespace-pre-wrap break-words rounded-md bg-surface p-2">
+                  {entry.newValue ? JSON.stringify(entry.newValue, null, 2) : '-'}
+                </pre>
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+// Target spec Phase 2 - a browsable/filterable record, not a monitoring
+// system: no alerting, no anomaly detection, just the list. Actor
+// filtering is a client-side name match over the already-fetched page
+// rather than a second "look up a staff member's numeric id" step - the
+// backend filter itself only takes lens/severity/date range.
+function AuditLogTab() {
+  const [entries, setEntries] = useState(null);
+  const [error, setError] = useState('');
+  const [lens, setLens] = useState('');
+  const [severity, setSeverity] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [actorQuery, setActorQuery] = useState('');
+  const [expandedId, setExpandedId] = useState(null);
+
+  useEffect(() => {
+    adminApi
+      .getAuditLog({
+        lens: lens || undefined,
+        severity: severity || undefined,
+        from: from ? new Date(from).toISOString() : undefined,
+        to: to ? new Date(to).toISOString() : undefined,
+      })
+      .then(({ entries }) => setEntries(entries))
+      .catch((err) => setError(err.message));
+  }, [lens, severity, from, to]);
+
+  const visible = entries?.filter(
+    (e) => !actorQuery.trim() || (e.actorName || '').toLowerCase().includes(actorQuery.trim().toLowerCase())
+  );
+
+  return (
+    <div>
+      <p className="text-xs text-text-muted">
+        A record of sensitive admin/staff actions - logins, access changes, moderation decisions, pricing
+        changes. Click a row with a diff to see before/after values.
+      </p>
+
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <select
+          value={lens}
+          onChange={(e) => setLens(e.target.value)}
+          className="rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand-solid"
+        >
+          {LENS_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <select
+          value={severity}
+          onChange={(e) => setSeverity(e.target.value)}
+          className="rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand-solid"
+        >
+          <option value="">All severities</option>
+          {SEVERITY_OPTIONS.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+        <input
+          type="date"
+          value={from}
+          onChange={(e) => setFrom(e.target.value)}
+          className="rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand-solid"
+        />
+        <span className="text-xs text-text-muted">to</span>
+        <input
+          type="date"
+          value={to}
+          onChange={(e) => setTo(e.target.value)}
+          className="rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand-solid"
+        />
+        <input
+          value={actorQuery}
+          onChange={(e) => setActorQuery(e.target.value)}
+          placeholder="Filter by actor name"
+          className="w-48 rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand-solid"
+        />
+      </div>
+
+      {error && <p className="mt-4 text-sm text-danger">{error}</p>}
+      {!entries && !error && <p className="mt-4 text-sm text-text-muted">Loading...</p>}
+
+      {entries && (
+        <div className="mt-4 overflow-x-auto rounded-xl border border-border">
+          <table className="w-full min-w-[720px] border-collapse">
+            <thead>
+              <tr className="bg-surface-alt text-left text-xs font-semibold uppercase tracking-wide text-text-muted">
+                <th className="px-3 py-2">Timestamp</th>
+                <th className="px-3 py-2">Actor</th>
+                <th className="px-3 py-2">Action</th>
+                <th className="px-3 py-2">Severity</th>
+                <th className="px-3 py-2">Target</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visible.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-3 py-6 text-center text-sm text-text-muted">
+                    No matching audit log entries.
+                  </td>
+                </tr>
+              )}
+              {visible.map((entry) => (
+                <AuditLogRow
+                  key={entry.id}
+                  entry={entry}
+                  expanded={expandedId === entry.id}
+                  onToggle={(id) => setExpandedId((prev) => (prev === id ? null : id))}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const TABS = [
+  { key: 'staff', label: 'Staff' },
+  { key: 'audit', label: 'Audit Log' },
+];
+
+export function AdminStaff() {
+  const [tab, setTab] = useState('staff');
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold">Staff</h1>
+
+      <div className="mt-4 flex gap-2 border-b border-border">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`px-3 py-2 text-sm font-medium ${
+              tab === t.key ? 'border-b-2 border-brand-solid text-text' : 'text-text-muted hover:text-text'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-4">
+        {tab === 'staff' && <StaffTab />}
+        {tab === 'audit' && <AuditLogTab />}
       </div>
     </div>
   );

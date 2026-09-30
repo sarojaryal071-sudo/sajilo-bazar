@@ -18,6 +18,7 @@ import {
 } from '@sajilo-bazar/shared';
 import { ApiError } from '../../middleware/error.middleware.js';
 import * as adminService from './admin.service.js';
+import { listAuditLog } from '../auditLog/auditLog.service.js';
 
 export async function getDashboardStats(req, res, next) {
   try {
@@ -94,10 +95,28 @@ export async function getStaffDetail(req, res, next) {
   }
 }
 
+// ---- Audit Log (target-spec Phase 2) ----
+
+export async function getAuditLog(req, res, next) {
+  try {
+    const { lens, severity, actorId, from, to } = req.query;
+    const entries = await listAuditLog({
+      lens,
+      severity,
+      actorId: actorId ? Number(actorId) : undefined,
+      from,
+      to,
+    });
+    res.json({ entries });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function createStaff(req, res, next) {
   try {
     const input = AdminStaffCreateInputSchema.parse(req.body);
-    const staff = await adminService.createStaff(input);
+    const staff = await adminService.createStaff(input, req.user.id);
     res.status(201).json({ staff });
   } catch (err) {
     next(err.issues ? new ApiError(400, 'Invalid staff input', err.issues) : err);
@@ -107,7 +126,7 @@ export async function createStaff(req, res, next) {
 export async function updateStaffAccess(req, res, next) {
   try {
     const input = AdminStaffAccessInputSchema.parse(req.body);
-    const staff = await adminService.updateStaffAccess(parseId(req), input);
+    const staff = await adminService.updateStaffAccess(parseId(req), input, req.user.id);
     res.json({ staff });
   } catch (err) {
     next(err.issues ? new ApiError(400, 'Invalid access input', err.issues) : err);
@@ -217,7 +236,7 @@ export async function getUserDetail(req, res, next) {
 
 export async function suspendUser(req, res, next) {
   try {
-    const user = await adminService.suspendUser(parseId(req));
+    const user = await adminService.suspendUser(parseId(req), req.user.id);
     res.json({ user });
   } catch (err) {
     next(err);
@@ -226,7 +245,7 @@ export async function suspendUser(req, res, next) {
 
 export async function reinstateUser(req, res, next) {
   try {
-    const user = await adminService.reinstateUser(parseId(req));
+    const user = await adminService.reinstateUser(parseId(req), req.user.id);
     res.json({ user });
   } catch (err) {
     next(err);
@@ -308,7 +327,7 @@ export async function createService(req, res, next) {
 export async function updateService(req, res, next) {
   try {
     const input = AdminServiceInputSchema.parse(req.body);
-    const service = await adminService.updateService(parseId(req), input);
+    const service = await adminService.updateService(parseId(req), input, req.user.id);
     res.json({ service });
   } catch (err) {
     next(err.issues ? new ApiError(400, 'Invalid service input', err.issues) : err);

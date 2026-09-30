@@ -9,6 +9,7 @@ import * as commissionLedgerModel from '../commissionLedger/commissionLedger.mod
 import { notify } from '../notifications/notifications.service.js';
 import * as trustScoreService from '../trustScore/trustScore.service.js';
 import * as platformSettingsService from '../platformSettings/platformSettings.service.js';
+import { logAudit } from '../auditLog/auditLog.service.js';
 
 const SALT_ROUNDS = 10;
 
@@ -27,19 +28,45 @@ export async function getStaffDetail(id) {
 // Reuses authModel.createUser (role: 'admin') rather than a separate
 // insert path - same clientId assignment, same password hashing, one
 // source of truth for "how a user row comes into existence".
-export async function createStaff({ fullName, phone, email, password, departments, isSuperAdmin }) {
+export async function createStaff({ fullName, phone, email, password, departments, isSuperAdmin }, actorId) {
   const existing = await authModel.findByPhone(phone);
   if (existing) throw new ApiError(409, 'An account with this phone number already exists');
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
   const user = await authModel.createUser({ fullName, phone, email, passwordHash, role: 'admin' });
-  return adminModel.setStaffAccess(user.id, { departments, isSuperAdmin });
+  const staff = await adminModel.setStaffAccess(user.id, { departments, isSuperAdmin });
+
+  // Never logs the password itself, only who/what/when - new_value is the
+  // access grant this staff account was created with, the security-
+  // relevant fact, not the credential.
+  await logAudit({
+    actorId,
+    action: 'staff.created',
+    severity: 'high',
+    targetType: 'staff',
+    targetId: user.id,
+    newValue: { fullName, phone, email, departments, isSuperAdmin },
+  });
+
+  return staff;
 }
 
-export async function updateStaffAccess(id, { departments, isSuperAdmin }) {
+export async function updateStaffAccess(id, { departments, isSuperAdmin }, actorId) {
   const staff = await adminModel.findStaffById(id);
   if (!staff) throw new ApiError(404, 'Staff account not found');
-  return adminModel.setStaffAccess(id, { departments, isSuperAdmin });
+  const updated = await adminModel.setStaffAccess(id, { departments, isSuperAdmin });
+
+  await logAudit({
+    actorId,
+    action: 'staff.access_updated',
+    severity: 'high',
+    targetType: 'staff',
+    targetId: id,
+    oldValue: { departments: staff.departments, isSuperAdmin: staff.isSuperAdmin },
+    newValue: { departments, isSuperAdmin },
+  });
+
+  return updated;
 }
 
 export async function getDashboardStats() {
@@ -78,7 +105,25 @@ export async function listPlatformSettings() {
 }
 
 export async function updatePlatformSetting(key, value, adminId) {
-  return platformSettingsService.updateSetting(key, value, adminId);
+  const settings = await platformSettingsService.listSettings();
+  const existing = settings.find((s) => s.key === key);
+  const updated = await platformSettingsService.updateSetting(key, value, adminId);
+
+  // Filed under Finance (see auditLog.service.js's ACTION_LENS comment) -
+  // every currently-editable key (fuel fee/rate, service price bands, and
+  // eventually commission rate) is pricing/revenue config, even though no
+  // payments module exists yet to also log actual transactions there.
+  await logAudit({
+    actorId: adminId,
+    action: 'platform_setting.updated',
+    severity: 'high',
+    targetType: 'platform_setting',
+    targetId: null,
+    oldValue: { key, value: existing ? existing.value : null },
+    newValue: { key, value },
+  });
+
+  return updated;
 }
 
 // Identity-verification documents are now one consolidated entry per
@@ -112,6 +157,16 @@ export async function decideDocument(documentId, adminId, decision, comment) {
 
   const status = decision === 'approve' ? 'approved' : 'rejected';
   const updated = await adminModel.decideDocument(documentId, { status, adminId, comment });
+
+  await logAudit({
+    actorId: adminId,
+    action: status === 'approved' ? 'verification.document_approved' : 'verification.document_rejected',
+    severity: 'medium',
+    targetType: 'verification_document',
+    targetId: documentId,
+    oldValue: { status: 'pending' },
+    newValue: { status, comment: comment ?? null },
+  });
 
   if (status === 'rejected') {
     // 3-strikes: rather than leaving a repeatedly-rejected worker stuck
@@ -182,7 +237,19 @@ export async function decideWorkerService(serviceId, adminId, decision, comment)
   }
 
   const status = decision === 'approve' ? 'approved' : 'rejected';
-  return adminModel.decideWorkerService(serviceId, { status, adminId, comment });
+  const updated = await adminModel.decideWorkerService(serviceId, { status, adminId, comment });
+
+  await logAudit({
+    actorId: adminId,
+    action: status === 'approved' ? 'worker_service.approved' : 'worker_service.rejected',
+    severity: 'medium',
+    targetType: 'worker_service',
+    targetId: serviceId,
+    oldValue: { approvalStatus: 'pending' },
+    newValue: { approvalStatus: status, comment: comment ?? null },
+  });
+
+  return updated;
 }
 
 // ---- Users (Round A) ----
@@ -216,17 +283,41 @@ export async function getUserDetail(id) {
 // Judgment call: admin accounts can't be suspended from this screen - with
 // no Staff/roles screen yet (that's Round E), there'd be no way back in if
 // an admin locked out the only other admin (or themselves) by mistake.
-export async function suspendUser(id) {
+export async function suspendUser(id, actorId) {
   const user = await adminModel.findUserById(id);
   if (!user) throw new ApiError(404, 'User not found');
   if (user.role === 'admin') throw new ApiError(400, 'Admin accounts cannot be suspended from here');
-  return adminModel.setUserModerationStatus(id, 'suspended');
+  const updated = await adminModel.setUserModerationStatus(id, 'suspended');
+
+  await logAudit({
+    actorId,
+    action: 'user.suspended',
+    severity: 'medium',
+    targetType: 'user',
+    targetId: id,
+    oldValue: { moderationStatus: user.moderation_status },
+    newValue: { moderationStatus: 'suspended' },
+  });
+
+  return updated;
 }
 
-export async function reinstateUser(id) {
+export async function reinstateUser(id, actorId) {
   const user = await adminModel.findUserById(id);
   if (!user) throw new ApiError(404, 'User not found');
-  return adminModel.setUserModerationStatus(id, 'active');
+  const updated = await adminModel.setUserModerationStatus(id, 'active');
+
+  await logAudit({
+    actorId,
+    action: 'user.reinstated',
+    severity: 'low',
+    targetType: 'user',
+    targetId: id,
+    oldValue: { moderationStatus: user.moderation_status },
+    newValue: { moderationStatus: 'active' },
+  });
+
+  return updated;
 }
 
 export async function setUserNotes(id, notes) {
@@ -332,10 +423,26 @@ export async function createService(input) {
   return adminModel.createService(input);
 }
 
-export async function updateService(id, input) {
+export async function updateService(id, input, actorId) {
   const service = await adminModel.findServiceAdminById(id);
   if (!service) throw new ApiError(404, 'Service not found');
-  return adminModel.updateService(id, input);
+  const updated = await adminModel.updateService(id, input);
+
+  // "Price change" per the target spec, though `services` itself has no
+  // price column - the actual price lives in the `service_price_bands`
+  // platform_setting (see below), edited from Categories via that same
+  // key. This logs category/name/description edits made here instead.
+  await logAudit({
+    actorId,
+    action: 'service.updated',
+    severity: 'medium',
+    targetType: 'service',
+    targetId: id,
+    oldValue: { category: service.category, name: service.name, description: service.description },
+    newValue: { category: input.category, name: input.name, description: input.description ?? null },
+  });
+
+  return updated;
 }
 
 export async function setServiceActive(id, isActive) {
@@ -403,6 +510,16 @@ export async function resolveDispute(id, adminId, { status, resolutionNotes, atF
   const resolvedAtFault = status === 'resolved' ? atFault ?? null : null;
   const resolved = await adminModel.resolveDispute(id, { status, resolutionNotes, atFault: resolvedAtFault, adminId });
 
+  await logAudit({
+    actorId: adminId,
+    action: 'dispute.resolved',
+    severity: 'medium',
+    targetType: 'dispute',
+    targetId: id,
+    oldValue: { status: dispute.status, atFault: dispute.atFault },
+    newValue: { status, atFault: resolvedAtFault },
+  });
+
   const booking = await bookingsModel.findById(resolved.bookingId);
   if (booking) {
     const payload = { disputeId: resolved.id, bookingId: booking.id, status: resolved.status };
@@ -433,6 +550,17 @@ export async function escalateDispute(id, adminId, department) {
     toDepartment: department,
     escalatedBy: adminId,
   });
+
+  await logAudit({
+    actorId: adminId,
+    action: 'dispute.escalated',
+    severity: 'low',
+    targetType: 'dispute',
+    targetId: id,
+    oldValue: { department: dispute.department },
+    newValue: { department },
+  });
+
   return updated;
 }
 

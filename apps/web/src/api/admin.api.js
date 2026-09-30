@@ -40,6 +40,17 @@ export function updateStaffAccess(id, input) {
   return apiFetch(`/admin/staff/${id}/access`, { method: 'PATCH', body: input });
 }
 
+export function getAuditLog({ lens, severity, actorId, from, to } = {}) {
+  const params = new URLSearchParams();
+  if (lens) params.set('lens', lens);
+  if (severity) params.set('severity', severity);
+  if (actorId) params.set('actorId', actorId);
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  const query = params.toString();
+  return apiFetch(`/admin/audit-log${query ? `?${query}` : ''}`);
+}
+
 export function getApprovalsQueue() {
   return apiFetch('/admin/approvals');
 }

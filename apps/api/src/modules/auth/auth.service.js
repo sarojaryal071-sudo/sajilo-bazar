@@ -4,6 +4,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { ApiError } from '../../middleware/error.middleware.js';
 import * as authModel from './auth.model.js';
 import { attachWorkerVerificationStatus } from '../users/users.model.js';
+import { logAudit } from '../auditLog/auditLog.service.js';
 
 const SALT_ROUNDS = 10;
 
@@ -69,15 +70,38 @@ export async function signup({ fullName, phone, email, password, role }) {
   return { token: issueToken(user), user };
 }
 
+// Login is logged to the audit trail only when the phone belongs to an
+// existing admin/staff account - the Audit Log is a Staff & Access record,
+// not a general security-monitoring system, and every customer/worker
+// login would otherwise drown it. An unrecognized phone number logs
+// nothing (there's no admin account to attribute the attempt to).
+async function logAdminLoginOutcome(user, action) {
+  if (user?.role === 'admin') {
+    await logAudit({
+      actorId: user.id,
+      action,
+      severity: action === 'auth.login_failed' ? 'medium' : 'low',
+      targetType: 'user',
+      targetId: user.id,
+    });
+  }
+}
+
 export async function login({ phone, password, keepLoggedIn }) {
   const user = await authModel.findByPhoneWithPassword(phone);
   // A Google-only account has no password_hash yet (bcrypt.compare against
   // null/undefined would throw, not just fail) - same "invalid credentials"
   // response either way, so this isn't distinguishable from a wrong password.
-  if (!user || !user.passwordHash) throw new ApiError(401, 'Invalid phone number or password');
+  if (!user || !user.passwordHash) {
+    await logAdminLoginOutcome(user, 'auth.login_failed');
+    throw new ApiError(401, 'Invalid phone number or password');
+  }
 
   const valid = await bcrypt.compare(password, user.passwordHash);
-  if (!valid) throw new ApiError(401, 'Invalid phone number or password');
+  if (!valid) {
+    await logAdminLoginOutcome(user, 'auth.login_failed');
+    throw new ApiError(401, 'Invalid phone number or password');
+  }
 
   const { passwordHash, ...safeUser } = await assertLoginAllowedAndReactivate(user);
   // AppShell's restricted-onboarding-nav gate reads verificationStatus
@@ -85,6 +109,7 @@ export async function login({ phone, password, keepLoggedIn }) {
   // onboarding via login, not just getMe(), needs it here too, or the
   // full nav leaks until the next refetch.
   const withStatus = await attachWorkerVerificationStatus(safeUser);
+  await logAdminLoginOutcome(withStatus, 'auth.login_success');
   return { token: issueToken(withStatus, { keepLoggedIn }), user: withStatus };
 }
 
@@ -166,6 +191,22 @@ export async function forgotPassword({ phone, newPassword }) {
   const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
   const user = await authModel.updatePasswordByPhone(phone, passwordHash);
   if (!user) throw new ApiError(404, 'No account found with that phone number');
+
+  // Same admin-only scoping as login above, and for the same reason - this
+  // flow is open to any phone number (no OTP yet, see the comment on this
+  // function), so an admin/staff password reset here is the one case
+  // worth a security-trail entry; a customer/worker resetting their own
+  // password is routine self-service, not an audit-worthy event. Never
+  // logs the new password itself, only that a reset happened.
+  if (user.role === 'admin') {
+    await logAudit({
+      actorId: user.id,
+      action: 'auth.password_reset',
+      severity: 'high',
+      targetType: 'user',
+      targetId: user.id,
+    });
+  }
 
   // Logs the user straight in after the reset - a second manual login
   // immediately after setting the password they just chose would be

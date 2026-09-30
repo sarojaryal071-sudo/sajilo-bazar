@@ -176,3 +176,8 @@ adminRoutes.get('/staff', requireSuperAdmin, adminController.listStaff);
 adminRoutes.get('/staff/:id', requireSuperAdmin, adminController.getStaffDetail);
 adminRoutes.post('/staff', requireSuperAdmin, adminController.createStaff);
 adminRoutes.patch('/staff/:id/access', requireSuperAdmin, adminController.updateStaffAccess);
+
+// Audit Log: same Super Admin-only gate as Staff (it lives alongside it,
+// not as its own nav item) - staff/security-sensitive by nature, same
+// reasoning as Staff itself above.
+adminRoutes.get('/audit-log', requireSuperAdmin, adminController.getAuditLog);
