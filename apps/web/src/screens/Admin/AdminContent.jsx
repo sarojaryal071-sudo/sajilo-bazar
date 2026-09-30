@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { Card } from '../../components/Card.jsx';
 import { Badge } from '../../components/Badge.jsx';
 import { Button } from '../../components/Button.jsx';
+import { PublicationStatusBadges } from '../../components/PublicationStatusBadges.jsx';
 import * as adminApi from '../../api/admin.api.js';
 
-const STATUS_TONE = { draft: 'neutral', published: 'success', unpublished: 'neutral' };
 const TYPE_LABEL = { notification: 'Notification', promotion: 'Promotion' };
 const EMPTY_FORM = {
   type: 'notification',
@@ -173,7 +173,7 @@ function PublicationForm({ initial, submitLabel, busy, onSubmit, onCancel }) {
   );
 }
 
-export function AdminPublications() {
+function PublicationsTab() {
   const [publications, setPublications] = useState(null);
   const [error, setError] = useState('');
   const [type, setType] = useState('');
@@ -239,7 +239,6 @@ export function AdminPublications() {
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Publications</h1>
         {!showForm && (
           <Button onClick={() => setShowForm(true)} className="px-4 py-2 text-sm">
             New publication
@@ -324,10 +323,7 @@ export function AdminPublications() {
                   </p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-2">
-                  <div className="flex items-center gap-2">
-                    <Badge tone={STATUS_TONE[p.status]}>{p.status}</Badge>
-                    {p.isLive && <Badge tone="success">Live now</Badge>}
-                  </div>
+                  <PublicationStatusBadges status={p.status} isLive={p.isLive} />
                   <div className="flex gap-2">
                     <Button
                       variant="secondary"
@@ -351,6 +347,159 @@ export function AdminPublications() {
             </Card>
           )
         )}
+      </div>
+    </div>
+  );
+}
+
+function PolicyEditor({ policy, busy, onSave, onPublishToggle }) {
+  const [title, setTitle] = useState(policy.title);
+  const [body, setBody] = useState(policy.body);
+  const dirty = title !== policy.title || body !== policy.body;
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between">
+        <p className="font-semibold">{policy.title}</p>
+        <PublicationStatusBadges status={policy.status} isLive={policy.isLive} />
+      </div>
+
+      <input
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        className="mt-3 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand-solid"
+      />
+      <textarea
+        rows={8}
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        placeholder="Policy content..."
+        className="mt-2 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand-solid"
+      />
+
+      <div className="mt-3 flex items-center gap-2">
+        <Button
+          variant="secondary"
+          disabled={busy || !dirty}
+          onClick={() => onSave({ title: title.trim(), body: body.trim() })}
+          className="px-4 py-1.5 text-sm"
+        >
+          {busy ? 'Saving...' : 'Save'}
+        </Button>
+        <Button variant="secondary" disabled={busy} onClick={onPublishToggle} className="px-4 py-1.5 text-sm">
+          {policy.status === 'published' ? 'Unpublish' : 'Publish'}
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+function PoliciesTab() {
+  const [policies, setPolicies] = useState(null);
+  const [error, setError] = useState('');
+  const [busyType, setBusyType] = useState(null);
+
+  function load() {
+    adminApi
+      .listPolicies()
+      .then(({ policies }) => setPolicies(policies))
+      .catch((err) => setError(err.message));
+  }
+
+  useEffect(load, []);
+
+  async function handleSave(policyType, input) {
+    setBusyType(policyType);
+    setError('');
+    try {
+      await adminApi.updatePolicy(policyType, input);
+      load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyType(null);
+    }
+  }
+
+  async function handlePublishToggle(policy) {
+    setBusyType(policy.policyType);
+    setError('');
+    try {
+      if (policy.status === 'published') {
+        await adminApi.unpublishPolicy(policy.policyType);
+      } else {
+        await adminApi.publishPolicy(policy.policyType);
+      }
+      load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyType(null);
+    }
+  }
+
+  return (
+    <div>
+      <p className="text-xs text-text-muted">
+        Terms of Service, Privacy Policy, and Community Guidelines - a fixed set of documents, edited in place.
+      </p>
+
+      {error && <p className="mt-4 text-sm text-danger">{error}</p>}
+      {!policies && !error && <p className="mt-4 text-sm text-text-muted">Loading...</p>}
+
+      <div className="mt-4 flex flex-col gap-4">
+        {policies?.map((policy) => (
+          <PolicyEditor
+            key={policy.policyType}
+            policy={policy}
+            busy={busyType === policy.policyType}
+            onSave={(input) => handleSave(policy.policyType, input)}
+            onPublishToggle={() => handlePublishToggle(policy)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const TABS = [
+  { key: 'publications', label: 'Publications' },
+  { key: 'policies', label: 'Policies' },
+];
+
+// Content merge (target-spec Phase 5) - Publications (notifications/
+// promotions) and Policies (Terms/Privacy/Community Guidelines) on one
+// screen as tabs, replacing two separate nav items. Pure UI/navigation
+// merge - neither tab's data model, editing logic, or API calls changed,
+// only where they're rendered from (PublicationsTab/PoliciesTab are the
+// same components each screen used to export directly, unchanged apart
+// from dropping their own page-level <h1> now that the wrapper owns it,
+// and using the shared PublicationStatusBadges the two screens had
+// identically duplicated).
+export function AdminContent() {
+  const [tab, setTab] = useState('publications');
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold">Content</h1>
+
+      <div className="mt-4 flex gap-2 border-b border-border">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`px-3 py-2 text-sm font-medium ${
+              tab === t.key ? 'border-b-2 border-brand-solid text-text' : 'text-text-muted hover:text-text'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-4">
+        {tab === 'publications' && <PublicationsTab />}
+        {tab === 'policies' && <PoliciesTab />}
       </div>
     </div>
   );
