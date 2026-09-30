@@ -78,21 +78,22 @@ export async function getAnalytics() {
   return adminModel.getAnalytics();
 }
 
-// Dashboard insights (target-spec Phase 1) - one call bundling every new
-// ranked/flagged/payment section so the frontend fires a single request
-// alongside getDashboardStats, rather than one round trip per widget.
+// Dashboard insights (target-spec Phase 1, reworked Phase 7) - one call
+// bundling every ratio/chart section so the frontend fires a single
+// request alongside getDashboardStats, rather than one round trip per
+// widget. The five ranked name-lists Phase 1 shipped here are gone -
+// see admin.model.js's "Dashboard rework" comment.
 export async function getDashboardInsights() {
-  const [topEarningWorkers, topRatedWorkers, recentLowRatings, cancellationStats, flaggedWorkers, topPerformers, paymentBreakdown] =
+  const [ratingDistribution, flaggedRate, performanceTierSplit, earningsConcentration, cancellationTrend, paymentBreakdown] =
     await Promise.all([
-      adminModel.getTopEarningWorkers(),
-      adminModel.getTopRatedWorkers(),
-      adminModel.getRecentLowRatings(),
-      adminModel.getCancellationStats(),
-      adminModel.getFlaggedWorkers(),
-      adminModel.getTopPerformers(),
+      adminModel.getRatingDistribution(),
+      adminModel.getFlaggedRate(),
+      adminModel.getPerformanceTierSplit(),
+      adminModel.getEarningsConcentration(),
+      adminModel.getCancellationTrend(),
       adminModel.getPaymentBreakdown(),
     ]);
-  return { topEarningWorkers, topRatedWorkers, recentLowRatings, cancellationStats, flaggedWorkers, topPerformers, paymentBreakdown };
+  return { ratingDistribution, flaggedRate, performanceTierSplit, earningsConcentration, cancellationTrend, paymentBreakdown };
 }
 
 export async function getAccountingSummary() {
@@ -253,7 +254,7 @@ export async function decideWorkerService(serviceId, adminId, decision, comment)
   return updated;
 }
 
-// ---- Users (Round A) ----
+// ---- Users (Round A, sort/flagged/tier added Phase 7) ----
 
 export async function listUsers(filters) {
   return adminModel.listUsers(filters);

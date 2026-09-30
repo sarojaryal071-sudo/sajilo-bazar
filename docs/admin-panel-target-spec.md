@@ -24,14 +24,14 @@ A running list of hardcoded JS constants discovered mid-build that really should
 ### 1. Dashboard
 Replaces the current 4-stat-card version. Single rich screen, no separate Analytics page/tab.
 - Stat cards: total/pending revenue, completed jobs, active workers, cancelled, total bookings (already exists — keep)
-- Payment method distribution + payment status breakdown (cash vs. gateway, paid vs. pending)
-- Top Earning Workers (ranked, with completed-job count)
-- Top Rated Workers (ranked, with review count)
-- Recent Low Ratings feed
-- Cancellation stats, split by who cancelled (customer vs. worker)
-- Flagged Workers: auto-flagged for high cancellation rate, low rating, or inactivity
-- Top Performers: trust-based ranking (completion rate + rating + job volume)
+- Payment method distribution + payment status breakdown (cash vs. gateway, paid vs. pending) — clickable through to Bookings, filtered by the clicked segment
+- Rating distribution: % of active workers at 5/4/3/below-3 stars — clickable through to Users & Verification, sorted by rating
+- Flagged rate: % of active workers currently flagged, broken into the three reasons (high cancellation rate, low rating, inactivity) — clickable through to Users & Verification, filtered to flagged only
+- Performance tier split: % top performer / standard / below threshold (trust-based) — each segment clickable through to Users & Verification, filtered by that tier
+- Earnings concentration: share of total platform earnings the top 10% of workers account for — clickable through to Users & Verification, sorted by earnings
+- Cancellation trend, last 30 days, split by who cancelled (customer vs. worker) — clickable through to Bookings, filtered to cancelled
 - Reference: `sajilo-app/src/components/admin/AdminAnalyticsDashboard.jsx`, `sajilo-backend/src/modules/performance/workerIntelligence.service.js`
+- Superseded by the Dashboard rework (Build order item 7): the five items above replaced Phase 1's original ranked name-lists (Top Earning Workers, Top Rated Workers, Recent Low Ratings feed, Flagged Workers list, Top Performers list) — a dashboard is a summary you glance at, not a roster of individual workers. See the Dashboard rework progress entry for the full rationale.
 
 ### 2. Users & Verification
 Merge of current Users + Approvals (already planned) plus a Workers performance sub-tab.
@@ -84,8 +84,9 @@ Work one phase at a time. Each phase should be small enough to land in a single 
 4. **Catalog & Pricing merge** — fold Settings' pricing fields into Categories; add commission rate as an editable platform_setting.
 5. **Content merge** — fold Policies into Publications as tabs.
 6. **Platform Configuration** — new section: districts admin CRUD (list/create/toggle active), matching radius and flat fuel charge migrated from hardcoded constants into admin-editable `platform_settings`.
-7. **Finance (lean)** — new section: revenue view + manual expense list.
-8. **Users & Verification: worker performance tab + document-based password reset workflow.**
+7. **Dashboard rework** — replace Phase 1's five ranked name-list cards with ratio/chart cards (rating distribution, flagged rate, performance tier split, earnings concentration, cancellation trend), each linking through to a filtered/sorted Users or Bookings view; make the existing payment breakdown clickable too.
+8. **Finance (lean)** — new section: revenue view + manual expense list.
+9. **Users & Verification: worker performance tab + document-based password reset workflow.**
 
 ## Instruction for the coding agent
 > This is the agreed final destination for the admin panel — work through the Build Order phases one at a time, smallest complete slice per session. Do not build anything listed under "Explicitly excluded" without being asked again first. Do not port the old repos' config-driven architecture — keep plain React routes/components matching the current `sajilo-bazar` style. Start with Phase 1 (Dashboard).
@@ -132,5 +133,14 @@ Work one phase at a time. Each phase should be small enough to land in a single 
     - All audit log entries confirmed correct (district actions under Operations at `medium`; both settings under Finance at `high`, with correct old/new diffs).
     - Test district deleted afterward; both settings restored to their seeded defaults (15, true); no leftover test data.
   - Did not run a full instant-booking creation → claim → complete cycle (deliberately, per the instruction to keep it to what's needed) - the direct-query and setting-round-trip checks above exercise the same code paths a full booking flow would, without the overhead of standing up a complete customer/worker/service fixture.
-- [ ] 7. Finance (lean)
-- [ ] 8. Users & Verification: worker performance tab + password reset workflow
+- [x] **7. Dashboard rework** — replaced Phase 1's five ranked name-list cards (Top Earning Workers, Top Rated Workers, Recent Low Ratings, Flagged Workers, Top Performers) with five ratio/chart cards: Rating distribution, Flagged rate, Performance tier split, Earnings concentration, Cancellation trend (30-day, by initiator). Kept the existing stat cards and payment method/status breakdown as-is, just made them clickable. New backend queries in `admin.model.js` (`getRatingDistribution`, `getFlaggedRate`, `getPerformanceTierSplit`, `getEarningsConcentration`, `getCancellationTrend`), replacing `getTopEarningWorkers`/`getTopRatedWorkers`/`getRecentLowRatings`/`getCancellationStats`/`getFlaggedWorkers`/`getTopPerformers` (deleted, not left as dead code) in `getDashboardInsights()`. All hand-built plain SVG/CSS — no charting library exists in `apps/web` and none was added.
+  - **Instruction was cut off mid-sentence** (ended at "Users & Verification currently has no sort-by-rating") right where it was about to list the "Plumbing" items. The numbered list above it (items 1–4) already stated every specific plumbing requirement needed (sort by rating, sort by earnings, filter by flagged, filter by tier), so proceeded on that basis rather than stopping to ask — flagging here in case anything was missed that the cut-off text would have added.
+  - **"Users & Verification" judgment call**: the target spec's full Users+Approvals+Performance-tab merge is Build order item 9 and hasn't been built yet — only separate `AdminUsers.jsx`/`AdminApprovals.jsx` screens exist today. Treated every "Users & Verification" reference in the instruction as the current `AdminUsers.jsx` screen (the closest existing equivalent), since nothing asked for that merge to happen now, only for new sort/filter plumbing to support the dashboard's drill-through links.
+  - **Performance tier cutoffs judgment call**: Phase 1's "Top Performers" was only ever "top 10 by `trust_score`, gated to jobs_completed_count >= 3" — it never defined where "top" ends and "standard" begins, which a 3-way split needs. Reused `trustScore.service.js`'s own already-shipped tier thresholds instead of inventing new numbers: `trust_score >= 80` (+ the existing jobs >= 3 gate) = top performer, `>= 50` = standard, else/null = below threshold — the same 80/50 cutoffs that already back the worker-facing trust meter and customer-facing `TrustBadge` (`highly_trusted`/`trusted`/`building_trust`), so a worker's tier reads the same way everywhere in the app.
+  - **Rating distribution population judgment call**: excludes workers with zero completed jobs. `rating_avg` defaults to `0` (NOT NULL), not "zero stars" — counting brand-new approved workers would have flooded "below 3 stars" with workers who simply have no rating yet.
+  - **Cancellation trend data-quality note, not a judgment call**: bucketed by `created_at` (when the booking was made), not by when it was actually cancelled — `bookings` has no `cancelled_at`/`updated_at` column (migration 007: only `created_at` and `completed_at` exist), so there is no timestamp anywhere recording when a cancellation happened. A real limitation of the current schema, flagged rather than silently worked around.
+  - **Flagged rate / Performance tier split SQL reuse**: both the dashboard aggregates and `listUsers`' new `flagged`/`tier` filters read off the exact same SQL (`FLAGGED_CTES_SQL`/`TIER_CASE_SQL` constants in `admin.model.js`) — a dashboard card's percentage and the Users list it links to can't disagree on who counts.
+  - **Color**: no charting-appropriate palette existed beyond the three reserved feedback tokens (`--color-success`/`-warning`/`-danger`) plus brand teal — not enough distinct hues for a 4-bucket ordinal scale (rating distribution) without reusing a hue twice. Added a new single-hue (brand teal) 4-step ordinal ramp to `tokens.css` (`--color-chart-rating-1..4`, separately validated light/dark sets — a naive light-mode-values-darkened-for-dark-mode flip failed the dark surface's contrast floor) for Rating distribution and (3 of its 4 steps) Performance tier split; the 3-reason Flagged rate breakdown and the 2-series Cancellation trend reuse the existing `success`/`warning`/`danger`/`brand-solid` tokens directly, in a fixed order chosen by running the dataviz skill's `validate_palette.js` (warning-then-danger adjacent failed the normal-vision CVD floor; warning/brand/danger in that order passes).
+  - Verified live: ran all five new queries directly against local Postgres with real seeded data, then again through the actual HTTP endpoints (`GET /admin/dashboard/insights`, `GET /admin/users?role=worker&sort=rating|earnings`, `?flagged=true`, `GET /admin/bookings?status=cancelled`, `?paymentStatus=paid`) as the seeded Super Admin — confirmed the dashboard aggregate counts match the `listUsers` filtered result-set sizes exactly (e.g. `flaggedCount: 2` ↔ 2 users returned for `flagged=true`; `top_performer: 3` ↔ 3 users returned for `tier=top_performer`). `npm run lint` (oxlint) and `npm run build` both clean on every changed frontend file.
+- [ ] 8. Finance (lean)
+- [ ] 9. Users & Verification: worker performance tab + password reset workflow

@@ -218,8 +218,8 @@ export async function rejectWorkerService(req, res, next) {
 
 export async function listUsers(req, res, next) {
   try {
-    const { role, status, q } = req.query;
-    const users = await adminService.listUsers({ role, status, q });
+    const { role, status, q, flagged, tier, sort } = req.query;
+    const users = await adminService.listUsers({ role, status, q, flagged: flagged === 'true', tier, sort });
     res.json({ users });
   } catch (err) {
     next(err);
@@ -267,8 +267,8 @@ export async function setUserNotes(req, res, next) {
 
 export async function listBookings(req, res, next) {
   try {
-    const { status, type, from, to } = req.query;
-    const bookings = await adminService.listBookings({ status, type, from, to });
+    const { status, type, from, to, paymentMethod, paymentStatus } = req.query;
+    const bookings = await adminService.listBookings({ status, type, from, to, paymentMethod, paymentStatus });
     res.json({ bookings });
   } catch (err) {
     next(err);

@@ -25,6 +25,22 @@
   --color-warning: #d97706;
   --color-danger: #dc2626;
 
+  /* Chart: ordinal worker-quality ramp (Admin Dashboard Phase 7) - one hue
+     (brand teal), 4 monotone-lightness steps, darkest = best/most. Used by
+     Rating distribution (5/4/3/below-3 stars) and, at 3 of its 4 steps,
+     Performance tier split (top performer/standard/below threshold).
+     Chosen over the reserved status colors (success/warning/danger)
+     because those are a 3-tone fixed scale and this needs 4 ordered steps;
+     validated with the dataviz skill's validate_palette.js --ordinal
+     check (light-mode set below; a separate dark-mode set is declared in
+     the dark blocks further down, since a naive light->dark flip fails
+     the dark surface's contrast floor - see the two @media/[data-theme]
+     blocks below). */
+  --color-chart-rating-1: #14b8a6; /* below 3 stars - lightest/weakest */
+  --color-chart-rating-2: #0d9488; /* 3 stars (== --color-brand-solid) */
+  --color-chart-rating-3: #0f766e; /* 4 stars (== --color-brand-from) */
+  --color-chart-rating-4: #134e4a; /* 5 stars - darkest/strongest */
+
   /* Radius scale - one scale, used everywhere */
   --radius-sm: 0.5rem;
   --radius-md: 1rem;
@@ -82,6 +98,16 @@
        in dark mode, just with alpha for the glass effect. */
     --color-glass-surface: rgba(30, 33, 38, 0.6);
     --color-glass-border: rgba(255, 255, 255, 0.08);
+
+    /* Own dark-mode steps, not a flip of the light ramp above - the
+       light ramp's darkest step (#134e4a) is nearly the same lightness as
+       this dark surface and fails contrast against it, so dark mode needs
+       lighter steps throughout (validated separately, see tokens.css's
+       light-mode comment on this ramp). */
+    --color-chart-rating-1: #5eead4;
+    --color-chart-rating-2: #2dd4bf;
+    --color-chart-rating-3: #14b8a6;
+    --color-chart-rating-4: #0d9488;
   }
 }
 
@@ -103,4 +129,9 @@
 
   --color-glass-surface: rgba(30, 33, 38, 0.6);
   --color-glass-border: rgba(255, 255, 255, 0.08);
+
+  --color-chart-rating-1: #5eead4;
+  --color-chart-rating-2: #2dd4bf;
+  --color-chart-rating-3: #14b8a6;
+  --color-chart-rating-4: #0d9488;
 }

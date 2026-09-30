@@ -49,186 +49,204 @@ export async function getAnalytics() {
 // (see docs/admin-panel-target-spec.md) but simplified to what this
 // schema actually has, not a lift-and-shift of that service.
 
-// "Earning" = the worker's own gross job_price total, not the platform's
-// commission cut - commission_ledger already carries one completed-booking
-// row per worker, so this is a direct aggregate over it.
-export async function getTopEarningWorkers(limit = 10) {
-  const { rows } = await pool.query(
-    `SELECT u.id AS worker_id, u.full_name, u.profile_image_url,
-            SUM(cl.job_price)::numeric AS total_earnings, COUNT(*)::int AS completed_jobs
-     FROM commission_ledger cl
-     JOIN users u ON u.id = cl.worker_id
-     GROUP BY u.id, u.full_name, u.profile_image_url
-     ORDER BY total_earnings DESC
-     LIMIT $1`,
-    [limit]
-  );
-  return rows.map((r) => ({
-    workerId: r.worker_id,
-    fullName: r.full_name,
-    profileImageUrl: r.profile_image_url,
-    totalEarnings: Number(r.total_earnings),
-    completedJobs: r.completed_jobs,
-  }));
-}
+// ---- Dashboard rework (target-spec Phase 7, 2026-09-30) ----
+// The five ranked name-lists above (top earners/rated/performers, recent
+// low ratings, flagged workers) turned the Dashboard into a roster, not a
+// summary - replaced by ratio/aggregate queries below. Each one's WHERE
+// clause, thresholds and shared CTEs are carried over unchanged from the
+// list version it replaces (FLAGGED_CTE_SQL below is verbatim the same
+// three signals/thresholds getFlaggedWorkers used), just aggregated
+// instead of returned row-by-row - and reused again by listUsers()'s new
+// flagged/tier filters below so a dashboard card and the Users screen it
+// links to always agree on who counts.
 
-// reviewsCount comes from the reviews table via bookings, not a stored
-// counter - worker_profiles only stores the running rating_avg, no count.
-export async function getTopRatedWorkers(limit = 10) {
-  const { rows } = await pool.query(
-    `SELECT u.id AS worker_id, u.full_name, u.profile_image_url, wp.rating_avg,
-            COUNT(r.id)::int AS reviews_count
-     FROM worker_profiles wp
-     JOIN users u ON u.id = wp.user_id
-     JOIN bookings b ON b.worker_id = wp.user_id
-     JOIN reviews r ON r.booking_id = b.id
-     GROUP BY u.id, u.full_name, u.profile_image_url, wp.rating_avg
-     HAVING COUNT(r.id) > 0
-     ORDER BY wp.rating_avg DESC, reviews_count DESC
-     LIMIT $1`,
-    [limit]
-  );
-  return rows.map((r) => ({
-    workerId: r.worker_id,
-    fullName: r.full_name,
-    profileImageUrl: r.profile_image_url,
-    ratingAvg: Number(r.rating_avg),
-    reviewsCount: r.reviews_count,
-  }));
-}
-
-export async function getRecentLowRatings(limit = 10) {
-  const { rows } = await pool.query(
-    `SELECT r.id, r.rating, r.comment, r.created_at, b.id AS booking_id,
-            w.id AS worker_id, w.full_name AS worker_name,
-            c.full_name AS customer_name
-     FROM reviews r
-     JOIN bookings b ON b.id = r.booking_id
-     LEFT JOIN users w ON w.id = b.worker_id
-     JOIN users c ON c.id = b.customer_id
-     WHERE r.rating <= 2
-     ORDER BY r.created_at DESC
-     LIMIT $1`,
-    [limit]
-  );
-  return rows.map((r) => ({
-    reviewId: r.id,
-    rating: r.rating,
-    comment: r.comment,
-    createdAt: r.created_at,
-    bookingId: r.booking_id,
-    workerId: r.worker_id,
-    workerName: r.worker_name,
-    customerName: r.customer_name,
-  }));
-}
-
-// Split by who cancelled (business plan's own initiated_by column - same
-// one trustScore's reliability window reads). null covers historical rows
-// predating that column and admin overrides, neither of which are either
-// party's own action.
-export async function getCancellationStats() {
-  const { rows } = await pool.query(
-    `SELECT COALESCE(initiated_by, 'other') AS initiated_by, COUNT(*)::int AS count
-     FROM bookings WHERE status = 'cancelled' GROUP BY COALESCE(initiated_by, 'other')`
-  );
-  const byInitiator = { worker: 0, customer: 0, other: 0 };
-  for (const r of rows) byInitiator[r.initiated_by] = r.count;
-  return { total: byInitiator.worker + byInitiator.customer + byInitiator.other, byInitiator };
-}
-
-// Flagged Workers (auto-flagged, simplified per the target spec - no
-// rolling-window reuse of trustScore's exact logic, just the same three
-// signals over a worker's full history): high cancellation rate, low
-// rating, or inactivity. A worker can carry more than one reason.
 const FLAG_CANCELLATION_RATE_THRESHOLD = 0.2;
 const FLAG_MIN_TERMINAL_JOBS = 5;
 const FLAG_LOW_RATING_THRESHOLD = 3.0;
 const FLAG_MIN_RATED_JOBS = 3;
 const FLAG_INACTIVITY_DAYS = 30;
 
-export async function getFlaggedWorkers() {
-  const { rows } = await pool.query(
-    `WITH terminal AS (
-       SELECT worker_id,
-              COUNT(*) FILTER (WHERE status = 'completed') AS completed_count,
-              COUNT(*) FILTER (WHERE status = 'cancelled' AND initiated_by = 'worker') AS worker_cancelled_count,
-              MAX(completed_at) AS last_completed_at
-       FROM bookings
-       WHERE worker_id IS NOT NULL AND (status = 'completed' OR (status = 'cancelled' AND initiated_by = 'worker'))
-       GROUP BY worker_id
-     )
-     SELECT u.id AS worker_id, u.full_name, u.profile_image_url,
-            wp.rating_avg, wp.jobs_completed_count, wp.approved_at,
-            t.completed_count, t.worker_cancelled_count, t.last_completed_at,
-            (t.completed_count + t.worker_cancelled_count) AS terminal_count
-     FROM worker_profiles wp
-     JOIN users u ON u.id = wp.user_id
-     LEFT JOIN terminal t ON t.worker_id = wp.user_id
-     WHERE wp.verification_status = 'approved'`
-  );
+// Two CTE definitions (no leading WITH, no trailing SELECT) - every caller
+// prepends its own `WITH ${FLAGGED_CTES_SQL}` and then selects off `flags`,
+// whose three boolean reason columns a worker can be true on more than one
+// of. Kept as CTE text rather than a one-shot query so the exact same SQL
+// backs both the dashboard's aggregate (getFlaggedRate) and Users &
+// Verification's flagged filter (listUsers) - one definition, not two
+// copies of the thresholds that could drift apart.
+const FLAGGED_CTES_SQL = `
+  terminal AS (
+    SELECT worker_id,
+           COUNT(*) FILTER (WHERE status = 'completed') AS completed_count,
+           COUNT(*) FILTER (WHERE status = 'cancelled' AND initiated_by = 'worker') AS worker_cancelled_count,
+           MAX(completed_at) AS last_completed_at
+    FROM bookings
+    WHERE worker_id IS NOT NULL AND (status = 'completed' OR (status = 'cancelled' AND initiated_by = 'worker'))
+    GROUP BY worker_id
+  ),
+  flags AS (
+    SELECT wp.user_id AS worker_id,
+           (
+             (COALESCE(t.completed_count, 0) + COALESCE(t.worker_cancelled_count, 0)) >= ${FLAG_MIN_TERMINAL_JOBS}
+             AND COALESCE(t.worker_cancelled_count, 0)::numeric
+                 / NULLIF(COALESCE(t.completed_count, 0) + COALESCE(t.worker_cancelled_count, 0), 0)
+                 >= ${FLAG_CANCELLATION_RATE_THRESHOLD}
+           ) AS high_cancellation_rate,
+           (wp.jobs_completed_count >= ${FLAG_MIN_RATED_JOBS} AND wp.rating_avg < ${FLAG_LOW_RATING_THRESHOLD}) AS low_rating,
+           (
+             wp.approved_at IS NOT NULL
+             AND EXTRACT(EPOCH FROM (now() - wp.approved_at)) / 86400 >= ${FLAG_INACTIVITY_DAYS}
+             AND (wp.jobs_completed_count = 0 OR EXTRACT(EPOCH FROM (now() - t.last_completed_at)) / 86400 >= ${FLAG_INACTIVITY_DAYS})
+           ) AS inactive
+    FROM worker_profiles wp
+    LEFT JOIN terminal t ON t.worker_id = wp.user_id
+    WHERE wp.verification_status = 'approved'
+  )
+`;
 
-  const flagged = [];
-  for (const r of rows) {
-    const reasons = [];
-    const terminalCount = Number(r.terminal_count || 0);
-    const workerCancelledCount = Number(r.worker_cancelled_count || 0);
-    if (terminalCount >= FLAG_MIN_TERMINAL_JOBS && workerCancelledCount / terminalCount >= FLAG_CANCELLATION_RATE_THRESHOLD) {
-      reasons.push('high_cancellation_rate');
-    }
-    if (r.jobs_completed_count >= FLAG_MIN_RATED_JOBS && Number(r.rating_avg) < FLAG_LOW_RATING_THRESHOLD) {
-      reasons.push('low_rating');
-    }
-    const approvedDaysAgo = r.approved_at ? (Date.now() - new Date(r.approved_at).getTime()) / 86400000 : null;
-    const daysSinceLastJob = r.last_completed_at ? (Date.now() - new Date(r.last_completed_at).getTime()) / 86400000 : null;
-    const everWorked = r.jobs_completed_count > 0;
-    if (
-      approvedDaysAgo !== null &&
-      approvedDaysAgo >= FLAG_INACTIVITY_DAYS &&
-      (everWorked ? daysSinceLastJob >= FLAG_INACTIVITY_DAYS : true)
-    ) {
-      reasons.push('inactive');
-    }
-    if (reasons.length > 0) {
-      flagged.push({
-        workerId: r.worker_id,
-        fullName: r.full_name,
-        profileImageUrl: r.profile_image_url,
-        ratingAvg: Number(r.rating_avg),
-        jobsCompletedCount: r.jobs_completed_count,
-        reasons,
-      });
-    }
-  }
-  return flagged;
+// Top Performers' old ranking criteria (trust_score, gated to a few
+// completed jobs so one lucky 5-star booking can't outrank a proven
+// worker) reused as the "top performer" bucket's boundary, combined with
+// trustScore.service.js's own already-shipped tier cutoffs (80/50 - see
+// its tierFor()) for the other two bands, since Phase 1 itself never
+// defined where "top" ends and "standard" begins, only "top 10 by rank".
+const TOP_PERFORMER_MIN_JOBS = 3;
+const TIER_CASE_SQL = `
+  CASE
+    WHEN wp.trust_score IS NOT NULL AND wp.trust_score >= 80 AND wp.jobs_completed_count >= ${TOP_PERFORMER_MIN_JOBS}
+      THEN 'top_performer'
+    WHEN wp.trust_score IS NOT NULL AND wp.trust_score >= 50
+      THEN 'standard'
+    ELSE 'below_threshold'
+  END
+`;
+
+// Rating distribution - % of active workers at 5/4/3/below-3 stars.
+// Restricted to workers with at least one completed job: a brand-new
+// approved worker has rating_avg = 0 (the column's NOT NULL default, not
+// "zero stars"), and counting them would flood "below 3 stars" with
+// workers who simply have no rating yet.
+export async function getRatingDistribution() {
+  const { rows } = await pool.query(
+    `SELECT
+       COUNT(*) FILTER (WHERE rating_avg >= 4.5)::int AS five_star,
+       COUNT(*) FILTER (WHERE rating_avg >= 3.5 AND rating_avg < 4.5)::int AS four_star,
+       COUNT(*) FILTER (WHERE rating_avg >= 2.5 AND rating_avg < 3.5)::int AS three_star,
+       COUNT(*) FILTER (WHERE rating_avg < 2.5)::int AS below_three_star,
+       COUNT(*)::int AS total
+     FROM worker_profiles
+     WHERE verification_status = 'approved' AND jobs_completed_count > 0`
+  );
+  const r = rows[0];
+  return {
+    total: r.total,
+    buckets: [
+      { key: 'five_star', label: '5 stars', count: r.five_star },
+      { key: 'four_star', label: '4 stars', count: r.four_star },
+      { key: 'three_star', label: '3 stars', count: r.three_star },
+      { key: 'below_three_star', label: 'Below 3 stars', count: r.below_three_star },
+    ],
+  };
 }
 
-// Top Performers: trust_score already IS "completion rate (via
-// reliability) + rating + job-volume-gated tenure", exactly what the spec
-// asks for - no separate computation needed, just rank what trustScore
-// already persists. Requires a few completed jobs so one lucky 5-star
-// booking can't outrank a proven worker (mirrors the grace-period idea).
-const TOP_PERFORMER_MIN_JOBS = 3;
-
-export async function getTopPerformers(limit = 10) {
+// Flagged rate - % of active workers currently carrying >=1 flag reason,
+// broken into the three reasons (a worker can count in more than one).
+export async function getFlaggedRate() {
   const { rows } = await pool.query(
-    `SELECT u.id AS worker_id, u.full_name, u.profile_image_url,
-            wp.trust_score, wp.rating_avg, wp.jobs_completed_count
-     FROM worker_profiles wp
-     JOIN users u ON u.id = wp.user_id
-     WHERE wp.trust_score IS NOT NULL AND wp.jobs_completed_count >= $2
-     ORDER BY wp.trust_score DESC
-     LIMIT $1`,
-    [limit, TOP_PERFORMER_MIN_JOBS]
+    `WITH ${FLAGGED_CTES_SQL}
+     SELECT COUNT(*)::int AS total,
+            COUNT(*) FILTER (WHERE high_cancellation_rate OR low_rating OR inactive)::int AS flagged_count,
+            COUNT(*) FILTER (WHERE high_cancellation_rate)::int AS high_cancellation_rate_count,
+            COUNT(*) FILTER (WHERE low_rating)::int AS low_rating_count,
+            COUNT(*) FILTER (WHERE inactive)::int AS inactive_count
+     FROM flags`
   );
-  return rows.map((r) => ({
-    workerId: r.worker_id,
-    fullName: r.full_name,
-    profileImageUrl: r.profile_image_url,
-    trustScore: Number(r.trust_score),
-    ratingAvg: Number(r.rating_avg),
-    jobsCompletedCount: r.jobs_completed_count,
-  }));
+  const r = rows[0];
+  return {
+    total: r.total,
+    flaggedCount: r.flagged_count,
+    byReason: [
+      { key: 'low_rating', label: 'Low rating', count: r.low_rating_count },
+      { key: 'inactive', label: 'Inactive', count: r.inactive_count },
+      { key: 'high_cancellation_rate', label: 'High cancellation rate', count: r.high_cancellation_rate_count },
+    ],
+  };
+}
+
+// Performance tier split - % top performer / standard / below threshold,
+// via TIER_CASE_SQL above.
+export async function getPerformanceTierSplit() {
+  const { rows } = await pool.query(
+    `SELECT ${TIER_CASE_SQL} AS tier, COUNT(*)::int AS count
+     FROM worker_profiles wp
+     WHERE wp.verification_status = 'approved'
+     GROUP BY tier`
+  );
+  const byTier = { top_performer: 0, standard: 0, below_threshold: 0 };
+  for (const r of rows) byTier[r.tier] = r.count;
+  const total = byTier.top_performer + byTier.standard + byTier.below_threshold;
+  return {
+    total,
+    tiers: [
+      { key: 'top_performer', label: 'Top performer', count: byTier.top_performer },
+      { key: 'standard', label: 'Standard', count: byTier.standard },
+      { key: 'below_threshold', label: 'Below threshold', count: byTier.below_threshold },
+    ],
+  };
+}
+
+// Earnings concentration - what share of total gross worker earnings
+// (commission_ledger.job_price, same "earning" definition the old Top
+// Earning Workers list used) the top 10% of earning workers account for.
+// NTILE(10) over workers ordered by earnings DESC splits them into decile
+// buckets; decile 1 is the top tenth (NTILE spreads any remainder across
+// the earliest buckets, so this stays a reasonable "top ~10%" even when
+// the worker count isn't a multiple of 10).
+export async function getEarningsConcentration() {
+  const { rows } = await pool.query(
+    `WITH earnings AS (
+       SELECT worker_id, SUM(job_price)::numeric AS total
+       FROM commission_ledger GROUP BY worker_id
+     ),
+     ranked AS (
+       SELECT total, NTILE(10) OVER (ORDER BY total DESC) AS decile
+       FROM earnings
+     )
+     SELECT COALESCE(SUM(total) FILTER (WHERE decile = 1), 0)::numeric AS top_decile_total,
+            COALESCE(SUM(total), 0)::numeric AS grand_total,
+            COUNT(*)::int AS worker_count
+     FROM ranked`
+  );
+  const r = rows[0];
+  const grandTotal = Number(r.grand_total);
+  const topDecileTotal = Number(r.top_decile_total);
+  return {
+    workerCount: r.worker_count,
+    grandTotal,
+    topDecileTotal,
+    topDecileShare: grandTotal > 0 ? topDecileTotal / grandTotal : 0,
+  };
+}
+
+// Cancellation trend, last 30 days, split by initiator. Bucketed by
+// created_at (the day the booking was made), not the day it was actually
+// cancelled - bookings has no cancelled_at/updated_at column (only
+// created_at and completed_at exist; see migration 007), so there is no
+// timestamp anywhere that records when a cancellation happened. This is a
+// known limitation of the current schema, not a query choice.
+export async function getCancellationTrend() {
+  const { rows } = await pool.query(
+    `SELECT day::date AS day,
+            COUNT(*) FILTER (WHERE b.initiated_by = 'customer')::int AS customer_count,
+            COUNT(*) FILTER (WHERE b.initiated_by = 'worker')::int AS worker_count
+     FROM generate_series(CURRENT_DATE - INTERVAL '29 days', CURRENT_DATE, INTERVAL '1 day') AS day
+     LEFT JOIN bookings b
+       ON b.status = 'cancelled'
+       AND b.initiated_by IN ('customer', 'worker')
+       AND date_trunc('day', b.created_at) = day
+     GROUP BY day
+     ORDER BY day`
+  );
+  return rows.map((r) => ({ day: r.day, customerCount: r.customer_count, workerCount: r.worker_count }));
 }
 
 // Payment method distribution is only meaningful over completed bookings -
@@ -526,6 +544,11 @@ function toUserSummary(row) {
     role: row.role,
     moderationStatus: row.moderation_status,
     verificationStatus: row.verification_status ?? null,
+    // Only present when listUsers' own joins select them (sort=rating/
+    // earnings context) - every other caller of toUserSummary queries
+    // `users` alone, so these read undefined -> null there, harmless.
+    ratingAvg: row.rating_avg != null ? Number(row.rating_avg) : null,
+    totalEarnings: row.total_earnings != null ? Number(row.total_earnings) : null,
     createdAt: row.created_at,
   };
 }
@@ -547,18 +570,44 @@ function toUserSummary(row) {
 // always passes for them, unaffected by this.
 const USERS_LIST_CAP = 200;
 
-export async function listUsers({ role, status, q }) {
+// sort/flagged/tier (target-spec Phase 7) - the "Plumbing" the Dashboard
+// rework's drill-through cards need: sort by rating (Rating distribution)
+// or earnings (Earnings concentration), filter to flagged-only (Flagged
+// rate) or by tier (Performance tier split). flagged/tier reuse the exact
+// same SQL (FLAGGED_CTES_SQL/TIER_CASE_SQL) the dashboard's own aggregates
+// read, so a card's percentage and the list it links to never disagree.
+// Earnings sort needs a per-worker total from commission_ledger, which
+// customers/admins never have a row in - they just sort last (NULLS LAST),
+// unaffected since these sorts are only ever driven from worker-scoped
+// dashboard links in practice.
+export async function listUsers({ role, status, q, flagged, tier, sort }) {
+  const orderBy =
+    sort === 'rating'
+      ? 'wp.rating_avg DESC NULLS LAST, u.created_at DESC'
+      : sort === 'earnings'
+        ? 'el.total_earnings DESC NULLS LAST, u.created_at DESC'
+        : 'u.created_at DESC';
+
   const { rows } = await pool.query(
-    `SELECT u.*, wp.verification_status
+    `WITH ${FLAGGED_CTES_SQL}
+     SELECT u.*, wp.verification_status, wp.rating_avg, el.total_earnings
      FROM users u
      LEFT JOIN worker_profiles wp ON wp.user_id = u.id
+     LEFT JOIN (
+       SELECT worker_id, SUM(job_price)::numeric AS total_earnings
+       FROM commission_ledger GROUP BY worker_id
+     ) el ON el.worker_id = u.id
      WHERE ($1::text IS NULL OR u.role = $1)
        AND ($2::text IS NULL OR u.moderation_status = $2)
        AND ($3::text IS NULL OR u.full_name ILIKE '%' || $3 || '%' OR u.phone ILIKE '%' || $3 || '%')
        AND (u.role != 'worker' OR wp.verification_status = 'approved')
-     ORDER BY u.created_at DESC
+       AND ($4::boolean IS NOT TRUE OR u.id IN (
+         SELECT worker_id FROM flags WHERE high_cancellation_rate OR low_rating OR inactive
+       ))
+       AND ($5::text IS NULL OR (${TIER_CASE_SQL}) = $5)
+     ORDER BY ${orderBy}
      LIMIT ${USERS_LIST_CAP}`,
-    [role || null, status || null, q || null]
+    [role || null, status || null, q || null, flagged === true, tier || null]
   );
   return rows.map(toUserSummary);
 }
@@ -656,7 +705,11 @@ function toBookingSummary(row) {
 
 const BOOKINGS_LIST_CAP = 200;
 
-export async function listBookingsAdmin({ status, type, from, to }) {
+// paymentMethod/paymentStatus (target-spec Phase 7) - the Dashboard
+// rework's payment-breakdown click-through. paymentStatus has no column of
+// its own, same derivation getPaymentBreakdown above already uses
+// (completed = paid, still-active = pending).
+export async function listBookingsAdmin({ status, type, from, to, paymentMethod, paymentStatus }) {
   const { rows } = await pool.query(
     `SELECT b.*, cu.full_name AS customer_name, wu.full_name AS worker_name,
             (SELECT string_agg(s.name, ', ' ORDER BY s.name)
@@ -669,9 +722,15 @@ export async function listBookingsAdmin({ status, type, from, to }) {
        AND ($2::text IS NULL OR b.type = $2)
        AND ($3::timestamptz IS NULL OR b.created_at >= $3)
        AND ($4::timestamptz IS NULL OR b.created_at <= $4)
+       AND ($5::text IS NULL OR b.payment_method = $5)
+       AND (
+         $6::text IS NULL
+         OR ($6 = 'paid' AND b.status = 'completed')
+         OR ($6 = 'pending' AND b.status IN ('requested', 'accepted', 'in_progress'))
+       )
      ORDER BY b.created_at DESC
      LIMIT ${BOOKINGS_LIST_CAP}`,
-    [status || null, type || null, from || null, to || null]
+    [status || null, type || null, from || null, to || null, paymentMethod || null, paymentStatus || null]
   );
   return rows.map(toBookingSummary);
 }

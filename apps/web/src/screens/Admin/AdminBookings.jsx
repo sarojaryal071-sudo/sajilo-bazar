@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Badge } from '../../components/Badge.jsx';
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_TONE } from '../../lib/bookingStatus.js';
 import * as adminApi from '../../api/admin.api.js';
@@ -8,14 +8,22 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
+// paymentMethod/paymentStatus (target-spec Phase 7) - what the Dashboard
+// rework's Cancellation trend and Payment method/status cards link into
+// (e.g. /admin/bookings?status=cancelled or ?paymentMethod=esewa). Initial
+// state reads straight off the URL, same pattern as AdminUsers' new sort/
+// flagged/tier plumbing.
 export function AdminBookings() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [bookings, setBookings] = useState(null);
   const [error, setError] = useState('');
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState(() => searchParams.get('status') || '');
   const [type, setType] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState(() => searchParams.get('paymentMethod') || '');
+  const [paymentStatus, setPaymentStatus] = useState(() => searchParams.get('paymentStatus') || '');
 
   useEffect(() => {
     adminApi
@@ -24,10 +32,12 @@ export function AdminBookings() {
         type: type || undefined,
         from: from ? new Date(from).toISOString() : undefined,
         to: to ? new Date(to).toISOString() : undefined,
+        paymentMethod: paymentMethod || undefined,
+        paymentStatus: paymentStatus || undefined,
       })
       .then(({ bookings }) => setBookings(bookings))
       .catch((err) => setError(err.message));
-  }, [status, type, from, to]);
+  }, [status, type, from, to, paymentMethod, paymentStatus]);
 
   return (
     <div>
@@ -71,6 +81,24 @@ export function AdminBookings() {
             className="rounded-md border border-border bg-surface px-2 py-1.5 text-sm outline-none focus:border-brand-solid"
           />
         </label>
+        <select
+          value={paymentMethod}
+          onChange={(e) => setPaymentMethod(e.target.value)}
+          className="rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand-solid"
+        >
+          <option value="">All payment methods</option>
+          <option value="cash">Cash</option>
+          <option value="esewa">eSewa</option>
+        </select>
+        <select
+          value={paymentStatus}
+          onChange={(e) => setPaymentStatus(e.target.value)}
+          className="rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand-solid"
+        >
+          <option value="">All payment statuses</option>
+          <option value="paid">Paid</option>
+          <option value="pending">Pending</option>
+        </select>
       </div>
 
       {error && <p className="mt-4 text-sm text-danger">{error}</p>}

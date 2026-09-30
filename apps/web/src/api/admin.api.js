@@ -92,11 +92,14 @@ export function rejectService(id, comment) {
   return apiFetch(`/admin/approvals/services/${id}/reject`, { method: 'PATCH', body: { comment } });
 }
 
-export function listUsers({ role, status, q } = {}) {
+export function listUsers({ role, status, q, flagged, tier, sort } = {}) {
   const params = new URLSearchParams();
   if (role) params.set('role', role);
   if (status) params.set('status', status);
   if (q) params.set('q', q);
+  if (flagged) params.set('flagged', 'true');
+  if (tier) params.set('tier', tier);
+  if (sort) params.set('sort', sort);
   const query = params.toString();
   return apiFetch(`/admin/users${query ? `?${query}` : ''}`);
 }
@@ -117,12 +120,14 @@ export function setUserNotes(id, notes) {
   return apiFetch(`/admin/users/${id}/notes`, { method: 'PATCH', body: { notes } });
 }
 
-export function listBookings({ status, type, from, to } = {}) {
+export function listBookings({ status, type, from, to, paymentMethod, paymentStatus } = {}) {
   const params = new URLSearchParams();
   if (status) params.set('status', status);
   if (type) params.set('type', type);
   if (from) params.set('from', from);
   if (to) params.set('to', to);
+  if (paymentMethod) params.set('paymentMethod', paymentMethod);
+  if (paymentStatus) params.set('paymentStatus', paymentStatus);
   const query = params.toString();
   return apiFetch(`/admin/bookings${query ? `?${query}` : ''}`);
 }
