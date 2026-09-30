@@ -27,7 +27,22 @@ adminRoutes.get('/analytics', requireSuperAdmin, adminController.getAnalytics);
 adminRoutes.get('/settings', requireSuperAdmin, adminController.listPlatformSettings);
 adminRoutes.patch('/settings/:key', requireSuperAdmin, adminController.updatePlatformSetting);
 
-adminRoutes.get('/accounting/summary', requireDepartment('finance'), adminController.getAccountingSummary);
+// Finance (lean, target-spec Phase 8/9) - supersedes the old thin
+// Accounting stub above this comment used to sit at (`/accounting/
+// summary`, department('finance')-gated, never built past a stub). Gated
+// Super-Admin-only instead, matching Platform Configuration and
+// commission-rate editing (`/settings`) - the same precedent the Finance
+// lens's only other action (`platform_setting.updated`) is already held
+// to, not the department('finance') gate the old stub used. A staffer
+// granted only the 'finance' department still reaches Disputes/Support
+// Tickets routed to that department (ANY_DEPARTMENT below); they no
+// longer have a dedicated financial-data screen of their own.
+adminRoutes.get('/finance/revenue', requireSuperAdmin, adminController.getRevenueSummary);
+adminRoutes.get('/finance/expenses', requireSuperAdmin, adminController.listExpenses);
+adminRoutes.post('/finance/expenses', requireSuperAdmin, adminController.createExpense);
+adminRoutes.patch('/finance/expenses/:id', requireSuperAdmin, adminController.updateExpense);
+adminRoutes.patch('/finance/expenses/:id/pay', requireSuperAdmin, adminController.payExpense);
+adminRoutes.delete('/finance/expenses/:id', requireSuperAdmin, adminController.deleteExpense);
 
 adminRoutes.get('/approvals', requireDepartment('people_content'), adminController.getApprovalsQueue);
 // Same access as viewing the worker/user the document belongs to (Users

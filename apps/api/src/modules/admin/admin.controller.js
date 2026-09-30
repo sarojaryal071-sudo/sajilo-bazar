@@ -16,6 +16,7 @@ import {
   AdminEscalateInputSchema,
   AdminPlatformSettingUpdateInputSchema,
   AdminDistrictCreateInputSchema,
+  AdminExpenseInputSchema,
 } from '@sajilo-bazar/shared';
 import { ApiError } from '../../middleware/error.middleware.js';
 import * as adminService from './admin.service.js';
@@ -48,10 +49,59 @@ export async function getDashboardInsights(req, res, next) {
   }
 }
 
-export async function getAccountingSummary(req, res, next) {
+// ---- Finance (lean, target-spec Phase 8/9) ----
+
+export async function getRevenueSummary(req, res, next) {
   try {
-    const summary = await adminService.getAccountingSummary();
+    const summary = await adminService.getRevenueSummary(req.query.range);
     res.json(summary);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listExpenses(req, res, next) {
+  try {
+    const expenses = await adminService.listExpenses();
+    res.json({ expenses });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function createExpense(req, res, next) {
+  try {
+    const input = AdminExpenseInputSchema.parse(req.body);
+    const expense = await adminService.createExpense(input, req.user.id);
+    res.status(201).json({ expense });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid expense input', err.issues) : err);
+  }
+}
+
+export async function updateExpense(req, res, next) {
+  try {
+    const input = AdminExpenseInputSchema.parse(req.body);
+    const expense = await adminService.updateExpense(parseId(req), input, req.user.id);
+    res.json({ expense });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid expense input', err.issues) : err);
+  }
+}
+
+export async function payExpense(req, res, next) {
+  try {
+    const expense = await adminService.setExpensePaid(parseId(req), req.user.id);
+    res.json({ expense });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteExpense(req, res, next) {
+  try {
+    await adminService.deleteExpense(parseId(req), req.user.id);
+    res.status(204).send();
   } catch (err) {
     next(err);
   }

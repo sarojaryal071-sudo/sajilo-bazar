@@ -71,7 +71,7 @@ function LiveOpsIcon() {
   );
 }
 
-function AccountingIcon() {
+function FinanceIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <circle cx="12" cy="12" r="9" strokeLinecap="round" strokeLinejoin="round" />
@@ -163,15 +163,6 @@ const NAV_GROUPS = [
     ],
   },
   {
-    // Deliberately standalone even though it's thin today - it's the one
-    // place access control matters most, and it'll fill in once refunds/
-    // payouts exist.
-    key: 'finance',
-    label: 'Finance',
-    department: 'finance',
-    items: [{ to: '/admin/accounting', label: 'Accounting', icon: AccountingIcon }],
-  },
-  {
     key: 'people_content',
     label: 'People & Content',
     department: 'people_content',
@@ -195,6 +186,15 @@ const SETTINGS_ITEM = { to: '/admin/settings', label: 'Settings', icon: Settings
 // matching/fuel-charge behavior aren't "pricing" or "Get Quotes config" -
 // where the platform operates and how it matches, a third thing).
 const PLATFORM_CONFIG_ITEM = { to: '/admin/platform-config', label: 'Platform Configuration', icon: PlatformConfigIcon };
+
+// Finance (lean, target-spec Phase 8/9) - supersedes the old thin
+// "Accounting" nav entry, which lived in its own department('finance')-
+// gated group (a stub, never built past a coming-soon page). Moved here,
+// Super-Admin-only, to match how its backend routes are gated (see
+// admin.routes.js's comment) - Platform Configuration and Settings are the
+// existing precedent for "a lean, money/config-shaped section that's
+// Super-Admin-only rather than department-gated."
+const FINANCE_ITEM = { to: '/admin/finance', label: 'Finance', icon: FinanceIcon };
 
 function getVisibleNavGroups(access) {
   const groups = NAV_GROUPS.filter((g) => !g.department || canAccessDepartment(access, g.department));
@@ -292,6 +292,7 @@ export function AdminShell() {
             ))}
             {access.isSuperAdmin && (
               <div className="mt-2 flex flex-col gap-1 border-t border-border pt-3">
+                <NavItemLink {...FINANCE_ITEM} />
                 <NavItemLink {...PLATFORM_CONFIG_ITEM} />
                 <NavItemLink {...SETTINGS_ITEM} />
               </div>

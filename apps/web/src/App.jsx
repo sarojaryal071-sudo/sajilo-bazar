@@ -46,6 +46,7 @@ import { AdminStaff } from './screens/Admin/AdminStaff.jsx';
 import { AdminSettings } from './screens/Admin/AdminSettings.jsx';
 import { AdminPlatformConfig } from './screens/Admin/AdminPlatformConfig.jsx';
 import { AdminContent } from './screens/Admin/AdminContent.jsx';
+import { AdminFinance } from './screens/Admin/AdminFinance.jsx';
 import { AdminComingSoon } from './screens/Admin/AdminComingSoon.jsx';
 
 export default function App() {
@@ -99,7 +100,7 @@ export default function App() {
             <Route path="/admin/staff" element={<AdminStaff />} />
             <Route path="/admin/analytics" element={<AdminComingSoon title="Analytics" />} />
             <Route path="/admin/live-ops" element={<AdminComingSoon title="Live Ops" />} />
-            <Route path="/admin/accounting" element={<AdminComingSoon title="Accounting" />} />
+            <Route path="/admin/finance" element={<AdminFinance />} />
             <Route path="/admin/disputes" element={<AdminDisputes />} />
             <Route path="/admin/disputes/:id" element={<AdminDisputeDetail />} />
             <Route path="/admin/support" element={<AdminSupportTickets />} />

@@ -271,14 +271,25 @@ function InsightsSection() {
   if (error) return <p className="mt-8 text-sm text-danger">{error}</p>;
   if (!insights) return <p className="mt-8 text-sm text-text-muted">Loading insights...</p>;
 
-  const { ratingDistribution, flaggedRate, performanceTierSplit, earningsConcentration, cancellationTrend, paymentBreakdown } =
-    insights;
+  const {
+    ratingDistribution,
+    flaggedRate,
+    performanceTierSplit,
+    earningsConcentration,
+    cancellationTrend,
+    paymentBreakdown,
+    revenueSummary,
+    expenseSummary,
+  } = insights;
 
   function goToUsers(params) {
     navigate(`/admin/users?role=worker&${new URLSearchParams(params).toString()}`);
   }
   function goToBookings(params) {
     navigate(`/admin/bookings?${new URLSearchParams(params).toString()}`);
+  }
+  function goToFinance(params) {
+    navigate(`/admin/finance?${new URLSearchParams(params).toString()}`);
   }
 
   const flaggedPct = flaggedRate.total > 0 ? flaggedRate.flaggedCount / flaggedRate.total : 0;
@@ -386,6 +397,48 @@ function InsightsSection() {
                 </span>
               </button>
             ))}
+          </div>
+        </Card>
+
+        <Card
+          onClick={() => goToFinance({ tab: 'revenue', range: 'month' })}
+          className="cursor-pointer transition-colors hover:bg-surface-alt"
+        >
+          <p className="font-semibold">Revenue (this month)</p>
+          <div className="mt-3 flex flex-col gap-1.5 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-text-muted">Total revenue (GMV)</span>
+              <span className="font-medium">Rs. {Math.round(revenueSummary.totalRevenue)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-text-muted">Commission</span>
+              <span className="font-medium">Rs. {Math.round(revenueSummary.totalCommission)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-text-muted">Refunds</span>
+              <span className="font-medium">Rs. {Math.round(revenueSummary.totalRefunds)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-text-muted">Net income</span>
+              <span className="font-medium">Rs. {Math.round(revenueSummary.netIncome)}</span>
+            </div>
+          </div>
+        </Card>
+
+        <Card
+          onClick={() => goToFinance({ tab: 'expenses' })}
+          className="cursor-pointer transition-colors hover:bg-surface-alt"
+        >
+          <p className="font-semibold">Expenses</p>
+          <div className="mt-3 flex flex-col gap-1.5 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-text-muted">Pending</span>
+              <span className="font-medium">Rs. {Math.round(expenseSummary.pendingTotal)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-text-muted">This month</span>
+              <span className="font-medium">Rs. {Math.round(expenseSummary.thisMonthTotal)}</span>
+            </div>
           </div>
         </Card>
       </div>

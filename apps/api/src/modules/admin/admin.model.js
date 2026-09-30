@@ -279,25 +279,142 @@ export async function getPaymentBreakdown() {
   };
 }
 
-// Accounting (Finance-department screen) - deliberately thin today per the
-// decision doc ("it'll fill in once refunds/payouts exist"); this is real
-// content, not a placeholder, just a small one.
-export async function getAccountingSummary() {
-  const [totalCollected, outstanding] = await Promise.all([
-    pool.query('SELECT COALESCE(SUM(commission_amount), 0) AS total FROM commission_ledger'),
-    pool.query(
-      `SELECT COALESCE(SUM(CASE WHEN credit_balance_after < 0 THEN -credit_balance_after ELSE 0 END), 0) AS total
-       FROM (
-         SELECT DISTINCT ON (worker_id) worker_id, credit_balance_after
-         FROM commission_ledger
-         ORDER BY worker_id, created_at DESC
-       ) latest`
-    ),
-  ]);
+// ---- Finance (lean, target-spec Phase 8/9) ----
+// Supersedes the old thin "Accounting" stub above (a coming-soon page with
+// only a backend summary nobody ever surfaced) - this is the real section
+// the spec's Build order item 8 asks for, in its old nav slot.
+//
+// Revenue view: total revenue (GMV - the sum of what customers paid across
+// completed bookings), total commission (the platform's own cut of that
+// GMV, via commission_ledger.commission_amount - the same figure
+// getDashboardStats/getAnalytics already call "totalCommission"), total
+// refunds (hardcoded 0 - no refund/payout module exists anywhere in this
+// app; see auditLog.service.js's own note: "nothing charges/refunds money
+// yet"), and net income.
+//
+// Net income = commission - refunds, NOT "revenue - commission - refunds"
+// despite that being the phrasing this phase's instruction used - in a
+// marketplace-commission model, GMV minus commission is what's left for
+// WORKERS, not platform income, so subtracting commission from GMV would
+// show ~85% of gross bookings as "net income," which is money the platform
+// never touches. Confirmed with the person who asked for this phase before
+// implementing it this way. This also matches how the old sajilo-backend
+// reference (platformRevenueService.js) actually behaves - it sums two
+// separate income accounts (revenue + commission) minus refunds, never
+// subtracts one from the other; "total revenue" there was a distinct
+// non-commission income stream, not GMV, which this leaner schema has no
+// equivalent of.
+const REVENUE_RANGE_SQL = {
+  month: "date_trunc('month', now())",
+  '30d': "now() - interval '30 days'",
+  all: null,
+};
+
+export async function getRevenueSummary(range = 'all') {
+  const fromExpr = Object.prototype.hasOwnProperty.call(REVENUE_RANGE_SQL, range)
+    ? REVENUE_RANGE_SQL[range]
+    : REVENUE_RANGE_SQL.all;
+  const { rows } = await pool.query(
+    `SELECT COALESCE(SUM(job_price), 0)::numeric AS total_revenue,
+            COALESCE(SUM(commission_amount), 0)::numeric AS total_commission,
+            COUNT(*)::int AS completed_jobs
+     FROM commission_ledger
+     ${fromExpr ? `WHERE created_at >= ${fromExpr}` : ''}`
+  );
+  const r = rows[0];
+  const totalCommission = Number(r.total_commission);
+  const totalRefunds = 0;
   return {
-    totalCommissionCollected: Number(totalCollected.rows[0].total),
-    totalCommissionOwedByWorkers: Number(outstanding.rows[0].total),
+    range,
+    totalRevenue: Number(r.total_revenue),
+    totalCommission,
+    totalRefunds,
+    netIncome: totalCommission - totalRefunds,
+    completedJobs: r.completed_jobs,
   };
+}
+
+function toExpense(row) {
+  return {
+    id: row.id,
+    vendor: row.vendor,
+    category: row.category,
+    amount: Number(row.amount),
+    status: row.status,
+    expenseDate: row.expense_date,
+    paidAt: row.paid_at,
+    createdAt: row.created_at,
+  };
+}
+
+const EXPENSES_LIST_CAP = 200;
+
+export async function listExpenses() {
+  const { rows } = await pool.query(
+    `SELECT * FROM expenses ORDER BY expense_date DESC, created_at DESC LIMIT ${EXPENSES_LIST_CAP}`
+  );
+  return rows.map(toExpense);
+}
+
+// Dashboard's expense summary card (target-spec Phase 8/9) - total
+// currently outstanding (status='pending', regardless of when incurred)
+// and total incurred this calendar month (regardless of status) - the
+// same two numbers the Finance screen's own Expenses tab surfaces, so the
+// dashboard card and the screen it links to can't disagree.
+export async function getExpenseSummary() {
+  const { rows } = await pool.query(
+    `SELECT
+       COALESCE(SUM(amount) FILTER (WHERE status = 'pending'), 0)::numeric AS pending_total,
+       COALESCE(SUM(amount) FILTER (WHERE expense_date >= date_trunc('month', CURRENT_DATE)), 0)::numeric AS this_month_total
+     FROM expenses`
+  );
+  const r = rows[0];
+  return { pendingTotal: Number(r.pending_total), thisMonthTotal: Number(r.this_month_total) };
+}
+
+export async function findExpenseById(id) {
+  const { rows } = await pool.query('SELECT * FROM expenses WHERE id = $1', [id]);
+  return rows[0] ? toExpense(rows[0]) : null;
+}
+
+export async function createExpense({ vendor, category, amount, status, expenseDate }, adminId) {
+  const { rows } = await pool.query(
+    `INSERT INTO expenses (vendor, category, amount, status, expense_date, paid_at, created_by)
+     VALUES ($1, $2, $3, $4, $5, CASE WHEN $4::varchar = 'paid' THEN now() ELSE NULL END, $6)
+     RETURNING *`,
+    [vendor, category, amount, status, expenseDate, adminId]
+  );
+  return toExpense(rows[0]);
+}
+
+// Same shape update whichever field changed, including status - paid_at is
+// recomputed from the new status every time (stamped on entry into 'paid',
+// cleared on any edit back out of it) rather than only touched by the
+// dedicated "mark paid" action below, so an admin fixing a mis-entered
+// status via the edit form still gets a correct paid_at.
+export async function updateExpense(id, { vendor, category, amount, status, expenseDate }) {
+  const { rows } = await pool.query(
+    `UPDATE expenses
+     SET vendor = $2, category = $3, amount = $4, status = $5, expense_date = $6, updated_at = now(),
+         paid_at = CASE WHEN $5::varchar = 'paid' THEN COALESCE(paid_at, now()) ELSE NULL END
+     WHERE id = $1
+     RETURNING *`,
+    [id, vendor, category, amount, status, expenseDate]
+  );
+  return rows[0] ? toExpense(rows[0]) : null;
+}
+
+export async function setExpensePaid(id) {
+  const { rows } = await pool.query(
+    `UPDATE expenses SET status = 'paid', paid_at = now(), updated_at = now() WHERE id = $1 RETURNING *`,
+    [id]
+  );
+  return rows[0] ? toExpense(rows[0]) : null;
+}
+
+export async function deleteExpense(id) {
+  const { rows } = await pool.query('DELETE FROM expenses WHERE id = $1 RETURNING id', [id]);
+  return rows.length > 0;
 }
 
 // One consolidated entry per pending worker (Round F, 2026-09-27) -

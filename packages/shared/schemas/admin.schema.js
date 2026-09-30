@@ -128,3 +128,14 @@ export const AdminPolicyInputSchema = z.object({
   title: z.string().min(1).max(160),
   body: z.string().min(1),
 });
+
+// Admin Finance screen's Expenses tab (target-spec Phase 8/9, "lean" -
+// vendor/category are free text, no lookup tables behind them). Same
+// shape for create and edit.
+export const AdminExpenseInputSchema = z.object({
+  vendor: z.string().min(1).max(200),
+  category: z.string().min(1).max(100),
+  amount: z.number().positive(),
+  status: z.enum(['pending', 'paid']).default('pending'),
+  expenseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD'),
+});

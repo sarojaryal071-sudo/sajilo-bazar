@@ -78,26 +78,124 @@ export async function getAnalytics() {
   return adminModel.getAnalytics();
 }
 
-// Dashboard insights (target-spec Phase 1, reworked Phase 7) - one call
-// bundling every ratio/chart section so the frontend fires a single
-// request alongside getDashboardStats, rather than one round trip per
-// widget. The five ranked name-lists Phase 1 shipped here are gone -
-// see admin.model.js's "Dashboard rework" comment.
+// Dashboard's default revenue window (target-spec Phase 8/9) - "this
+// month" gives a fresh, currently-relevant snapshot distinct from the
+// existing all-time "Platform commission to date" stat card, and matches
+// the Finance screen's own default range so the two never disagree at the
+// point of navigation (see AdminDashboard.jsx's click-through).
+const DASHBOARD_REVENUE_RANGE = 'month';
+
+// Dashboard insights (target-spec Phase 1, reworked Phase 7, extended
+// Phase 8/9) - one call bundling every ratio/chart/summary section so the
+// frontend fires a single request alongside getDashboardStats, rather than
+// one round trip per widget. The five ranked name-lists Phase 1 shipped
+// here are gone - see admin.model.js's "Dashboard rework" comment.
 export async function getDashboardInsights() {
-  const [ratingDistribution, flaggedRate, performanceTierSplit, earningsConcentration, cancellationTrend, paymentBreakdown] =
-    await Promise.all([
-      adminModel.getRatingDistribution(),
-      adminModel.getFlaggedRate(),
-      adminModel.getPerformanceTierSplit(),
-      adminModel.getEarningsConcentration(),
-      adminModel.getCancellationTrend(),
-      adminModel.getPaymentBreakdown(),
-    ]);
-  return { ratingDistribution, flaggedRate, performanceTierSplit, earningsConcentration, cancellationTrend, paymentBreakdown };
+  const [
+    ratingDistribution,
+    flaggedRate,
+    performanceTierSplit,
+    earningsConcentration,
+    cancellationTrend,
+    paymentBreakdown,
+    revenueSummary,
+    expenseSummary,
+  ] = await Promise.all([
+    adminModel.getRatingDistribution(),
+    adminModel.getFlaggedRate(),
+    adminModel.getPerformanceTierSplit(),
+    adminModel.getEarningsConcentration(),
+    adminModel.getCancellationTrend(),
+    adminModel.getPaymentBreakdown(),
+    adminModel.getRevenueSummary(DASHBOARD_REVENUE_RANGE),
+    adminModel.getExpenseSummary(),
+  ]);
+  return {
+    ratingDistribution,
+    flaggedRate,
+    performanceTierSplit,
+    earningsConcentration,
+    cancellationTrend,
+    paymentBreakdown,
+    revenueSummary,
+    expenseSummary,
+  };
 }
 
-export async function getAccountingSummary() {
-  return adminModel.getAccountingSummary();
+// ---- Finance (lean, target-spec Phase 8/9) ----
+
+export async function getRevenueSummary(range) {
+  return adminModel.getRevenueSummary(range);
+}
+
+export async function listExpenses() {
+  return adminModel.listExpenses();
+}
+
+export async function createExpense(input, adminId) {
+  const expense = await adminModel.createExpense(input, adminId);
+
+  await logAudit({
+    actorId: adminId,
+    action: 'expense.created',
+    severity: 'medium',
+    targetType: 'expense',
+    targetId: expense.id,
+    newValue: { vendor: input.vendor, category: input.category, amount: input.amount, status: input.status },
+  });
+
+  return expense;
+}
+
+export async function updateExpense(id, input, adminId) {
+  const existing = await adminModel.findExpenseById(id);
+  if (!existing) throw new ApiError(404, 'Expense not found');
+  const updated = await adminModel.updateExpense(id, input);
+
+  await logAudit({
+    actorId: adminId,
+    action: 'expense.updated',
+    severity: 'medium',
+    targetType: 'expense',
+    targetId: id,
+    oldValue: { vendor: existing.vendor, category: existing.category, amount: existing.amount, status: existing.status },
+    newValue: { vendor: input.vendor, category: input.category, amount: input.amount, status: input.status },
+  });
+
+  return updated;
+}
+
+export async function setExpensePaid(id, adminId) {
+  const existing = await adminModel.findExpenseById(id);
+  if (!existing) throw new ApiError(404, 'Expense not found');
+  const updated = await adminModel.setExpensePaid(id);
+
+  await logAudit({
+    actorId: adminId,
+    action: 'expense.paid',
+    severity: 'medium',
+    targetType: 'expense',
+    targetId: id,
+    oldValue: { status: existing.status },
+    newValue: { status: 'paid' },
+  });
+
+  return updated;
+}
+
+export async function deleteExpense(id, adminId) {
+  const existing = await adminModel.findExpenseById(id);
+  if (!existing) throw new ApiError(404, 'Expense not found');
+  await adminModel.deleteExpense(id);
+
+  await logAudit({
+    actorId: adminId,
+    action: 'expense.deleted',
+    severity: 'medium',
+    targetType: 'expense',
+    targetId: id,
+    oldValue: { vendor: existing.vendor, category: existing.category, amount: existing.amount, status: existing.status },
+  });
 }
 
 // ---- Settings (Piece D, 2026-09-27) ----

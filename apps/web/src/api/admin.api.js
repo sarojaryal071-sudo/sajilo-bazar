@@ -12,8 +12,31 @@ export function getDashboardInsights() {
   return apiFetch('/admin/dashboard/insights');
 }
 
-export function getAccountingSummary() {
-  return apiFetch('/admin/accounting/summary');
+// Finance (lean, target-spec Phase 8/9)
+
+export function getRevenueSummary(range) {
+  const query = range ? `?range=${range}` : '';
+  return apiFetch(`/admin/finance/revenue${query}`);
+}
+
+export function listExpenses() {
+  return apiFetch('/admin/finance/expenses');
+}
+
+export function createExpense(input) {
+  return apiFetch('/admin/finance/expenses', { method: 'POST', body: input });
+}
+
+export function updateExpense(id, input) {
+  return apiFetch(`/admin/finance/expenses/${id}`, { method: 'PATCH', body: input });
+}
+
+export function payExpense(id) {
+  return apiFetch(`/admin/finance/expenses/${id}/pay`, { method: 'PATCH' });
+}
+
+export function deleteExpense(id) {
+  return apiFetch(`/admin/finance/expenses/${id}`, { method: 'DELETE' });
 }
 
 export function listPlatformSettings() {

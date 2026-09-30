@@ -38,6 +38,14 @@ const ACTION_LENS = {
   'district.created': 'operations',
   'district.activated': 'operations',
   'district.deactivated': 'operations',
+  // Finance (lean, target-spec Phase 8/9) - a manual expense entry is real
+  // money-tracking data, same lens as platform_setting.updated, but a
+  // routine bookkeeping action rather than a platform-wide pricing lever,
+  // so medium rather than high (see admin.service.js).
+  'expense.created': 'finance',
+  'expense.updated': 'finance',
+  'expense.paid': 'finance',
+  'expense.deleted': 'finance',
 };
 
 const LENSES = ['security', 'operations', 'finance'];
