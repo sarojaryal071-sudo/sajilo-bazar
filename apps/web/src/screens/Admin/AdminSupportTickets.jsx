@@ -4,6 +4,7 @@ import { Avatar } from '../../components/Avatar.jsx';
 import { Badge } from '../../components/Badge.jsx';
 import { Button } from '../../components/Button.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useSocket } from '../../context/SocketContext.jsx';
 import { ADMIN_DEPARTMENTS, DEPARTMENT_LABEL, DEPARTMENT_TONE } from '../../lib/adminDepartments.js';
 import * as adminApi from '../../api/admin.api.js';
 
@@ -274,7 +275,255 @@ function ChatPanel({ detail, adminId, onReply, onStatusChange, onEscalate, sendi
   );
 }
 
-export function AdminSupportTickets() {
+const ROLE_LABEL = { customer: 'Customer', worker: 'Worker' };
+
+// Same Messenger-style row as TicketRow, plus the category (customer vs.
+// worker-initiated) badge the Live Chat console's filter is about - kept
+// as its own small component rather than adding an optional prop to
+// TicketRow, so the existing (already-verified) Tickets tab row is
+// untouched.
+function LiveChatRow({ chat, active, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex w-full items-start gap-3 border-b border-border px-3 py-3 text-left last:border-0 hover:bg-surface-alt ${
+        active ? 'bg-surface-alt' : ''
+      }`}
+    >
+      <Avatar name={chat.userName} size={40} />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <p className="truncate text-sm font-semibold">{chat.userName}</p>
+          <span className="shrink-0 text-[11px] text-text-muted">{formatTime(chat.updatedAt)}</span>
+        </div>
+        <p className="truncate text-xs text-text-muted">{chat.subject}</p>
+        <div className="mt-1.5 flex items-center gap-1.5">
+          <Badge tone="neutral" className="!px-2 !py-0.5 !text-[10px]">
+            {ROLE_LABEL[chat.userRole] || chat.userRole}
+          </Badge>
+          <Badge tone={STATUS_TONE[chat.status]} className="!px-2 !py-0.5 !text-[10px]">
+            {chat.status.replace('_', ' ')}
+          </Badge>
+          {chat.priority === 'high' && (
+            <Badge tone="danger" className="!px-2 !py-0.5 !text-[10px]">
+              high
+            </Badge>
+          )}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+// Live Chat console (target-spec Phase 3) - a real-time layer over the
+// same support_tickets/support_ticket_messages data the Tickets tab
+// already reads and writes, not a separate chat system. It differs from
+// that tab in three ways: always scoped to "active" tickets (open/
+// in_progress - resolved/closed never appear here), a category filter
+// (customer- vs. worker-initiated) the async queue doesn't need, and live
+// push delivery over the socket rooms supportChat.socket.js sets up, so
+// the list and an open thread update without a manual reload. Selection
+// is local state, not the :id route param the Tickets tab uses - the two
+// tabs are independent lists over (mostly) the same underlying tickets,
+// and tying both to one URL param would make switching tabs fight over
+// which list's selection it reflects.
+function LiveChatTab() {
+  const { user: adminUser } = useAuth();
+  const socket = useSocket();
+
+  const [chats, setChats] = useState(null);
+  const [error, setError] = useState('');
+  const [status, setStatus] = useState('');
+  const [role, setRole] = useState('');
+  const [selectedId, setSelectedId] = useState(null);
+
+  const [detail, setDetail] = useState(null);
+  const [detailError, setDetailError] = useState('');
+  const [sending, setSending] = useState(false);
+  const [savingStatus, setSavingStatus] = useState(false);
+  const [escalating, setEscalating] = useState(false);
+
+  function loadList() {
+    adminApi
+      .getLiveSupportChats({ status: status || undefined, role: role || undefined })
+      .then(({ chats }) => setChats(chats))
+      .catch((err) => setError(err.message));
+  }
+
+  useEffect(loadList, [status, role]);
+
+  function loadDetail(ticketId) {
+    setDetailError('');
+    adminApi
+      .getSupportTicketDetail(ticketId)
+      .then(setDetail)
+      .catch((err) => setDetailError(err.message));
+  }
+
+  useEffect(() => {
+    if (selectedId) loadDetail(selectedId);
+    else setDetail(null);
+  }, [selectedId]);
+
+  // Joins the shared "any staff watching the console" room so the list
+  // refreshes live on a new ticket or a status change elsewhere (another
+  // staff member's reply, or the Tickets tab). Leaves on unmount only -
+  // filter changes just re-query, they don't need to rejoin.
+  useEffect(() => {
+    if (!socket) return;
+    function onListEvent() {
+      loadList();
+    }
+    socket.emit('supportchat:join-list');
+    socket.on('supportchat:new_ticket', onListEvent);
+    socket.on('supportchat:ticket_updated', onListEvent);
+    return () => {
+      socket.emit('supportchat:leave-list');
+      socket.off('supportchat:new_ticket', onListEvent);
+      socket.off('supportchat:ticket_updated', onListEvent);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [socket]);
+
+  // Joins this one conversation's room while its thread is open, so a
+  // reply posted by another staff member watching the same ticket shows
+  // up without a manual reload.
+  useEffect(() => {
+    if (!socket || !selectedId) return;
+    const ticketId = Number(selectedId);
+    function onMessage(payload) {
+      if (payload.ticketId === ticketId) loadDetail(ticketId);
+    }
+    socket.emit('supportchat:join', { ticketId });
+    socket.on('supportchat:message', onMessage);
+    return () => {
+      socket.emit('supportchat:leave', { ticketId });
+      socket.off('supportchat:message', onMessage);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [socket, selectedId]);
+
+  async function handleReply(text) {
+    setSending(true);
+    setDetailError('');
+    try {
+      await adminApi.replyToTicket(selectedId, text);
+      loadDetail(selectedId);
+      loadList();
+    } catch (err) {
+      setDetailError(err.message);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function handleStatusChange(newStatus) {
+    setSavingStatus(true);
+    setDetailError('');
+    try {
+      await adminApi.setTicketStatus(selectedId, newStatus);
+      loadDetail(selectedId);
+      loadList();
+      // Moving to resolved/closed drops this ticket out of the active
+      // set - nothing left to show in the thread pane for it here.
+      if (newStatus === 'resolved' || newStatus === 'closed') setSelectedId(null);
+    } catch (err) {
+      setDetailError(err.message);
+    } finally {
+      setSavingStatus(false);
+    }
+  }
+
+  async function handleEscalate(department) {
+    setEscalating(true);
+    setDetailError('');
+    try {
+      await adminApi.escalateTicket(selectedId, department);
+      loadDetail(selectedId);
+      loadList();
+    } catch (err) {
+      setDetailError(err.message);
+    } finally {
+      setEscalating(false);
+    }
+  }
+
+  return (
+    <div className="flex h-full flex-col">
+      <p className="shrink-0 text-xs text-text-muted">
+        Active conversations only - for someone who needs help right now. Resolved/closed tickets stay on
+        the Tickets tab.
+      </p>
+
+      {error && <p className="mt-2 shrink-0 text-sm text-danger">{error}</p>}
+
+      <div className="mt-4 flex min-h-0 flex-1 overflow-hidden rounded-2xl border border-border bg-surface shadow-resting">
+        <div className="flex w-80 shrink-0 flex-col border-r border-border">
+          <div className="flex shrink-0 gap-2 border-b border-border p-3">
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              className="flex-1 rounded-md border border-border bg-surface-alt px-2 py-1.5 text-xs outline-none focus:border-brand-solid"
+            >
+              <option value="">Customer + Worker</option>
+              <option value="customer">Customer</option>
+              <option value="worker">Worker</option>
+            </select>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="flex-1 rounded-md border border-border bg-surface-alt px-2 py-1.5 text-xs outline-none focus:border-brand-solid"
+            >
+              <option value="">Open + In progress</option>
+              <option value="open">Unassigned (open)</option>
+              <option value="in_progress">Being handled</option>
+            </select>
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {!chats && !error && <p className="p-4 text-sm text-text-muted">Loading...</p>}
+            {chats?.length === 0 && (
+              <p className="p-4 text-sm text-text-muted">No active conversations right now.</p>
+            )}
+            {chats?.map((c) => (
+              <LiveChatRow
+                key={c.id}
+                chat={c}
+                active={c.id === selectedId}
+                onClick={() => setSelectedId(c.id)}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="min-w-0 flex-1">
+          {!selectedId && (
+            <div className="flex h-full items-center justify-center p-8 text-center text-sm text-text-muted">
+              Select a conversation to view it here.
+            </div>
+          )}
+          {selectedId && detailError && <p className="p-4 text-sm text-danger">{detailError}</p>}
+          {selectedId && !detail && !detailError && <p className="p-4 text-sm text-text-muted">Loading...</p>}
+          {selectedId && detail && (
+            <ChatPanel
+              detail={detail}
+              adminId={adminUser.id}
+              onReply={handleReply}
+              onStatusChange={handleStatusChange}
+              onEscalate={handleEscalate}
+              sending={sending}
+              savingStatus={savingStatus}
+              escalating={escalating}
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TicketsTab() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user: adminUser } = useAuth();
@@ -473,6 +722,42 @@ export function AdminSupportTickets() {
             />
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+const TABS = [
+  { key: 'tickets', label: 'Tickets' },
+  { key: 'livechat', label: 'Live Chat' },
+];
+
+// Both tabs live under this one Support route (per the target spec: Live
+// Chat is a new panel alongside the existing Support Tickets screen, not
+// a separate nav item) - Disputes stays its own, separate screen; this
+// phase only adds Live Chat next to Tickets, it doesn't merge Disputes in.
+export function AdminSupportTickets() {
+  const [tab, setTab] = useState('tickets');
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex shrink-0 gap-2 border-b border-border">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`px-3 py-2 text-sm font-medium ${
+              tab === t.key ? 'border-b-2 border-brand-solid text-text' : 'text-text-muted hover:text-text'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-4 min-h-0 flex-1">
+        {tab === 'tickets' && <TicketsTab />}
+        {tab === 'livechat' && <LiveChatTab />}
       </div>
     </div>
   );

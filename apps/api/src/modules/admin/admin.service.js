@@ -10,6 +10,7 @@ import { notify } from '../notifications/notifications.service.js';
 import * as trustScoreService from '../trustScore/trustScore.service.js';
 import * as platformSettingsService from '../platformSettings/platformSettings.service.js';
 import { logAudit } from '../auditLog/auditLog.service.js';
+import { broadcastTicketListEvent, broadcastTicketMessage } from '../supportChat/supportChat.socket.js';
 
 const SALT_ROUNDS = 10;
 
@@ -575,6 +576,17 @@ export async function listSupportTickets({ status, priority, q }, access) {
   });
 }
 
+// Live Chat console (target-spec Phase 3) - same department scoping as
+// the async ticket queue above, just narrowed to the "active" subset and
+// with the extra role (category) filter the console's UI offers.
+export async function listLiveSupportChats({ status, role }, access) {
+  return adminModel.listActiveSupportTickets({
+    status,
+    role,
+    departments: access.isSuperAdmin ? null : access.departments,
+  });
+}
+
 export async function getSupportTicketDetail(id) {
   const ticket = await adminModel.findSupportTicketById(id);
   if (!ticket) throw new ApiError(404, 'Support ticket not found');
@@ -604,14 +616,29 @@ export async function createSupportTicket({ userId, bookingId, subject, priority
 export async function replyToTicket(id, adminId, message) {
   const ticket = await adminModel.findSupportTicketById(id);
   if (!ticket) throw new ApiError(404, 'Support ticket not found');
-  const ticketMessage = await adminModel.addTicketMessage(id, { senderId: adminId, message });
+  const messages = await adminModel.addTicketMessage(id, { senderId: adminId, message });
   await notify(ticket.userId, 'support_reply', { ticketId: id, subject: ticket.subject, message });
-  return ticketMessage;
+
+  // Live Chat console (target-spec Phase 3) - pushes straight to anyone
+  // with this ticket's thread open (another staff member replying to the
+  // same live conversation) and nudges the list so its preview/updatedAt
+  // refreshes without a manual reload.
+  const newMessage = messages[messages.length - 1];
+  broadcastTicketMessage(id, { ticketId: id, message: newMessage });
+  broadcastTicketListEvent('supportchat:ticket_updated', { ticketId: id });
+
+  return messages;
 }
 
 export async function setTicketStatus(id, status) {
   const ticket = await adminModel.setTicketStatus(id, status);
   if (!ticket) throw new ApiError(404, 'Support ticket not found');
+
+  // A status change can move a ticket into or out of the Live Chat
+  // console's "active" set (e.g. resolved/closed leaves it) - list
+  // refresh only, no per-ticket message to push.
+  broadcastTicketListEvent('supportchat:ticket_updated', { ticketId: id, status });
+
   return ticket;
 }
 

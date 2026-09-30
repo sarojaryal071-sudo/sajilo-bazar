@@ -433,6 +433,18 @@ export async function listSupportTickets(req, res, next) {
   }
 }
 
+// Live Chat console (target-spec Phase 3) - a distinct, always-active-only
+// view over the same support_tickets data, not a new resource of its own.
+export async function listLiveSupportChats(req, res, next) {
+  try {
+    const { status, role } = req.query;
+    const chats = await adminService.listLiveSupportChats({ status, role }, req.adminAccess);
+    res.json({ chats });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getSupportTicketDetail(req, res, next) {
   try {
     const detail = await adminService.getSupportTicketDetail(parseId(req));

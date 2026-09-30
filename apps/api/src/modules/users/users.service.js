@@ -3,6 +3,7 @@ import { ApiError } from '../../middleware/error.middleware.js';
 import { uploadBuffer } from '../../lib/cloudinary.js';
 import * as usersModel from './users.model.js';
 import * as adminModel from '../admin/admin.model.js';
+import { broadcastTicketListEvent } from '../supportChat/supportChat.socket.js';
 
 let googleClient = null;
 function getGoogleClient() {
@@ -40,7 +41,11 @@ export async function uploadPhoto(userId, file) {
 // (Round C) via adminModel directly, same pattern as bookings.service.js's
 // createDispute.
 export async function createSupportTicket(userId, { subject, message }) {
-  return adminModel.createSupportTicket({ userId, bookingId: null, subject, priority: 'normal', message });
+  const ticket = await adminModel.createSupportTicket({ userId, bookingId: null, subject, priority: 'normal', message });
+  // New tickets open as 'open', always in the Live Chat console's active
+  // set - nudges any staff member with it open to refresh the list.
+  broadcastTicketListEvent('supportchat:new_ticket', { ticket });
+  return ticket;
 }
 
 // Reversible (Settings -> Deactivate account). Logging back in

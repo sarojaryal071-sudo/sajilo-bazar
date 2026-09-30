@@ -73,3 +73,11 @@ export function isUserInBookingRoom(userId, bookingId) {
 export function emitToUser(userId, event, payload) {
   io?.to(userRoom(userId)).emit(event, payload);
 }
+
+// Same idea as emitToUser, but for an arbitrary room rather than one
+// user's own room - the generic primitive emitToUser is really a special
+// case of. First real caller is supportChat.socket.js's admin-list and
+// per-ticket rooms (Phase 3, 2026-09-30), which aren't "one user's" rooms.
+export function emitToRoom(room, event, payload) {
+  io?.to(room).emit(event, payload);
+}

@@ -199,6 +199,14 @@ export function listSupportTickets({ status, priority, q } = {}) {
   return apiFetch(`/admin/support-tickets${query ? `?${query}` : ''}`);
 }
 
+export function getLiveSupportChats({ status, role } = {}) {
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  if (role) params.set('role', role);
+  const query = params.toString();
+  return apiFetch(`/admin/support-chats${query ? `?${query}` : ''}`);
+}
+
 export function getSupportTicketDetail(id) {
   return apiFetch(`/admin/support-tickets/${id}`);
 }

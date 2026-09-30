@@ -117,6 +117,15 @@ adminRoutes.patch('/disputes/:id/resolve', requireDepartment(...ANY_DEPARTMENT),
 adminRoutes.patch('/disputes/:id/escalate', requireDepartment(...ANY_DEPARTMENT), adminController.escalateDispute);
 
 adminRoutes.get('/support-tickets', requireDepartment(...ANY_DEPARTMENT), adminController.listSupportTickets);
+// Own path rather than nesting under /support-tickets/* - that group's
+// next segment is already :id (see routes below), so a sibling static
+// segment there would be shadowed by the :id param. Same access as the
+// ticket routes it reads from (any of the four departments).
+adminRoutes.get(
+  '/support-chats',
+  requireDepartment(...ANY_DEPARTMENT),
+  adminController.listLiveSupportChats
+);
 adminRoutes.get(
   '/support-tickets/:id',
   requireDepartment(...ANY_DEPARTMENT),

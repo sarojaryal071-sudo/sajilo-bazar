@@ -879,6 +879,10 @@ function toTicketSummary(row) {
     id: row.id,
     userId: row.user_id,
     userName: row.user_name,
+    // The Live Chat console's "category" filter (target-spec Phase 3) -
+    // customer-initiated vs. worker-initiated - reads straight off the
+    // ticket opener's own role, nothing new to track.
+    userRole: row.user_role,
     bookingId: row.booking_id,
     subject: row.subject,
     priority: row.priority,
@@ -895,7 +899,7 @@ const TICKETS_LIST_CAP = 200;
 // see listDisputes above for the identical convention.
 export async function listSupportTickets({ status, priority, q, departments }) {
   const { rows } = await pool.query(
-    `SELECT t.*, u.full_name AS user_name
+    `SELECT t.*, u.full_name AS user_name, u.role AS user_role
      FROM support_tickets t
      JOIN users u ON u.id = t.user_id
      WHERE ($1::text IS NULL OR t.status = $1)
@@ -909,9 +913,35 @@ export async function listSupportTickets({ status, priority, q, departments }) {
   return rows.map(toTicketSummary);
 }
 
+// Live Chat console (target-spec Phase 3) - "active" means still open or
+// being worked (resolved/closed tickets are async-queue business, not
+// "needs help right now"). status here is optional and, when given, must
+// already be one of those two values (the controller only ever passes
+// what the frontend's two-option status filter offers) - it narrows
+// within the active set rather than replacing it, so passing an invalid
+// value here would just (harmlessly) match nothing rather than leaking a
+// resolved/closed ticket through.
+const LIVE_STATUSES = ['open', 'in_progress'];
+
+export async function listActiveSupportTickets({ status, role, departments }) {
+  const { rows } = await pool.query(
+    `SELECT t.*, u.full_name AS user_name, u.role AS user_role
+     FROM support_tickets t
+     JOIN users u ON u.id = t.user_id
+     WHERE t.status = ANY($1::text[])
+       AND ($2::text IS NULL OR t.status = $2)
+       AND ($3::text IS NULL OR u.role = $3)
+       AND ($4::text[] IS NULL OR t.department = ANY($4::text[]))
+     ORDER BY t.updated_at DESC
+     LIMIT ${TICKETS_LIST_CAP}`,
+    [LIVE_STATUSES, status && LIVE_STATUSES.includes(status) ? status : null, role || null, departments ?? null]
+  );
+  return rows.map(toTicketSummary);
+}
+
 export async function findSupportTicketById(id) {
   const { rows } = await pool.query(
-    `SELECT t.*, u.full_name AS user_name
+    `SELECT t.*, u.full_name AS user_name, u.role AS user_role
      FROM support_tickets t
      JOIN users u ON u.id = t.user_id
      WHERE t.id = $1`,
