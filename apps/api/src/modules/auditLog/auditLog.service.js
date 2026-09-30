@@ -9,11 +9,12 @@ import * as auditLogModel from './auditLog.model.js';
 // can act as staff (creating a staff account is itself an access grant).
 // Operations: day-to-day moderation/case-handling - nothing here is
 // reversible-by-a-click, but none of it is platform-wide either.
-// Finance: nothing charges/refunds money yet (that's target-spec Phase 6),
-// but platform_settings already controls pricing (fuel fee/rate, service
-// price bands, and eventually commission rate) - a bad edit there is a
-// revenue-shaped mistake before a single payment module exists, so it's
-// filed under Finance rather than Operations.
+// Finance: nothing charges/refunds money yet (that's a later Finance
+// phase), but platform_settings already controls pricing (fuel fee/rate,
+// service price bands, commission rate, and now matching radius/flat fuel
+// charge) - a bad edit there is a revenue-or-matching-shaped mistake
+// before a single payment module exists, so it's filed under Finance
+// rather than Operations.
 const ACTION_LENS = {
   'auth.login_success': 'security',
   'auth.login_failed': 'security',
@@ -30,6 +31,13 @@ const ACTION_LENS = {
   'dispute.escalated': 'operations',
   'service.updated': 'operations',
   'platform_setting.updated': 'finance',
+  // Districts (Platform Configuration, target-spec Phase 6) - filed under
+  // Operations, same bucket as service.updated: it's catalog/coverage
+  // management (where the business serves customers), not a staff/
+  // security change and not itself a pricing number.
+  'district.created': 'operations',
+  'district.activated': 'operations',
+  'district.deactivated': 'operations',
 };
 
 const LENSES = ['security', 'operations', 'finance'];

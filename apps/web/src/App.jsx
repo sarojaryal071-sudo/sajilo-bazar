@@ -44,6 +44,7 @@ import { AdminDisputeDetail } from './screens/Admin/AdminDisputeDetail.jsx';
 import { AdminSupportTickets } from './screens/Admin/AdminSupportTickets.jsx';
 import { AdminStaff } from './screens/Admin/AdminStaff.jsx';
 import { AdminSettings } from './screens/Admin/AdminSettings.jsx';
+import { AdminPlatformConfig } from './screens/Admin/AdminPlatformConfig.jsx';
 import { AdminContent } from './screens/Admin/AdminContent.jsx';
 import { AdminComingSoon } from './screens/Admin/AdminComingSoon.jsx';
 
@@ -105,6 +106,7 @@ export default function App() {
             <Route path="/admin/support/:id" element={<AdminSupportTickets />} />
             <Route path="/admin/publications" element={<AdminContent />} />
             <Route path="/admin/settings" element={<AdminSettings />} />
+            <Route path="/admin/platform-config" element={<AdminPlatformConfig />} />
           </Route>
 
           <Route

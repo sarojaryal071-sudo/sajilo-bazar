@@ -15,6 +15,7 @@ import {
   AdminStaffAccessInputSchema,
   AdminEscalateInputSchema,
   AdminPlatformSettingUpdateInputSchema,
+  AdminDistrictCreateInputSchema,
 } from '@sajilo-bazar/shared';
 import { ApiError } from '../../middleware/error.middleware.js';
 import * as adminService from './admin.service.js';
@@ -604,6 +605,45 @@ export async function unpublishPolicy(req, res, next) {
   try {
     const policy = await adminService.setPolicyStatus(parsePolicyType(req), 'unpublished');
     res.json({ policy });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ---- Districts (Platform Configuration) ----
+
+export async function listDistricts(req, res, next) {
+  try {
+    const districts = await adminService.listDistricts();
+    res.json({ districts });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function createDistrict(req, res, next) {
+  try {
+    const input = AdminDistrictCreateInputSchema.parse(req.body);
+    const district = await adminService.createDistrict(input, req.user.id);
+    res.status(201).json({ district });
+  } catch (err) {
+    next(err.issues ? new ApiError(400, 'Invalid district input', err.issues) : err);
+  }
+}
+
+export async function activateDistrict(req, res, next) {
+  try {
+    const district = await adminService.setDistrictActive(parseId(req), true, req.user.id);
+    res.json({ district });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deactivateDistrict(req, res, next) {
+  try {
+    const district = await adminService.setDistrictActive(parseId(req), false, req.user.id);
+    res.json({ district });
   } catch (err) {
     next(err);
   }

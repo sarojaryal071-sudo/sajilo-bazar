@@ -190,3 +190,16 @@ adminRoutes.patch('/staff/:id/access', requireSuperAdmin, adminController.update
 // not as its own nav item) - staff/security-sensitive by nature, same
 // reasoning as Staff itself above.
 adminRoutes.get('/audit-log', requireSuperAdmin, adminController.getAuditLog);
+
+// Districts (Platform Configuration, target-spec Phase 6) - Super Admin
+// only, same gate as /settings above. The whole Platform Configuration
+// screen (districts + the matching-radius/flat-fuel-charge settings,
+// still edited through the existing /settings/:key endpoint) is
+// platform-wide config, not day-to-day department case work - creating
+// or pausing a district is closer to "launch/pause a market" than
+// anything a department grant is meant to cover, so it stays uniformly
+// Super Admin-gated rather than splitting access within one screen.
+adminRoutes.get('/districts', requireSuperAdmin, adminController.listDistricts);
+adminRoutes.post('/districts', requireSuperAdmin, adminController.createDistrict);
+adminRoutes.patch('/districts/:id/activate', requireSuperAdmin, adminController.activateDistrict);
+adminRoutes.patch('/districts/:id/deactivate', requireSuperAdmin, adminController.deactivateDistrict);

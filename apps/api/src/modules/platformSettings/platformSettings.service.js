@@ -19,6 +19,11 @@ import * as platformSettingsModel from './platformSettings.model.js';
 // COMMISSION_RATE) - this is that same number, migrated here so there's
 // one source of truth and an admin can actually change it. See
 // getCommissionRate below for the read side.
+// 'matching_radius_km'/'flat_fuel_charge' (Platform Configuration,
+// target-spec Phase 6) were hardcoded JS constants in bookings.service.js
+// (DEFAULT_RADIUS_KM, FLAT_FUEL_CHARGE) - same migration-to-one-source-of-
+// truth move as commission_rate. flat_fuel_charge is this table's first
+// boolean-valued setting (see AdminPlatformSettingUpdateInputSchema).
 export const EDITABLE_KEYS = [
   'fuel_base_fee',
   'fuel_rate_per_km',
@@ -26,7 +31,28 @@ export const EDITABLE_KEYS = [
   'get_quotes_window_minutes',
   'get_quotes_cap',
   'commission_rate',
+  'matching_radius_km',
+  'flat_fuel_charge',
 ];
+
+// Per-key checks beyond "a number or a boolean" (the shared Zod schema's
+// job) - each key here has exactly one valid shape/range, and a bad value
+// silently accepted would corrupt live matching or commission math on the
+// very next booking, not just this request.
+function assertValidValue(key, value) {
+  if (key === 'commission_rate' && (value < 0 || value > 1)) {
+    // A fraction of the job price (0.15 = 15%), not a percentage - plain
+    // nonnegative-number validation would let an admin fat-finger 15
+    // (1500%) straight into every future commission calculation.
+    throw new ApiError(400, 'Commission rate must be between 0 and 1 (e.g. 0.15 for 15%)');
+  }
+  if (key === 'matching_radius_km' && !(typeof value === 'number' && value > 0)) {
+    throw new ApiError(400, 'Matching radius must be a positive number of km');
+  }
+  if (key === 'flat_fuel_charge' && typeof value !== 'boolean') {
+    throw new ApiError(400, 'Flat fuel charge must be true or false');
+  }
+}
 
 export async function listSettings() {
   return platformSettingsModel.listSettings();
@@ -34,13 +60,7 @@ export async function listSettings() {
 
 export async function updateSetting(key, value, adminId) {
   if (!EDITABLE_KEYS.includes(key)) throw new ApiError(404, 'Unknown setting');
-  // A fraction of the job price (0.15 = 15%), not a percentage - the
-  // generic "value: nonnegative number" validation every other key here
-  // gets would otherwise let an admin fat-finger 15 (1500%) straight into
-  // every future commission calculation.
-  if (key === 'commission_rate' && (value < 0 || value > 1)) {
-    throw new ApiError(400, 'Commission rate must be between 0 and 1 (e.g. 0.15 for 15%)');
-  }
+  assertValidValue(key, value);
   const updated = await platformSettingsModel.setValue(key, value, adminId);
   if (!updated) throw new ApiError(404, 'Unknown setting');
   return updated;
@@ -78,6 +98,30 @@ const DEFAULT_COMMISSION_RATE = 0.15;
 export async function getCommissionRate() {
   const value = await platformSettingsModel.getValue('commission_rate');
   return value === null ? DEFAULT_COMMISSION_RATE : Number(value);
+}
+
+// City-scale matching radius, read fresh every call (same pattern as
+// getFuelPricing/getCommissionRate) - a change takes effect on the very
+// next instant-booking match, no redeploy. DEFAULT_MATCHING_RADIUS_KM
+// only matters if the seed row (migration 052) were ever somehow missing.
+const DEFAULT_MATCHING_RADIUS_KM = 15;
+
+export async function getMatchingRadiusKm() {
+  const value = await platformSettingsModel.getValue('matching_radius_km');
+  return value === null ? DEFAULT_MATCHING_RADIUS_KM : Number(value);
+}
+
+// Whether fuel/travel charge is the flat base-fee-only behavior (see
+// bookings.service.js computeFuelCharge) or the real per-km distance
+// calculation. Seeded true (migration 052) so today's pricing behavior is
+// unchanged on deploy - see that migration's comment for why flat billing
+// is currently correct (most bookings have no real customer coordinates
+// to compute a distance from yet).
+const DEFAULT_FLAT_FUEL_CHARGE = true;
+
+export async function getFlatFuelCharge() {
+  const value = await platformSettingsModel.getValue('flat_fuel_charge');
+  return value === null ? DEFAULT_FLAT_FUEL_CHARGE : Boolean(value);
 }
 
 // Get Quotes (Phase 3) config - not read by anything yet in this round

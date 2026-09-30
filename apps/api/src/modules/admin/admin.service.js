@@ -730,3 +730,42 @@ export async function setPolicyStatus(policyType, status) {
   if (!policy) throw new ApiError(404, 'Policy not found');
   return policy;
 }
+
+// ---- Districts (Platform Configuration, target-spec Phase 6) ----
+
+export async function listDistricts() {
+  return adminModel.listDistrictsAdmin();
+}
+
+export async function createDistrict({ name, isActive }, actorId) {
+  const district = await adminModel.createDistrict({ name, isActive });
+
+  await logAudit({
+    actorId,
+    action: 'district.created',
+    severity: 'medium',
+    targetType: 'district',
+    targetId: district.id,
+    newValue: { name: district.name, isActive: district.isActive },
+  });
+
+  return district;
+}
+
+export async function setDistrictActive(id, isActive, actorId) {
+  const district = await adminModel.findDistrictById(id);
+  if (!district) throw new ApiError(404, 'District not found');
+  const updated = await adminModel.setDistrictActive(id, isActive);
+
+  await logAudit({
+    actorId,
+    action: isActive ? 'district.activated' : 'district.deactivated',
+    severity: 'medium',
+    targetType: 'district',
+    targetId: id,
+    oldValue: { isActive: district.isActive },
+    newValue: { isActive },
+  });
+
+  return updated;
+}

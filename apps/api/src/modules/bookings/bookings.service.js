@@ -19,11 +19,6 @@ import * as quotesModel from '../quotes/quotes.model.js';
 // on the endpoint itself rather than as a UI-only hint.
 const DISPUTE_FILING_WINDOW_HOURS = 24;
 
-// City-scale default - no fallback tiers (e.g. widening the radius when
-// nobody's nearby) for this first pass; a customer with no match just sees
-// "no workers available" and can cancel or retry.
-const DEFAULT_RADIUS_KM = 15;
-
 function assertParticipant(booking, userId) {
   if (booking.customerId !== userId && booking.workerId !== userId) {
     throw new ApiError(403, 'Forbidden');
@@ -46,12 +41,13 @@ function round2(n) {
 }
 
 // Piece D (fuel/travel charge, 2026-09-27): base fee + per-km rate, both
-// admin-editable via platform_settings (see AdminSettings.jsx) and read
-// fresh on every call, so a change takes effect on the very next booking,
-// no redeploy. A pass-through to the worker - the result is stored on
-// bookings.fuel_charge, never folded into bookings.price, which is what
-// commissionLedgerService calculates the platform's commission against
-// (also an admin-editable platform_setting, see commissionLedger.service.js).
+// admin-editable via platform_settings (see the Catalog & Pricing screen)
+// and read fresh on every call, so a change takes effect on the very next
+// booking, no redeploy. A pass-through to the worker - the result is
+// stored on bookings.fuel_charge, never folded into bookings.price, which
+// is what commissionLedgerService calculates the platform's commission
+// against (also an admin-editable platform_setting, see
+// commissionLedger.service.js).
 //
 // Bug-fix round (2026-09-29): the per-km branch below depends on real
 // customer coordinates, which a one-off address only has if the customer
@@ -63,12 +59,16 @@ function round2(n) {
 // base fee (now Rs. 100 - see migration 047) for every booking, regardless
 // of distance or whether coordinates are even present. The per-km branch
 // is deliberately left in place rather than deleted, ready to re-enable
-// once coordinates are reliably available.
-const FLAT_FUEL_CHARGE = true;
-
+// once coordinates are reliably available - flipping the now-admin-
+// editable flat_fuel_charge setting off re-enables it without a deploy
+// (Platform Configuration, target-spec Phase 6 - this was a hardcoded
+// FLAT_FUEL_CHARGE constant here until this round).
 async function computeFuelCharge(workerLat, workerLng, customerLat, customerLng) {
-  const { baseFee, ratePerKm } = await platformSettingsService.getFuelPricing();
-  if (FLAT_FUEL_CHARGE || workerLat == null || workerLng == null || customerLat == null || customerLng == null) {
+  const [{ baseFee, ratePerKm }, flatFuelCharge] = await Promise.all([
+    platformSettingsService.getFuelPricing(),
+    platformSettingsService.getFlatFuelCharge(),
+  ]);
+  if (flatFuelCharge || workerLat == null || workerLng == null || customerLat == null || customerLng == null) {
     return round2(baseFee);
   }
   const distanceKm = haversineDistanceKm(workerLat, workerLng, customerLat, customerLng);
@@ -191,11 +191,17 @@ export async function createInstantBooking(customerId, { serviceIds, addressLabe
   // needs to run eagerly rather than lazily.
   await workersService.syncAllWorkersWithAvailability();
 
+  // City-scale radius, admin-editable via platform_settings (Platform
+  // Configuration, target-spec Phase 6 - was a hardcoded DEFAULT_RADIUS_KM
+  // constant here). No fallback tiers (e.g. widening the radius when
+  // nobody's nearby) for this first pass; a customer with no match just
+  // sees "no workers available" and can cancel or retry.
+  const radiusKm = await platformSettingsService.getMatchingRadiusKm();
   const workerIds = await bookingsModel.findNearbyOnlineWorkers(
     serviceIds,
     latitude,
     longitude,
-    DEFAULT_RADIUS_KM,
+    radiusKm,
     booking.district
   );
   const offers = await bookingsModel.createOffers(booking.id, workerIds);

@@ -95,12 +95,28 @@ export const AdminStaffAccessInputSchema = z.object({
   isSuperAdmin: z.boolean().default(false),
 });
 
-// Admin Settings screen (Piece D, 2026-09-27) - view/edit the two
-// platform_settings values this round introduces (fuel_base_fee,
-// fuel_rate_per_km). The key itself comes from the route param, validated
+// Admin Settings/Categories/Platform Configuration screens - every
+// platform_settings value editable from any admin screen goes through
+// this one shape. The key itself comes from the route param, validated
 // against platformSettingsService.EDITABLE_KEYS server-side, not here.
+// Originally number-only (fuel_base_fee/fuel_rate_per_km); widened to a
+// number-or-boolean union for flat_fuel_charge (target-spec Phase 6,
+// Platform Configuration), the first boolean-valued setting. Per-key
+// range/type checks beyond "a number or a boolean" (e.g. commission_rate's
+// 0-1 bounds, flat_fuel_charge actually being a boolean and not a number)
+// live in platformSettings.service.js's updateSetting, not here - this
+// schema only rules out the shapes no setting could ever want (a string,
+// an object, a negative number).
 export const AdminPlatformSettingUpdateInputSchema = z.object({
-  value: z.number().nonnegative(),
+  value: z.union([z.number().nonnegative(), z.boolean()]),
+});
+
+// Admin Platform Configuration screen (target-spec Phase 6) - districts
+// are a DB-seeded lookup table (see districts migration 041), not an enum,
+// so there's no fixed name list to validate against here.
+export const AdminDistrictCreateInputSchema = z.object({
+  name: z.string().min(2).max(60),
+  isActive: z.boolean().default(true),
 });
 
 // Admin Policies screen (Round D). Announcements' input schema moved to

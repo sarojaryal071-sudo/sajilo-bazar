@@ -270,3 +270,19 @@ export function publishPolicy(policyType) {
 export function unpublishPolicy(policyType) {
   return apiFetch(`/admin/policies/${policyType}/unpublish`, { method: 'PATCH' });
 }
+
+export function listDistricts() {
+  return apiFetch('/admin/districts');
+}
+
+export function createDistrict({ name, isActive }) {
+  return apiFetch('/admin/districts', { method: 'POST', body: { name, isActive } });
+}
+
+export function activateDistrict(id) {
+  return apiFetch(`/admin/districts/${id}/activate`, { method: 'PATCH' });
+}
+
+export function deactivateDistrict(id) {
+  return apiFetch(`/admin/districts/${id}/deactivate`, { method: 'PATCH' });
+}

@@ -120,6 +120,15 @@ function SettingsIcon() {
   );
 }
 
+function PlatformConfigIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 21s-7-5.5-7-11a7 7 0 0 1 14 0c0 5.5-7 11-7 11Z" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="12" cy="10" r="2.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 // Admin RBAC (2026-09-27) - the flat list above became grouped sections,
 // each gated by the department that owns it. Overview has no department
 // (everyone with any admin access sees Dashboard) and no group header,
@@ -179,6 +188,13 @@ const NAV_GROUPS = [
 // Settings is a plain standalone top-level link, Super Admin only - no
 // group/dropdown wrapper (a section header with one lonely child).
 const SETTINGS_ITEM = { to: '/admin/settings', label: 'Settings', icon: SettingsIcon };
+
+// Platform Configuration (target-spec Phase 6) - same standalone, Super
+// Admin-only treatment as Settings, and deliberately its own nav entry
+// rather than folded into Catalog & Pricing or Settings (districts +
+// matching/fuel-charge behavior aren't "pricing" or "Get Quotes config" -
+// where the platform operates and how it matches, a third thing).
+const PLATFORM_CONFIG_ITEM = { to: '/admin/platform-config', label: 'Platform Configuration', icon: PlatformConfigIcon };
 
 function getVisibleNavGroups(access) {
   const groups = NAV_GROUPS.filter((g) => !g.department || canAccessDepartment(access, g.department));
@@ -275,7 +291,8 @@ export function AdminShell() {
               </div>
             ))}
             {access.isSuperAdmin && (
-              <div className="mt-2 border-t border-border pt-3">
+              <div className="mt-2 flex flex-col gap-1 border-t border-border pt-3">
+                <NavItemLink {...PLATFORM_CONFIG_ITEM} />
                 <NavItemLink {...SETTINGS_ITEM} />
               </div>
             )}

@@ -8,7 +8,18 @@ The current `sajilo-bazar` admin panel is functionally real (not empty) but thin
 - Current live app: `https://github.com/sarojaryal071-sudo/sajilo-bazar` (main) — this is what gets built on
 - Old reference only, private now: `https://github.com/sarojaryal071-sudo/sajilo-app.git` (frontend), `https://github.com/sarojaryal071-sudo/sajilo-backend.git` (backend) — mine these for the specific features listed below, do not port their architecture (they used a config-driven screen-registry system; sajilo-bazar uses plain React routes — keep it that way) and do not touch their `.env` history or committed secrets (already rotated/deleted, repo is a dead reference only).
 
-## Target structure — 8 sections, none thin
+## Hardcoded business values
+A running list of hardcoded JS constants discovered mid-build that really should have been admin-editable `platform_settings` from the start — found one phase at a time, not planned up front. Each gets migrated into `platform_settings` (one source of truth, no redeploy needed for a change) the same way, the first time it's actually in scope for a phase.
+
+- [x] `commission_rate` — was `COMMISSION_RATE` in `commissionLedger.service.js` (0.15). Migrated in Phase 4 (Catalog & Pricing merge).
+- [x] `matching_radius_km` — was `DEFAULT_RADIUS_KM` in `bookings.service.js` (15). Migrated in Phase 6 (Platform Configuration).
+- [x] `flat_fuel_charge` — was `FLAT_FUEL_CHARGE` in `bookings.service.js` (`true`). Migrated in Phase 6 (Platform Configuration).
+- [ ] Verification document types — not a simple setting (would need a schema redesign, not just a platform_settings row). Explicitly excluded from Phase 6; flagged for a later round.
+- [ ] Per-district pricing/radius overrides — explicitly excluded from Phase 6 (districts got a write-path, but pricing/radius are still platform-wide, not per-district, settings).
+- [ ] Flagged-worker thresholds (Dashboard's auto-flag rules — cancellation rate/rating/inactivity cutoffs, see Phase 1) — still hardcoded in `admin.model.js`'s `getFlaggedWorkers`.
+- [ ] Trust-score weights (rating/reliability/tenure/dispute weights, see `trustScore.service.js`) — business-plan-locked numbers, not casually admin-editable even if moved here; would need its own decision about whether an admin should be able to change them at all.
+
+## Target structure — 9 sections, none thin
 
 ### 1. Dashboard
 Replaces the current 4-stat-card version. Single rich screen, no separate Analytics page/tab.
@@ -54,6 +65,13 @@ Current Staff screen (RBAC, department grants) plus a new Audit Log tab.
 - Audit Log: every sensitive action logged with severity (low/medium/high/critical), filterable by lens — Security (logins, password changes, role changes), Operations (staff actions, ticket/dispute lifecycle), Finance (payments, refunds, payouts) — with field-level before/after diffs
 - Reference: `sajilo-app/src/screens/admin/AdminAudit.jsx`
 
+### 9. Platform Configuration
+New section, separate from Catalog & Pricing and Settings — where the platform operates and how it matches/charges, not pricing numbers or Get Quotes config. Deliberately small scope, same "lean" spirit as Finance:
+- Districts: list all (including inactive), create a new one, toggle `is_active` on/off both ways (pre-seed a district ahead of launch, then activate it later). The `districts` table (migration 041) and its `is_active` column (migration 042) existed with no admin write-path at all before this section.
+- Matching radius: the city-scale radius (km) an instant booking searches for online workers within.
+- Flat fuel charge: on/off switch for whether every booking's fuel/travel charge is the flat base fee (on) or a real per-km distance calculation (off).
+- **Explicitly excluded for now**: verification document types (needs a schema redesign, not a setting), per-district pricing/radius overrides, flagged-worker thresholds, trust-score weights — see the "Hardcoded business values" backlog above.
+
 ## Also worth building (not a new section, a workflow fix)
 **Worker password reset without OTP/SMS.** Current app has no real OTP/SMS (documented deferred item), so a locked-out worker has no self-service path. Build: worker requests reset → submits/reuses their verification documents (document viewer already exists) → admin confirms identity → issues temp password → worker forced to set a new one on next login (`must_change_password` flag pattern). Lives under Users & Verification, not its own section.
 
@@ -65,8 +83,9 @@ Work one phase at a time. Each phase should be small enough to land in a single 
 3. **Support: Live Chat console** — add real-time chat to the existing Support section.
 4. **Catalog & Pricing merge** — fold Settings' pricing fields into Categories; add commission rate as an editable platform_setting.
 5. **Content merge** — fold Policies into Publications as tabs.
-6. **Finance (lean)** — new section: revenue view + manual expense list.
-7. **Users & Verification: worker performance tab + document-based password reset workflow.**
+6. **Platform Configuration** — new section: districts admin CRUD (list/create/toggle active), matching radius and flat fuel charge migrated from hardcoded constants into admin-editable `platform_settings`.
+7. **Finance (lean)** — new section: revenue view + manual expense list.
+8. **Users & Verification: worker performance tab + document-based password reset workflow.**
 
 ## Instruction for the coding agent
 > This is the agreed final destination for the admin panel — work through the Build Order phases one at a time, smallest complete slice per session. Do not build anything listed under "Explicitly excluded" without being asked again first. Do not port the old repos' config-driven architecture — keep plain React routes/components matching the current `sajilo-bazar` style. Start with Phase 1 (Dashboard).
@@ -98,5 +117,20 @@ Work one phase at a time. Each phase should be small enough to land in a single 
   - **Nav judgment call**: renamed the surviving nav entry to "Content" (your call to make, per the instruction) rather than keeping "Publications" - "Content" is also literally the target spec's own name for this merged section, so it seemed the more honest label once Policies lives there too. Kept the existing `/admin/publications` route/URL rather than renaming it to `/admin/content` - same restraint as Phase 4 keeping `/admin/categories` after renaming that screen to "Catalog & Pricing": renaming user-facing labels is low-risk, renaming URLs has no real benefit here and only adds churn.
   - **Shared extraction**: `AdminPublications.jsx` and `AdminPolicies.jsx` each had their own identical `STATUS_TONE` map and the exact same status-badge-plus-"Live now"-badge pair rendered next to it - extracted into a new `components/PublicationStatusBadges.jsx` (same spirit as Phase 4's `SettingEditor` extraction: a genuine, already-identical duplication, not a forced one). Did not attempt to merge the two tabs' actual editors (list+create+form vs. fixed-three-records edit-in-place) - they're structurally too different to share meaningfully, and the instruction was explicit that only a "clean, low-risk" extraction was wanted.
   - Verified: syntax/lint/build clean only, per the instruction that this phase (no money math, no real-time/socket code) almost certainly doesn't need a live check - agreed with that judgment, none was run. Confirmed no dangling references to the two deleted files remain anywhere in the frontend.
-- [ ] 6. Finance (lean)
-- [ ] 7. Users & Verification: worker performance tab + password reset workflow
+- [x] **6. Platform Configuration** — new "Platform Configuration" nav entry (Super Admin only, separate from Catalog & Pricing and Settings), `/admin/platform-config`. Three pieces: districts admin CRUD (list all including inactive, create, activate/deactivate both ways), matching radius, and flat fuel charge — the latter two migrated off hardcoded JS constants into `platform_settings`, same move as `commission_rate` in Phase 4.
+  - Commit: *(recorded in the follow-up commit right after this one — see repo history for the exact hash)*.
+  - **Districts**: new `listDistrictsAdmin`/`createDistrict`/`setDistrictActive` in `admin.model.js`, wrapped with audit logging in `admin.service.js` (`district.created`/`district.activated`/`district.deactivated`, `medium` severity, Operations lens — same bucket as `service.updated`: catalog/coverage management, not a staff/security change and not itself a pricing number). New `GET/POST /admin/districts` + `PATCH /admin/districts/:id/activate|deactivate`, gated `requireSuperAdmin` like `/settings` — the whole Platform Configuration screen stays uniformly Super-Admin-gated rather than splitting access within one screen. The existing read-only `GET /api/workers/catalog/districts` (used by signup/worker-apply) was untouched and confirmed to already filter `is_active = true` correctly.
+  - **matching_radius_km / flat_fuel_charge**: found exactly where the instruction said - `DEFAULT_RADIUS_KM` (15) and `FLAT_FUEL_CHARGE` (true) in `bookings.service.js`, each referenced from exactly one call site (`createInstantBooking`'s matching query; `computeFuelCharge`'s flat-vs-distance branch) - grepped the whole `apps/api/src` tree to confirm no other usages existed before removing either constant, so no extra plumbing turned up. New migration 052 seeds both at their old hardcoded values. `platformSettings.service.js` gained `getMatchingRadiusKm()`/`getFlatFuelCharge()` (same "read fresh every call" pattern as `getFuelPricing()`/`getCommissionRate()`) and per-key validation (`matching_radius_km` must be a positive number; `flat_fuel_charge` must actually be a boolean).
+  - **Schema judgment call**: `flat_fuel_charge` is this app's first boolean-valued `platform_setting` - the shared `AdminPlatformSettingUpdateInputSchema` was number-only (`z.number().nonnegative()`), so widened it to `z.union([z.number().nonnegative(), z.boolean()])` rather than building a parallel boolean-only endpoint. Per-key range/type rules (commission_rate's 0-1 bounds, matching_radius_km's positivity, flat_fuel_charge's actual booleanness) all stayed in `platformSettings.service.js`'s `updateSetting`, not the shared schema - consistent with how `commission_rate`'s bounds check already worked in Phase 4.
+  - **Access judgment call**: gated all three new district endpoints `requireSuperAdmin` rather than `requireDepartment('people_content')` (which the existing Categories/Services screen uses) - creating or pausing a district reads more like "launch/pause a market" than day-to-day catalog case work, and keeping the whole Platform Configuration screen under one gate (matching Settings' own existing precedent for `platform_settings` PATCHes) avoids a screen where some of its cards 403 for a non-Super-Admin.
+  - Audit logging for the two settings needed no new code - confirmed live that `matching_radius_km`/`flat_fuel_charge` changes go through the exact same `platform_setting.updated` path (`high` severity, Finance lens) Phase 2 built and Phase 4 already exercised for `commission_rate`.
+  - **Verified live** (this phase's instruction was explicit that a real check was needed, not just lint/build, since it touches matching and pricing):
+    - Ran migration 052; confirmed `matching_radius_km`/`flat_fuel_charge` appear in `GET /admin/settings` at their seeded defaults (15, true).
+    - Created an inactive test district via `POST /admin/districts` → confirmed it does **not** appear in `GET /api/workers/catalog/districts` (the exact endpoint signup/worker-apply reads) → activated it via `PATCH .../activate` → confirmed it **now appears** in that same catalog endpoint → deactivated it again → confirmed it disappears again. Toggling verified both directions, not just create.
+    - Radius: wrote a one-off script calling `bookingsModel.findNearbyOnlineWorkers` directly (with `serviceIds: []`, which trivially matches on geography alone) against real seeded worker coordinates at 5km/15km/50km from a fixed point - got correctly nested, genuinely different result sets at each radius (one worker included at 15km/50km, excluded at 5km), proving the query the admin-editable setting drives is actually radius-sensitive. Separately round-tripped the `matching_radius_km` setting itself through the live PATCH/GET API to confirm the admin-facing value changes and restores correctly.
+    - Flat fuel charge: confirmed the default is `true` in a fresh `GET`, round-tripped a toggle to `false` and back to `true` through the live API, and confirmed by re-reading `computeFuelCharge` that its `if (flatFuelCharge || ...)` branch is logically unchanged from before this phase - only the value's source moved from a hardcoded constant to a DB read that's now proven correct, so `true` (the default, seeded and restored) provably still produces the same flat-base-fee behavior as before.
+    - All audit log entries confirmed correct (district actions under Operations at `medium`; both settings under Finance at `high`, with correct old/new diffs).
+    - Test district deleted afterward; both settings restored to their seeded defaults (15, true); no leftover test data.
+  - Did not run a full instant-booking creation → claim → complete cycle (deliberately, per the instruction to keep it to what's needed) - the direct-query and setting-round-trip checks above exercise the same code paths a full booking flow would, without the overhead of standing up a complete customer/worker/service fixture.
+- [ ] 7. Finance (lean)
+- [ ] 8. Users & Verification: worker performance tab + password reset workflow

@@ -1268,3 +1268,44 @@ export async function setPolicyStatus(policyType, status) {
   );
   return rows[0] ? toContentItem(rows[0]) : null;
 }
+
+// ---- Districts (Platform Configuration, target-spec Phase 6) ----
+//
+// The read-only side (workers.model.js listDistricts, GET /catalog/
+// districts used by signup/worker-apply) only ever selects is_active =
+// true rows - that query is untouched by this round. Everything below is
+// the admin write-path that never existed before (districts migration
+// 041/042 added the table and is_active column with no admin UI over
+// either).
+
+function toDistrictAdmin(row) {
+  return { id: row.id, name: row.name, isActive: row.is_active };
+}
+
+// Includes inactive districts (unlike the public catalog) - the whole
+// point of this screen is to see and toggle the ones not live yet.
+export async function listDistrictsAdmin() {
+  const { rows } = await pool.query('SELECT * FROM districts ORDER BY name');
+  return rows.map(toDistrictAdmin);
+}
+
+export async function findDistrictById(id) {
+  const { rows } = await pool.query('SELECT * FROM districts WHERE id = $1', [id]);
+  return rows[0] ? toDistrictAdmin(rows[0]) : null;
+}
+
+export async function createDistrict({ name, isActive }) {
+  const { rows } = await pool.query(
+    'INSERT INTO districts (name, is_active) VALUES ($1, $2) RETURNING *',
+    [name, isActive]
+  );
+  return toDistrictAdmin(rows[0]);
+}
+
+export async function setDistrictActive(id, isActive) {
+  const { rows } = await pool.query(
+    'UPDATE districts SET is_active = $2 WHERE id = $1 RETURNING *',
+    [id, isActive]
+  );
+  return rows[0] ? toDistrictAdmin(rows[0]) : null;
+}
