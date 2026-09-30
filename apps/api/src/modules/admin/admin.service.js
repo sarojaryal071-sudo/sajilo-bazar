@@ -50,6 +50,23 @@ export async function getAnalytics() {
   return adminModel.getAnalytics();
 }
 
+// Dashboard insights (target-spec Phase 1) - one call bundling every new
+// ranked/flagged/payment section so the frontend fires a single request
+// alongside getDashboardStats, rather than one round trip per widget.
+export async function getDashboardInsights() {
+  const [topEarningWorkers, topRatedWorkers, recentLowRatings, cancellationStats, flaggedWorkers, topPerformers, paymentBreakdown] =
+    await Promise.all([
+      adminModel.getTopEarningWorkers(),
+      adminModel.getTopRatedWorkers(),
+      adminModel.getRecentLowRatings(),
+      adminModel.getCancellationStats(),
+      adminModel.getFlaggedWorkers(),
+      adminModel.getTopPerformers(),
+      adminModel.getPaymentBreakdown(),
+    ]);
+  return { topEarningWorkers, topRatedWorkers, recentLowRatings, cancellationStats, flaggedWorkers, topPerformers, paymentBreakdown };
+}
+
 export async function getAccountingSummary() {
   return adminModel.getAccountingSummary();
 }

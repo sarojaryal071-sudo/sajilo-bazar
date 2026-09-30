@@ -37,6 +37,15 @@ export async function getAnalytics(req, res, next) {
   }
 }
 
+export async function getDashboardInsights(req, res, next) {
+  try {
+    const insights = await adminService.getDashboardInsights();
+    res.json(insights);
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getAccountingSummary(req, res, next) {
   try {
     const summary = await adminService.getAccountingSummary();

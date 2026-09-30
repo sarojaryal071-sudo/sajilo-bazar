@@ -8,6 +8,10 @@ export function getAnalytics() {
   return apiFetch('/admin/analytics');
 }
 
+export function getDashboardInsights() {
+  return apiFetch('/admin/dashboard/insights');
+}
+
 export function getAccountingSummary() {
   return apiFetch('/admin/accounting/summary');
 }

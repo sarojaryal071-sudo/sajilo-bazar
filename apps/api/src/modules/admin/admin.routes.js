@@ -18,6 +18,7 @@ adminRoutes.use(requireAuth, requireRole('admin'));
 // gate. Analytics is a Super-Admin-only tab on that same page; moving its
 // location onto Dashboard didn't change its access control.
 adminRoutes.get('/dashboard/stats', adminController.getDashboardStats);
+adminRoutes.get('/dashboard/insights', adminController.getDashboardInsights);
 adminRoutes.get('/analytics', requireSuperAdmin, adminController.getAnalytics);
 
 // Settings (platform_settings - currently the Piece D fuel/travel-charge
