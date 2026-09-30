@@ -228,11 +228,12 @@ export async function getEarningsConcentration() {
 }
 
 // Cancellation trend, last 30 days, split by initiator. Bucketed by
-// created_at (the day the booking was made), not the day it was actually
-// cancelled - bookings has no cancelled_at/updated_at column (only
-// created_at and completed_at exist; see migration 007), so there is no
-// timestamp anywhere that records when a cancellation happened. This is a
-// known limitation of the current schema, not a query choice.
+// cancelled_at (migration 053) - the day the cancellation actually
+// happened, not the day the booking was originally made. A cancellation
+// from before migration 053 shipped has cancelled_at = NULL (no reliable
+// way to know when it happened - see the migration), so it's simply
+// excluded here rather than falling back to created_at, which would
+// silently reintroduce the same inaccuracy this query used to have.
 export async function getCancellationTrend() {
   const { rows } = await pool.query(
     `SELECT day::date AS day,
@@ -241,8 +242,9 @@ export async function getCancellationTrend() {
      FROM generate_series(CURRENT_DATE - INTERVAL '29 days', CURRENT_DATE, INTERVAL '1 day') AS day
      LEFT JOIN bookings b
        ON b.status = 'cancelled'
+       AND b.cancelled_at IS NOT NULL
        AND b.initiated_by IN ('customer', 'worker')
-       AND date_trunc('day', b.created_at) = day
+       AND date_trunc('day', b.cancelled_at) = day
      GROUP BY day
      ORDER BY day`
   );

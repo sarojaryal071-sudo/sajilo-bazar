@@ -51,6 +51,10 @@ export const BookingSchema = z.object({
   district: z.string().max(60).nullable().optional(),
   cancelledBy: z.number().int().positive().nullable().optional(),
   cancelReason: z.string().max(300).nullable().optional(),
+  // Null for any cancellation before migration 053 shipped - no reliable
+  // way to know when those actually happened, so left unset rather than
+  // guessed (see that migration).
+  cancelledAt: z.string().datetime().nullable().optional(),
   // Scheduled booking only (business plan §13) - both null for an urgent
   // ("now") booking. scheduledFor is the customer-picked future date/time;
   // respondBy is when the worker's response window closes (createdAt +

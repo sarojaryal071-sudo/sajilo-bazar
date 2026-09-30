@@ -23,6 +23,7 @@ function toBooking(row) {
     district: row.district,
     cancelledBy: row.cancelled_by,
     cancelReason: row.cancel_reason,
+    cancelledAt: row.cancelled_at,
     initiatedBy: row.initiated_by,
     scheduledFor: row.scheduled_for,
     responseDeadlineHours: row.response_deadline_hours,
@@ -459,9 +460,14 @@ export async function expireOverdueScheduledRequests() {
 // initiatedBy is null for an admin override (adminCancelBooking) - neither
 // party's own action, and outside the worker/customer CHECK constraint's
 // concern.
+// Sole write path for a booking's status going to 'cancelled' - called by
+// both bookings.service.js (customer/worker self-cancel) and
+// admin.service.js (admin override), so stamping cancelled_at here, in the
+// same UPDATE, covers every cancellation path at once rather than needing
+// a matching stamp at each call site.
 export async function setCancelled(id, cancelledBy, reason, initiatedBy = null) {
   await pool.query(
-    `UPDATE bookings SET status = 'cancelled', cancelled_by = $2, cancel_reason = $3, initiated_by = $4 WHERE id = $1`,
+    `UPDATE bookings SET status = 'cancelled', cancelled_by = $2, cancel_reason = $3, initiated_by = $4, cancelled_at = now() WHERE id = $1`,
     [id, cancelledBy, reason ?? null, initiatedBy]
   );
   return findById(id);

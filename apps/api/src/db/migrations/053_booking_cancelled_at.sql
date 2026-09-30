@@ -1,0 +1,13 @@
+-- Phase 7's Dashboard cancellation-trend chart had to bucket by created_at
+-- because bookings had no timestamp recording when a cancellation actually
+-- happened (only created_at/completed_at exist - see migration 007).
+-- Purely additive, same pattern as migration 044's accepted_at/started_at:
+-- nothing here changes when or how a booking gets cancelled, only records
+-- when that already-happening transition happened, from here on.
+--
+-- Nullable, no backfill: existing cancelled bookings have no recorded
+-- cancellation time anywhere, and there is no reliable way to reconstruct
+-- one - copying created_at or updated_at would be a guess presented as
+-- fact. Left NULL; see admin.service.js's getCancellationTrend for how the
+-- Dashboard chart handles that.
+ALTER TABLE bookings ADD COLUMN cancelled_at TIMESTAMPTZ;
