@@ -165,6 +165,58 @@ function InstagramIcon() {
   );
 }
 
+// Added this round for the new Two Sides / Urgency / Worker Benefits /
+// Payments sections below - same stroke-only, currentColor, size-prop
+// convention as every icon above.
+function HouseIcon({ size = 24 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M3 11.5 12 4l9 7.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M5 10v10h5v-6h4v6h5V10" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function BriefcaseIcon({ size = 24 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <rect x="3" y="7.5" width="18" height="12" rx="2" />
+      <path d="M8.5 7.5V5.5a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M3 13h18" />
+    </svg>
+  );
+}
+
+function ClockIcon({ size = 24 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3.5 2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function CalendarIcon({ size = 24 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <rect x="3.5" y="5" width="17" height="16" rx="2" />
+      <path d="M3.5 10h17M8 3v4M16 3v4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function WalletIcon({ size = 24 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path
+        d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2h-3a3 3 0 0 0 0 6h3v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"
+        strokeLinejoin="round"
+      />
+      <circle cx="16.5" cy="12" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 // Real, already-built steps (unchanged from the earlier scroll-animation
 // round) - this round only restyles how they're presented, see
 // HowItWorks() below.
@@ -332,6 +384,7 @@ const HERO_OVERLAY = {
 // match the new alignment on every breakpoint).
 function Hero() {
   useHeroImagePreload();
+  const { t } = useLanguage();
 
   return (
     <section className="relative isolate flex min-h-[80vh] items-center overflow-hidden sm:min-h-[85vh]">
@@ -356,20 +409,18 @@ function Hero() {
           transition={{ duration: 0.3 }}
           className="max-w-[220px] text-[clamp(2rem,1.3rem+3.5vw,3.5rem)] font-display font-bold leading-[1.08] tracking-tight text-white sm:max-w-lg"
         >
-          Sajilo Bazar connects people who need work done with people who do
-          it.
+          {t('landing.hero.heading')}
         </motion.h1>
         <p className="max-w-[240px] text-lg leading-relaxed text-white/90 sm:max-w-md">
-          Post a job or list your skills — matching, tracking, and payment all
-          happen right in the app.
+          {t('landing.hero.subcopy')}
         </p>
         <div className="mt-2 flex flex-col gap-3 sm:flex-row">
           <Link to="/signup">
-            <Button className="w-full px-8 py-3.5 text-base sm:w-auto">Sign up</Button>
+            <Button className="w-full px-8 py-3.5 text-base sm:w-auto">{t('landing.hero.ctaSignup')}</Button>
           </Link>
           <a href="#how-it-works" className="w-full sm:w-auto">
             <Button variant="secondary" className="w-full px-8 py-3.5 text-base sm:w-auto">
-              See how it works
+              {t('landing.hero.ctaHowItWorks')}
             </Button>
           </a>
         </div>
@@ -401,6 +452,82 @@ function TrustStrip() {
           </div>
         ))}
       </Reveal>
+    </section>
+  );
+}
+
+// New this round - makes the two-sided marketplace explicit (households vs.
+// workers) right after the differentiator strip, before any section-specific
+// detail. Uses about-desktop/mobile.webp (already the canonical "customer"
+// photo, used again further down in About - reuse is intentional, not a
+// new asset) for the Households panel and hero-alt-desktop/mobile.webp (a
+// real photo pair that already existed in public/images/ but wasn't wired
+// into any screen yet) for the Workers panel, so this section doesn't just
+// repeat the Hero photo directly below the Hero itself.
+function TwoSidesPanel({ photoDesktop, photoMobile, photoAlt, icon, title, desc, ctaLabel, ctaHref, delay }) {
+  return (
+    <Reveal delay={delay}>
+      <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-border bg-surface shadow-resting">
+        <div className="relative aspect-[16/10] w-full overflow-hidden">
+          <picture>
+            <source media="(min-width: 640px)" srcSet={photoDesktop} />
+            <img src={photoMobile} alt={photoAlt} className="h-full w-full object-cover" />
+          </picture>
+        </div>
+        <div className="flex flex-1 flex-col items-start gap-3 p-6 sm:p-8">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-alt text-brand-solid">
+            {icon}
+          </div>
+          <h3 className="text-xl font-display font-bold tracking-tight">{title}</h3>
+          <p className="flex-1 leading-relaxed text-text-muted">{desc}</p>
+          <Link to={ctaHref} className="mt-2">
+            <Button className="px-6 py-2.5">{ctaLabel}</Button>
+          </Link>
+        </div>
+      </div>
+    </Reveal>
+  );
+}
+
+function TwoSides() {
+  const { t } = useLanguage();
+  return (
+    <section className="px-5 py-16 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl">
+        <Reveal className="mx-auto max-w-xl text-center">
+          <p className="text-xs font-semibold uppercase tracking-wide text-brand-solid">
+            {t('landing.twoSides.eyebrow')}
+          </p>
+          <h2 className="mt-2 text-[clamp(1.5rem,1.15rem+1.8vw,2.25rem)] font-display font-bold leading-[1.15] tracking-tight">
+            {t('landing.twoSides.heading')}
+          </h2>
+          <p className="mt-3 leading-relaxed text-text-muted">{t('landing.twoSides.subcopy')}</p>
+        </Reveal>
+        <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <TwoSidesPanel
+            photoDesktop="/images/about-desktop.webp"
+            photoMobile="/images/about-mobile.webp"
+            photoAlt="A Sajilo Bazar worker greeting a customer at their door"
+            icon={<HouseIcon size={22} />}
+            title={t('landing.twoSides.households.title')}
+            desc={t('landing.twoSides.households.desc')}
+            ctaLabel={t('landing.twoSides.households.cta')}
+            ctaHref="/signup?role=customer"
+            delay={0}
+          />
+          <TwoSidesPanel
+            photoDesktop="/images/hero-alt-desktop.webp"
+            photoMobile="/images/hero-alt-mobile.webp"
+            photoAlt="A Sajilo Bazar worker repairing a kitchen sink"
+            icon={<BriefcaseIcon size={22} />}
+            title={t('landing.twoSides.workers.title')}
+            desc={t('landing.twoSides.workers.desc')}
+            ctaLabel={t('landing.twoSides.workers.cta')}
+            ctaHref="/signup?role=worker"
+            delay={0.1}
+          />
+        </div>
+      </div>
     </section>
   );
 }
@@ -474,7 +601,7 @@ function ServicesGrid() {
         <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {categories.map((category, i) => (
             <Reveal key={category} delay={i * 0.05}>
-              <Card className="flex h-full flex-col items-start gap-3">
+              <Card className="flex h-full flex-col items-start gap-3 transition-all hover:-translate-y-0.5 hover:shadow-raised">
                 <div className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-alt text-brand-solid">
                   <CategoryIcon category={category} />
                 </div>
@@ -489,14 +616,17 @@ function ServicesGrid() {
   );
 }
 
-// Icon-only feature grid (Round H) - dark band for rhythm against the
-// white sections above/below, fixed near-black regardless of the site's
-// own light/dark toggle (same reasoning as Hero's photo scrim: this is
-// the marketing page's own structural contrast, not theme-adaptive
-// content). Every feature listed is real and already built - see
-// admin/verification, commissionLedger (fuel/travel shown separately),
-// chat, and bookings (cash-on-completion) elsewhere in this codebase.
-function WhyChooseUs() {
+// Consolidated this round from two near-duplicate sections (a WhyChooseUs
+// dark band and a WhatToExpect light grid that restated the same 4 ideas -
+// verification, pricing/commission, chat/tracking, cash-on-completion - in
+// slightly different words). One section, one set of 4 items, no copy
+// invented: reuses landing.why.* verbatim (the more detailed of the two
+// original copies). Dark band kept for the same structural-contrast
+// reasoning the old WhyChooseUs band had. Every feature listed is real and
+// already built - see admin/verification, commissionLedger (fuel/travel
+// shown separately), chat, and bookings (cash-on-completion) elsewhere in
+// this codebase.
+function SafetySection() {
   const { t } = useLanguage();
   const items = [
     { icon: <VerifiedIcon />, title: t('landing.why.verify.title'), desc: t('landing.why.verify.desc') },
@@ -508,8 +638,8 @@ function WhyChooseUs() {
     <section className="bg-[#0f1115] px-5 py-16 text-white sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl">
         <Reveal className="mx-auto max-w-xl text-center">
-          <p className="text-xs font-semibold uppercase tracking-wide text-brand-solid">{t('landing.why.eyebrow')}</p>
-          <h2 className="mt-2 text-[clamp(1.5rem,1.15rem+1.8vw,2.25rem)] font-display font-bold leading-[1.15] tracking-tight">{t('landing.why.heading')}</h2>
+          <p className="text-xs font-semibold uppercase tracking-wide text-brand-solid">{t('landing.safety.eyebrow')}</p>
+          <h2 className="mt-2 text-[clamp(1.5rem,1.15rem+1.8vw,2.25rem)] font-display font-bold leading-[1.15] tracking-tight">{t('landing.safety.heading')}</h2>
         </Reveal>
         <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2">
           {items.map((item, i) => (
@@ -529,9 +659,11 @@ function WhyChooseUs() {
   );
 }
 
-// Restyled only - same 4 real steps from the earlier scroll-animation
-// round, no new copy invented. Each card now reveals individually
-// (staggered) instead of the whole grid revealing as one block.
+// Restyled this round - same 4 real steps and copy, unchanged. The step
+// badge now carries both the icon and the step number in one brand-filled
+// circle (was icon-circle + separate "Step N" label line), with a
+// connecting line strung between cards on desktop to read as one sequence
+// rather than 4 unrelated cards.
 function HowItWorks() {
   const { t } = useLanguage();
   return (
@@ -541,14 +673,17 @@ function HowItWorks() {
           <p className="text-xs font-semibold uppercase tracking-wide text-brand-solid">{t('landing.how.eyebrow')}</p>
           <h2 className="mt-2 text-[clamp(1.5rem,1.15rem+1.8vw,2.25rem)] font-display font-bold leading-[1.15] tracking-tight">{t('landing.how.heading')}</h2>
         </Reveal>
-        <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="relative mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="pointer-events-none absolute inset-x-0 top-[1.375rem] hidden border-t border-dashed border-border lg:block" />
           {STEPS.map((step, i) => (
             <Reveal key={step.text} delay={i * 0.05}>
-              <Card className="flex h-full flex-col items-start gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-brand text-text-onBrand">
+              <Card className="relative flex h-full flex-col items-start gap-3">
+                <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand text-text-onBrand">
                   {step.icon}
+                  <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-surface text-[11px] font-bold text-brand-solid shadow-resting">
+                    {i + 1}
+                  </span>
                 </div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Step {i + 1}</p>
                 <p className="font-semibold leading-snug">{step.text}</p>
               </Card>
             </Reveal>
@@ -559,31 +694,108 @@ function HowItWorks() {
   );
 }
 
-// Process/trust reassurance cards (Round H) - deliberately NOT
-// testimonials: no quotes, no named customers, no avatars, since there
-// are no real reviews to show yet. Just what actually happens, reusing
-// icons already established earlier on this same page rather than
-// introducing new ones for redundant concepts.
-function WhatToExpect() {
+// New this round - icon-only comparison of the two existing booking modes
+// (instant/"now" vs. scheduled - both already fully built, see
+// InstantRequest.jsx and BookingRequest.jsx's Now/Schedule toggle). No new
+// graphics, just two cards.
+function UrgencySection() {
   const { t } = useLanguage();
   const items = [
-    { icon: <VerifiedIcon />, title: t('landing.expect.docs.title'), desc: t('landing.expect.docs.desc') },
-    { icon: <TrustScoreIcon />, title: t('landing.expect.score.title'), desc: t('landing.expect.score.desc') },
-    { icon: <TrackIcon />, title: t('landing.expect.tracked.title'), desc: t('landing.expect.tracked.desc') },
-    { icon: <PayIcon />, title: t('landing.expect.pay.title'), desc: t('landing.expect.pay.desc') },
+    { icon: <ClockIcon />, title: t('landing.urgency.now.title'), desc: t('landing.urgency.now.desc') },
+    { icon: <CalendarIcon />, title: t('landing.urgency.scheduled.title'), desc: t('landing.urgency.scheduled.desc') },
   ];
   return (
     <section className="px-5 py-16 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl">
-        <Reveal className="text-center">
-          <h2 className="text-[clamp(1.5rem,1.15rem+1.8vw,2.25rem)] font-display font-bold leading-[1.15] tracking-tight">
-            {t('landing.expect.heading')}
-          </h2>
+        <Reveal className="mx-auto max-w-xl text-center">
+          <p className="text-xs font-semibold uppercase tracking-wide text-brand-solid">{t('landing.urgency.eyebrow')}</p>
+          <h2 className="mt-2 text-[clamp(1.5rem,1.15rem+1.8vw,2.25rem)] font-display font-bold leading-[1.15] tracking-tight">{t('landing.urgency.heading')}</h2>
         </Reveal>
-        <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mx-auto mt-10 grid max-w-3xl grid-cols-1 gap-4 sm:grid-cols-2">
           {items.map((item, i) => (
             <Reveal key={item.title} delay={i * 0.05}>
               <Card className="flex h-full flex-col items-start gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-alt text-brand-solid">
+                  {item.icon}
+                </div>
+                <p className="font-semibold">{item.title}</p>
+                <p className="text-sm text-text-muted">{item.desc}</p>
+              </Card>
+            </Reveal>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// New this round - worker-facing pitch, icon-only, ending in the same
+// "I offer a service" CTA copy used by Signup.jsx's role picker and the
+// Two Sides section above, deep-linking straight past that picker.
+function WorkerBenefitsSection() {
+  const { t } = useLanguage();
+  const items = [
+    { icon: <ClockIcon />, title: t('landing.workerBenefits.schedule.title'), desc: t('landing.workerBenefits.schedule.desc') },
+    { icon: <WalletIcon />, title: t('landing.workerBenefits.earnings.title'), desc: t('landing.workerBenefits.earnings.desc') },
+    { icon: <MatchIcon />, title: t('landing.workerBenefits.steady.title'), desc: t('landing.workerBenefits.steady.desc') },
+  ];
+  return (
+    <section className="bg-surface-alt px-5 py-16 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl">
+        <Reveal className="mx-auto max-w-xl text-center">
+          <p className="text-xs font-semibold uppercase tracking-wide text-brand-solid">{t('landing.workerBenefits.eyebrow')}</p>
+          <h2 className="mt-2 text-[clamp(1.5rem,1.15rem+1.8vw,2.25rem)] font-display font-bold leading-[1.15] tracking-tight">{t('landing.workerBenefits.heading')}</h2>
+          <p className="mt-3 leading-relaxed text-text-muted">{t('landing.workerBenefits.subcopy')}</p>
+        </Reveal>
+        <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {items.map((item, i) => (
+            <Reveal key={item.title} delay={i * 0.05}>
+              <Card className="flex h-full flex-col items-start gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-brand text-text-onBrand">
+                  {item.icon}
+                </div>
+                <p className="font-semibold">{item.title}</p>
+                <p className="text-sm text-text-muted">{item.desc}</p>
+              </Card>
+            </Reveal>
+          ))}
+        </div>
+        <Reveal delay={0.15} className="mt-10 text-center">
+          <Link to="/signup?role=worker">
+            <Button className="px-8 py-3">{t('landing.workerBenefits.cta')}</Button>
+          </Link>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
+// New this round - icon-only, covers the one payment method that exists
+// today (cash on completion - see bookings.service.js) plus a clearly
+// marked "coming soon" for eSewa, so this doesn't claim a payment method
+// that isn't live yet.
+function PaymentsSection() {
+  const { t } = useLanguage();
+  const items = [
+    { icon: <ReceiptIcon />, title: t('landing.payments.cash.title'), desc: t('landing.payments.cash.desc'), soon: false },
+    { icon: <WalletIcon />, title: t('landing.payments.esewa.title'), desc: t('landing.payments.esewa.desc'), soon: true },
+  ];
+  return (
+    <section className="px-5 py-16 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl">
+        <Reveal className="mx-auto max-w-xl text-center">
+          <p className="text-xs font-semibold uppercase tracking-wide text-brand-solid">{t('landing.payments.eyebrow')}</p>
+          <h2 className="mt-2 text-[clamp(1.5rem,1.15rem+1.8vw,2.25rem)] font-display font-bold leading-[1.15] tracking-tight">{t('landing.payments.heading')}</h2>
+        </Reveal>
+        <div className="mx-auto mt-10 grid max-w-3xl grid-cols-1 gap-4 sm:grid-cols-2">
+          {items.map((item, i) => (
+            <Reveal key={item.title} delay={i * 0.05}>
+              <Card className="relative flex h-full flex-col items-start gap-3">
+                {item.soon && (
+                  <span className="absolute right-5 top-5 rounded-full bg-surface-alt px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                    {t('landing.payments.esewa.badge')}
+                  </span>
+                )}
                 <div className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-alt text-brand-solid">
                   {item.icon}
                 </div>
@@ -712,11 +924,14 @@ export function Landing() {
       <LandingHeader />
       <Hero />
       <TrustStrip />
-      <About />
-      <ServicesGrid />
-      <WhyChooseUs />
+      <TwoSides />
       <HowItWorks />
-      <WhatToExpect />
+      <SafetySection />
+      <ServicesGrid />
+      <UrgencySection />
+      <WorkerBenefitsSection />
+      <PaymentsSection />
+      <About />
       <ClosingCtaAndFooter />
     </div>
   );

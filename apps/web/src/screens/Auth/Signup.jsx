@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { isValidPhoneNumber } from 'react-phone-number-input';
 import { AuthScreen } from '../../components/AuthScreen.jsx';
@@ -21,7 +21,14 @@ const ROLES = [
 export function Signup() {
   const { signup, googleAuth } = useAuth();
   const navigate = useNavigate();
-  const [role, setRole] = useState(null);
+  const [searchParams] = useSearchParams();
+  // Deep-link support (e.g. landing-page CTAs linking to /signup?role=worker):
+  // only pre-selects when the param matches a real ROLES value, otherwise
+  // falls through to the normal picker below unchanged.
+  const roleParam = searchParams.get('role');
+  const [role, setRole] = useState(() =>
+    ROLES.some((option) => option.value === roleParam) ? roleParam : null
+  );
   const [form, setForm] = useState({ fullName: '', phone: '', email: '', password: '' });
   const [phoneError, setPhoneError] = useState('');
   const [error, setError] = useState('');
