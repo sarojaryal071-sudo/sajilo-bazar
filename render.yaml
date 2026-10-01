@@ -10,7 +10,21 @@ services:
     runtime: node
     plan: free
     region: oregon
-    buildCommand: npm install && npm run migrate --workspace=apps/api
+    # seed:policies runs on every deploy, unlike apps/api's other
+    # src/db/*.js scripts (seed.js's demo data, backfillCommissionLedger.js's
+    # one-time correction) which stay manual-only by convention. This one is
+    # different in kind: it's the actual production content for /terms,
+    # /privacy, and /community-guidelines (migration 056 only adds the
+    # columns those pages read - the real text was always meant to be
+    # seeded separately, see that migration's own comment), the public
+    # pages 404 without it, and it's a plain idempotent UPDATE keyed on
+    # policy_type that always converges to the same published rows - safe
+    # to run on every build, same as `migrate` itself. Root-caused after
+    # these pages 404'd in production: the migration had been applied
+    # (Render runs `migrate` automatically), but nothing had ever run this
+    # script against that database - it had only ever been run manually
+    # against a local dev DB during development.
+    buildCommand: npm install && npm run migrate --workspace=apps/api && npm run seed:policies --workspace=apps/api
     startCommand: npm run start --workspace=apps/api
     healthCheckPath: /health
     envVars:

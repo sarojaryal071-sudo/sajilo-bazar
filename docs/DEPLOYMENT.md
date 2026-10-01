@@ -40,6 +40,21 @@ package resolves correctly - see each section below for how that's configured.
      ```
      This is safe to re-run - applied migrations are tracked in a
      `schema_migrations` table and skipped on subsequent runs.
+5. `render.yaml`'s `buildCommand` also runs `npm run seed:policies` after
+   `migrate`, on every deploy - this is the real Terms/Privacy/Community
+   Guidelines content the public `/terms`, `/privacy`, and
+   `/community-guidelines` pages read (see migration 056's own comment:
+   it only adds the columns, the content is seeded separately). Unlike
+   `apps/api/src/db/seed.js` (demo data) or `backfillCommissionLedger.js`
+   (a one-time correction), both of which stay manual-only, this one is
+   required production content and a plain idempotent `UPDATE` keyed on
+   `policy_type`, so it's safe and correct to run on every deploy. If
+   you ever see "This document isn't available right now" on one of
+   those pages, it means this step hasn't run against that database yet -
+   run it manually the same way as migrations above:
+   ```bash
+   DATABASE_URL="<your Neon pooled connection string>" npm run seed:policies --workspace=apps/api
+   ```
 
 ## 2. Render (API)
 
@@ -47,8 +62,10 @@ package resolves correctly - see each section below for how that's configured.
 Importing it creates one web service (`sajilo-bazar-api`) with the right build/start
 commands for this monorepo already filled in - you only need to supply the secrets.
 
-- **Build command**: `npm install && npm run migrate --workspace=apps/api`
-  (installs the whole workspace from the root, then applies migrations)
+- **Build command**: `npm install && npm run migrate --workspace=apps/api && npm run seed:policies --workspace=apps/api`
+  (installs the whole workspace from the root, applies migrations, then
+  re-seeds the public policy content - see step 5 above for why that last
+  part runs on every deploy)
 - **Start command**: `npm run start --workspace=apps/api`
 - **Health check**: `/health`
 
