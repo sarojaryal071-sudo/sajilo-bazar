@@ -7,6 +7,7 @@ import { FullScreenSpinner } from '../../components/Skeleton.jsx';
 import { Wordmark } from '../../components/Wordmark.jsx';
 import { Reveal } from '../../components/Reveal.jsx';
 import { CategoryIcon } from '../../components/CategoryIcon.jsx';
+import { LaunchMap } from '../../components/LaunchMap.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useTheme } from '../../context/ThemeContext.jsx';
 import { useLanguage } from '../../context/LanguageContext.jsx';
@@ -572,6 +573,32 @@ function About() {
   );
 }
 
+// Landing round 2 - a dedicated section for the "city by city" expansion
+// story, separate from About's own paragraph on the same theme. The map
+// itself (LaunchMap.jsx) is entirely live-data-driven: no district name is
+// hardcoded here or there, see that component's own comments.
+function LaunchCities() {
+  const { t } = useLanguage();
+  return (
+    <section className="px-5 py-16 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl">
+        <Reveal className="mx-auto max-w-xl text-center">
+          <p className="text-xs font-semibold uppercase tracking-wide text-brand-solid">
+            {t('landing.launch.eyebrow')}
+          </p>
+          <h2 className="mt-2 text-[clamp(1.5rem,1.15rem+1.8vw,2.25rem)] font-display font-bold leading-[1.15] tracking-tight">
+            {t('landing.launch.heading')}
+          </h2>
+          <p className="mt-3 leading-relaxed text-text-muted">{t('landing.launch.subcopy')}</p>
+        </Reveal>
+        <Reveal delay={0.1} className="mt-10">
+          <LaunchMap />
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
 // Icon-only cards, one per real service category (Round H) - pulled from
 // GET /workers/catalog/categories rather than hardcoded, so this stays in
 // sync with whatever categories actually have active services.
@@ -932,6 +959,7 @@ export function Landing() {
       <WorkerBenefitsSection />
       <PaymentsSection />
       <About />
+      <LaunchCities />
       <ClosingCtaAndFooter />
     </div>
   );
