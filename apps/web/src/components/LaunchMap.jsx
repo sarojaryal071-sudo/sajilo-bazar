@@ -45,45 +45,42 @@ export function LaunchMap() {
 
   return (
     <div className="mx-auto w-full max-w-md">
-      {/* Colored frame + shadow around the map (round 2): a full-strength
-          brand-gradient outer frame (the same bg-brand gradient Button.jsx
-          uses) holding a lifted inner panel, so the map reads as a
-          distinct, 3D card rather than flat outline art sitting on the
-          page. Both layers are theme-aware without extra dark-mode
-          styling - bg-brand and shadow-raised each already carry their own
-          dark value (see tokens.css), and the inner panel's
-          bg-surface-raised flips with the rest of the page. */}
-      <div className="rounded-[2rem] bg-brand p-2 shadow-[0_24px_48px_-16px_rgba(13,148,136,0.45)] sm:p-2.5">
-        <div className="rounded-[1.6rem] bg-surface-raised p-6 shadow-raised sm:p-8">
-          <svg viewBox={NEPAL_MAP_VIEWBOX} className="h-auto w-full" role="img" aria-label="Map of Nepal">
-            <g className="text-brand-solid/25" fill="none" stroke="currentColor" strokeWidth="0.6">
-              {Object.entries(NEPAL_DISTRICTS).map(([name, geo]) => (
-                <path key={name} d={geo.d} />
-              ))}
-            </g>
-            <g className="text-brand-solid">
-              {matched.map((d) => (
-                <g key={d.id}>
-                  <path d={d.d} fill="currentColor" fillOpacity="0.3" stroke="currentColor" strokeWidth="1.2" />
-                  <circle cx={d.cx} cy={d.cy} r="5" fill="currentColor" className="stroke-surface-raised" strokeWidth="1.5" />
-                </g>
-              ))}
-            </g>
-          </svg>
-          {matched.length > 0 && (
-            <ul className="mt-5 flex flex-wrap items-center justify-center gap-2">
-              {matched.map((d) => (
-                <li
-                  key={d.id}
-                  className="flex items-center gap-1.5 rounded-full bg-surface-alt px-3 py-1.5 text-sm font-medium text-text"
-                >
-                  <span className="h-2 w-2 shrink-0 rounded-full bg-brand-solid" />
-                  {d.name}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+      <div className="rounded-3xl border border-border bg-surface-raised p-6 shadow-raised sm:p-8">
+        <svg viewBox={NEPAL_MAP_VIEWBOX} className="h-auto w-full" role="img" aria-label="Map of Nepal">
+          <g
+            className="text-brand-solid"
+            fill="currentColor"
+            fillOpacity="0.08"
+            stroke="currentColor"
+            strokeOpacity="0.3"
+            strokeWidth="0.6"
+          >
+            {Object.entries(NEPAL_DISTRICTS).map(([name, geo]) => (
+              <path key={name} d={geo.d} />
+            ))}
+          </g>
+          <g className="text-brand-solid">
+            {matched.map((d) => (
+              <g key={d.id}>
+                <path d={d.d} fill="currentColor" fillOpacity="0.3" stroke="currentColor" strokeWidth="1.2" />
+                <circle cx={d.cx} cy={d.cy} r="5" fill="currentColor" className="stroke-surface-raised" strokeWidth="1.5" />
+              </g>
+            ))}
+          </g>
+        </svg>
+        {matched.length > 0 && (
+          <ul className="mt-5 flex flex-wrap items-center justify-center gap-2">
+            {matched.map((d) => (
+              <li
+                key={d.id}
+                className="flex items-center gap-1.5 rounded-full bg-surface-alt px-3 py-1.5 text-sm font-medium text-text"
+              >
+                <span className="h-2 w-2 shrink-0 rounded-full bg-brand-solid" />
+                {d.name}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
