@@ -4,6 +4,7 @@ import { Card } from '../../components/Card.jsx';
 import { Badge } from '../../components/Badge.jsx';
 import { Button } from '../../components/Button.jsx';
 import { SettingEditor } from '../../components/SettingEditor.jsx';
+import { CollapseChevron } from '../../components/CollapseChevron.jsx';
 import * as adminApi from '../../api/admin.api.js';
 import { humanizeCategory } from '../../lib/humanize.js';
 import { SETTING_LABEL, SETTING_HELP } from '../../lib/platformSettingsLabels.js';
@@ -104,6 +105,11 @@ function PriceBandEditor({ serviceId, band, busy, onSave }) {
   );
 }
 
+// QA2 item 5 - per-category collapse/expand, so a long catalog can be
+// scanned by name without every service list fully expanded. A Set of
+// collapsed category keys, not expanded ones - starts empty so every
+// category defaults to expanded on load (unchanged from before this
+// change), and a category only ever enters the set by being clicked shut.
 export function AdminCategories() {
   const navigate = useNavigate();
   const [categories, setCategories] = useState(null);
@@ -111,6 +117,16 @@ export function AdminCategories() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [busyId, setBusyId] = useState(null);
+  const [collapsedCategories, setCollapsedCategories] = useState(() => new Set());
+
+  function toggleCategoryCollapsed(category) {
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+  }
   // Per-service min/max price band (platform_settings key
   // 'service_price_bands', same admin-editable pattern as fuel pricing -
   // see platformSettings.service.js). One JSONB map for every service, not
@@ -279,90 +295,108 @@ export function AdminCategories() {
       {categories?.length === 0 && <p className="mt-4 text-sm text-text-muted">No services yet.</p>}
 
       <div className="mt-6 flex flex-col gap-4">
-        {categories?.map((cat) => (
-          <Card key={cat.category}>
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">{humanizeCategory(cat.category)}</h2>
-              {cat.pendingRequestCount > 0 && (
+        {categories?.map((cat) => {
+          const collapsed = collapsedCategories.has(cat.category);
+          return (
+            <Card key={cat.category}>
+              <div className="flex items-center justify-between gap-3">
                 <button
-                  onClick={() => navigate('/admin/approvals')}
-                  className="rounded-full"
-                  title="Pending cross-category worker requests in this category - review in Approvals"
+                  type="button"
+                  onClick={() => toggleCategoryCollapsed(cat.category)}
+                  className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                  aria-expanded={!collapsed}
                 >
-                  <Badge tone="warning">{cat.pendingRequestCount} pending request{cat.pendingRequestCount === 1 ? '' : 's'}</Badge>
+                  <CollapseChevron collapsed={collapsed} />
+                  <h2 className="text-lg font-semibold">{humanizeCategory(cat.category)}</h2>
+                  {collapsed && (
+                    <span className="text-sm text-text-muted">
+                      ({cat.services.length} service{cat.services.length === 1 ? '' : 's'})
+                    </span>
+                  )}
                 </button>
-              )}
-            </div>
-
-            <div className="mt-3 flex flex-col gap-2">
-              {cat.services.map((service) =>
-                editingId === service.id ? (
-                  <ServiceForm
-                    key={service.id}
-                    initial={{ category: service.category, name: service.name, description: service.description || '' }}
-                    submitLabel="Save"
-                    busy={busyId === service.id}
-                    onSubmit={(input) => handleUpdate(service.id, input)}
-                    onCancel={() => setEditingId(null)}
-                  />
-                ) : (
-                  <div
-                    key={service.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2"
+                {cat.pendingRequestCount > 0 && (
+                  <button
+                    onClick={() => navigate('/admin/approvals')}
+                    className="shrink-0 rounded-full"
+                    title="Pending cross-category worker requests in this category - review in Approvals"
                   >
-                    <div>
-                      <p className="text-sm font-medium">{service.name}</p>
-                      {service.description && (
-                        <p className="text-xs text-text-muted">{service.description}</p>
-                      )}
-                      <div className="mt-1.5">
-                        <PriceBandEditor
-                          serviceId={service.id}
-                          band={priceBands[String(service.id)]}
-                          busy={bandBusyId === service.id}
-                          onSave={handleSavePriceBand}
-                        />
+                    <Badge tone="warning">{cat.pendingRequestCount} pending request{cat.pendingRequestCount === 1 ? '' : 's'}</Badge>
+                  </button>
+                )}
+              </div>
+
+              {!collapsed && (
+                <div className="mt-3 flex flex-col gap-2">
+                  {cat.services.map((service) =>
+                    editingId === service.id ? (
+                      <ServiceForm
+                        key={service.id}
+                        initial={{ category: service.category, name: service.name, description: service.description || '' }}
+                        submitLabel="Save"
+                        busy={busyId === service.id}
+                        onSubmit={(input) => handleUpdate(service.id, input)}
+                        onCancel={() => setEditingId(null)}
+                      />
+                    ) : (
+                      <div
+                        key={service.id}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2"
+                      >
+                        <div>
+                          <p className="text-sm font-medium">{service.name}</p>
+                          {service.description && (
+                            <p className="text-xs text-text-muted">{service.description}</p>
+                          )}
+                          <div className="mt-1.5">
+                            <PriceBandEditor
+                              serviceId={service.id}
+                              band={priceBands[String(service.id)]}
+                              busy={bandBusyId === service.id}
+                              onSave={handleSavePriceBand}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          {service.highRisk && <Badge tone="danger">High risk</Badge>}
+                          <Badge tone={service.isActive ? 'success' : 'neutral'}>
+                            {service.isActive ? 'Active' : 'Inactive'}
+                          </Badge>
+                          <Button
+                            variant="secondary"
+                            disabled={busyId === service.id}
+                            onClick={() => setEditingId(service.id)}
+                            className="px-3 py-1.5 text-xs"
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            disabled={busyId === service.id}
+                            onClick={() => handleToggleHighRisk(service)}
+                            className="px-3 py-1.5 text-xs"
+                          >
+                            {service.highRisk ? 'Unmark high risk' : 'Mark high risk'}
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            disabled={busyId === service.id}
+                            onClick={() => handleToggleActive(service)}
+                            className="px-3 py-1.5 text-xs"
+                          >
+                            {busyId === service.id ? 'Working...' : service.isActive ? 'Deactivate' : 'Activate'}
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex flex-wrap items-center justify-end gap-2">
-                      {service.highRisk && <Badge tone="danger">High risk</Badge>}
-                      <Badge tone={service.isActive ? 'success' : 'neutral'}>
-                        {service.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
-                      <Button
-                        variant="secondary"
-                        disabled={busyId === service.id}
-                        onClick={() => setEditingId(service.id)}
-                        className="px-3 py-1.5 text-xs"
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        disabled={busyId === service.id}
-                        onClick={() => handleToggleHighRisk(service)}
-                        className="px-3 py-1.5 text-xs"
-                      >
-                        {service.highRisk ? 'Unmark high risk' : 'Mark high risk'}
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        disabled={busyId === service.id}
-                        onClick={() => handleToggleActive(service)}
-                        className="px-3 py-1.5 text-xs"
-                      >
-                        {busyId === service.id ? 'Working...' : service.isActive ? 'Deactivate' : 'Activate'}
-                      </Button>
-                    </div>
-                  </div>
-                )
+                    )
+                  )}
+                  {cat.services.length === 0 && (
+                    <p className="text-sm text-text-muted">No services in this category yet.</p>
+                  )}
+                </div>
               )}
-              {cat.services.length === 0 && (
-                <p className="text-sm text-text-muted">No services in this category yet.</p>
-              )}
-            </div>
-          </Card>
-        ))}
+            </Card>
+          );
+        })}
       </div>
     </div>
   );

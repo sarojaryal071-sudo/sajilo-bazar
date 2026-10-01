@@ -2,6 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
+// Lets a page decide whether to render anything that assumes a Google
+// button is present (e.g. an "OR" divider between it and a phone/password
+// form) - this component itself already returns null without a configured
+// client id (see below), but a caller needs to know that *before*
+// rendering, not just accept an empty gap where the button would be.
+export const isGoogleSignInConfigured = Boolean(CLIENT_ID);
+
 // Loaded once and cached at module scope - Login and Signup can both
 // mount a GoogleSignInButton without requesting the script twice.
 let scriptPromise = null;

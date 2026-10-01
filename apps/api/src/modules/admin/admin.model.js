@@ -1301,7 +1301,11 @@ function toContentItem(row) {
     id: row.id,
     policyType: row.policy_type,
     title: row.title,
-    body: row.body,
+    subtitle: row.subtitle,
+    effectiveDate: row.effective_date,
+    docNote: row.doc_note,
+    // JSONB - node-postgres already hands this back parsed, not a string.
+    sections: row.sections,
     audience: row.audience,
     status: row.status,
     isLive,
@@ -1481,12 +1485,13 @@ export async function listPolicies() {
   return rows.map(toContentItem);
 }
 
-export async function updatePolicy(policyType, { title, body }) {
+export async function updatePolicy(policyType, { title, subtitle, effectiveDate, docNote, sections }) {
   const { rows } = await pool.query(
-    `UPDATE content_items SET title = $2, body = $3, updated_at = now()
+    `UPDATE content_items
+     SET title = $2, subtitle = $3, effective_date = $4, doc_note = $5, sections = $6, updated_at = now()
      WHERE policy_type = $1 AND kind = 'policy'
      RETURNING *`,
-    [policyType, title, body]
+    [policyType, title, subtitle ?? null, effectiveDate ?? null, docNote ?? null, JSON.stringify(sections)]
   );
   return rows[0] ? toContentItem(rows[0]) : null;
 }

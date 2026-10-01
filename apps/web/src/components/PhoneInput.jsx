@@ -6,7 +6,7 @@ import 'react-phone-number-input/style.css';
 // library's default order) defaulting to Nepal but not restricted to it.
 // Value is always E.164 (e.g. "+9779812345678"), matching the existing
 // `phone` column - no format conversion needed anywhere else.
-export function PhoneInput({ label, error, value, onChange, name }) {
+export function PhoneInput({ label, error, value, onChange, name, disabled }) {
   return (
     <label className="flex flex-col gap-1.5" htmlFor={name}>
       {label && <span className="text-sm font-medium text-text-muted">{label}</span>}
@@ -19,9 +19,10 @@ export function PhoneInput({ label, error, value, onChange, name }) {
         value={value}
         onChange={(next) => onChange(next || '')}
         placeholder="98XXXXXXXX"
+        disabled={disabled}
         className={`sajilo-phone-input rounded-md border border-border bg-surface px-4 ${
           error ? 'border-danger' : ''
-        }`}
+        } ${disabled ? 'opacity-60' : ''}`}
       />
       {error && <span className="text-sm text-danger">{error}</span>}
     </label>

@@ -1,4 +1,4 @@
-import { Navigate, NavLink, Outlet } from 'react-router-dom';
+import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useIsDesktop } from '../hooks/useIsDesktop.js';
 import { canAccessDepartment } from '../lib/adminDepartments.js';
@@ -235,15 +235,23 @@ function DesktopOnlyMessage() {
 // so no admin data fetch ever fires there. Since it's desktop-only, the
 // sidebar is simple and fixed - no collapse/toggle affordance needed, same
 // as any other desktop app's sidebar.
-function NavItemLink({ to, label, icon: Icon }) {
+// activeOverride lets a parent force the highlighted state regardless of
+// NavLink's own path-based `isActive` - needed when landing on
+// /admin/bookings/:id by drilling in from a user's profile (see
+// AdminBookingDetail.jsx's fromUser state): that route still falls under
+// "Bookings" by path, but should read as "Users" since that's where the
+// admin actually came from and where "Back to {name}" returns them.
+// undefined (the default) leaves NavLink's own isActive untouched.
+function NavItemLink({ to, label, icon: Icon, activeOverride }) {
   return (
     <NavLink
       to={to}
-      className={({ isActive }) =>
-        `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-          isActive ? 'bg-brand text-text-onBrand' : 'text-text-muted hover:bg-surface-alt'
-        }`
-      }
+      className={({ isActive }) => {
+        const active = activeOverride ?? isActive;
+        return `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+          active ? 'bg-brand text-text-onBrand' : 'text-text-muted hover:bg-surface-alt'
+        }`;
+      }}
     >
       <Icon />
       {label}
@@ -251,9 +259,18 @@ function NavItemLink({ to, label, icon: Icon }) {
   );
 }
 
+// See NavItemLink's activeOverride comment above.
+function navItemActiveOverride(to, cameFromUserProfile) {
+  if (!cameFromUserProfile) return undefined;
+  if (to === '/admin/bookings') return false;
+  if (to === '/admin/users') return true;
+  return undefined;
+}
+
 export function AdminShell() {
   const { user, loading, logout } = useAuth();
   const isDesktop = useIsDesktop();
+  const location = useLocation();
 
   if (loading) return <FullScreenSpinner />;
   if (!user) return <Navigate to="/login" replace />;
@@ -262,6 +279,8 @@ export function AdminShell() {
 
   const access = { isSuperAdmin: user.isSuperAdmin, departments: user.departments ?? [] };
   const visibleGroups = getVisibleNavGroups(access);
+  const cameFromUserProfile =
+    location.pathname.startsWith('/admin/bookings/') && Boolean(location.state?.fromUser);
 
   return (
     <div className="flex h-dvh overflow-hidden">
@@ -286,7 +305,11 @@ export function AdminShell() {
                   </p>
                 )}
                 {group.items.map((item) => (
-                  <NavItemLink key={item.to} {...item} />
+                  <NavItemLink
+                    key={item.to}
+                    {...item}
+                    activeOverride={navItemActiveOverride(item.to, cameFromUserProfile)}
+                  />
                 ))}
               </div>
             ))}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Card } from '../../components/Card.jsx';
 import { Badge } from '../../components/Badge.jsx';
 import { Button } from '../../components/Button.jsx';
@@ -22,6 +22,8 @@ function formatDateTime(iso) {
 export function AdminBookingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromUser = location.state?.fromUser;
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState('');
   const [showCancelForm, setShowCancelForm] = useState(false);
@@ -100,7 +102,16 @@ export function AdminBookingDetail() {
 
   return (
     <div className="max-w-3xl">
-      <button onClick={() => navigate(-1)} className="text-sm text-text-muted">&larr; Back</button>
+      {fromUser ? (
+        <button
+          onClick={() => navigate(`/admin/users/${fromUser.id}`)}
+          className="text-sm text-text-muted"
+        >
+          &larr; Back to {fromUser.name}
+        </button>
+      ) : (
+        <button onClick={() => navigate(-1)} className="text-sm text-text-muted">&larr; Back</button>
+      )}
 
       <div className="mt-3 flex items-center justify-between">
         <div>

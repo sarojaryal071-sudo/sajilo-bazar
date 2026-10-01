@@ -1,6 +1,5 @@
 import { LegalPage } from './LegalPage.jsx';
-import { TERMS_CONTENT } from './legalContent.js';
 
 export function Terms() {
-  return <LegalPage content={TERMS_CONTENT} />;
+  return <LegalPage policyType="terms_of_service" />;
 }

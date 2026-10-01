@@ -119,14 +119,31 @@ export const AdminDistrictCreateInputSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
-// Admin Policies screen (Round D). Announcements' input schema moved to
+// Admin Policies screen (Round D; restructured into sections for target-
+// spec QA2 item 4). Announcements' input schema moved to
 // publication.schema.js (2026-09-25) as part of unifying Announcements +
 // Promotions into one Publications flow - policies are a fixed set, never
 // created or deleted from this screen, so they keep their own lighter
 // input schema untouched.
+//
+// A section is one admin-editable plain-text field (body), not a nested
+// block tree - a run of "- "-prefixed lines in body renders as a bullet
+// list and anything else renders as a paragraph (see
+// apps/web/src/lib/policySections.js). This is what keeps "add, remove,
+// reorder, edit a section" to one heading input + one textarea per
+// section, while still reproducing the mix of paragraphs and bullet lists
+// the real Terms/Privacy text actually has.
+const PolicySectionSchema = z.object({
+  heading: z.string().max(200),
+  body: z.string().min(1),
+});
+
 export const AdminPolicyInputSchema = z.object({
   title: z.string().min(1).max(160),
-  body: z.string().min(1),
+  subtitle: z.string().max(300).nullable().optional(),
+  effectiveDate: z.string().max(100).nullable().optional(),
+  docNote: z.string().max(300).nullable().optional(),
+  sections: z.array(PolicySectionSchema).min(1),
 });
 
 // Admin Finance screen's Expenses tab (target-spec Phase 8/9, "lean" -

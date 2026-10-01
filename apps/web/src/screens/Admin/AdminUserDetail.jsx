@@ -584,7 +584,9 @@ export function AdminUserDetail() {
                 return (
                   <tr
                     key={b.id}
-                    onClick={() => navigate(`/admin/bookings/${b.id}`)}
+                    onClick={() =>
+                      navigate(`/admin/bookings/${b.id}`, { state: { fromUser: { id: user.id, name: user.fullName } } })
+                    }
                     className="cursor-pointer border-b border-border last:border-0 hover:bg-surface-alt"
                   >
                     <td className="px-4 py-3 text-brand-solid">{formatDate(b.createdAt)}</td>

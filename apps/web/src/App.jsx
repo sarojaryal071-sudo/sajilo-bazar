@@ -12,6 +12,7 @@ import { AdminShell } from './components/AdminShell.jsx';
 import { Landing } from './screens/Landing/Landing.jsx';
 import { Terms } from './screens/Legal/Terms.jsx';
 import { Privacy } from './screens/Legal/Privacy.jsx';
+import { CommunityGuidelines } from './screens/Legal/CommunityGuidelines.jsx';
 import { Login } from './screens/Auth/Login.jsx';
 import { ForgotPassword } from './screens/Auth/ForgotPassword.jsx';
 import { WorkerPasswordResetRequest } from './screens/Auth/WorkerPasswordResetRequest.jsx';
@@ -68,6 +69,7 @@ export default function App() {
               <Route path="/signup" element={<Signup />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/privacy" element={<Privacy />} />
+              <Route path="/community-guidelines" element={<CommunityGuidelines />} />
 
               <Route element={<AppShell />}>
                 <Route path="/home" element={<Home />} />

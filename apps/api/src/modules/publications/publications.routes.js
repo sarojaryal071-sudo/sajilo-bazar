@@ -8,3 +8,10 @@ export const publicationsRoutes = Router();
 // Any authenticated user can read the audience they're asking for -
 // there's nothing sensitive in a published promotion.
 publicationsRoutes.get('/active', requireAuth, publicationsController.getActivePromotions);
+
+// Separate router (no requireAuth anywhere on it) rather than another
+// route on publicationsRoutes above - /terms, /privacy, and /community-
+// guidelines are signed-out-reachable pages (see App.jsx), unlike
+// everything else this module serves.
+export const publicPoliciesRoutes = Router();
+publicPoliciesRoutes.get('/:policyType', publicationsController.getPublicPolicy);

@@ -21,3 +21,24 @@ export async function getActivePromotions(req, res, next) {
     next(err);
   }
 }
+
+const POLICY_TYPES = ['terms_of_service', 'privacy_policy', 'community_guidelines'];
+
+// Fully public (no requireAuth) - /terms, /privacy, and /community-
+// guidelines are reachable from the Landing page by a signed-out visitor
+// (see App.jsx's public route list), unlike the promotions carousel above
+// which only ever renders inside an already-authenticated shell. Only ever
+// serves a published policy - a draft mid-edit should never reach a real
+// visitor just because an admin saved it (see admin.model.js
+// findPolicyByType/the Policies editor's Publish/Unpublish toggle).
+export async function getPublicPolicy(req, res, next) {
+  try {
+    const { policyType } = req.params;
+    if (!POLICY_TYPES.includes(policyType)) return next(new ApiError(400, 'Invalid policy type'));
+    const policy = await adminModel.findPolicyByType(policyType);
+    if (!policy || policy.status !== 'published') return next(new ApiError(404, 'Policy not found'));
+    res.json({ policy });
+  } catch (err) {
+    next(err);
+  }
+}

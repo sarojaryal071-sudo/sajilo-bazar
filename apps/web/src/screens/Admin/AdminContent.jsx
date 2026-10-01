@@ -3,6 +3,7 @@ import { Card } from '../../components/Card.jsx';
 import { Badge } from '../../components/Badge.jsx';
 import { Button } from '../../components/Button.jsx';
 import { PublicationStatusBadges } from '../../components/PublicationStatusBadges.jsx';
+import { CollapseChevron } from '../../components/CollapseChevron.jsx';
 import * as adminApi from '../../api/admin.api.js';
 
 const TYPE_LABEL = { notification: 'Notification', promotion: 'Promotion' };
@@ -352,44 +353,175 @@ function PublicationsTab() {
   );
 }
 
+// Structured-sections editor (QA2 item 4) - replaces the old single flat
+// textarea. A section is one heading input + one body textarea (not a
+// nested paragraph/bullet-list block editor): a run of "- "-prefixed lines
+// in body renders as a bullet list on the public page and anything else
+// as a paragraph (see apps/web/src/lib/policySections.js) - that's what
+// lets "add, remove, reorder, edit a section" stay this simple while still
+// reproducing real multi-paragraph, mixed-list policy text exactly.
+//
+// Collapsed by default (own local state, not persisted) - unlike
+// AdminCategories.jsx's collapsible cards, which default open since a
+// service list is short, a policy document can run to 15+ sections and
+// collapsing it is the more useful default on a screen that also has the
+// Publications tab's own long list above it.
 function PolicyEditor({ policy, busy, onSave, onPublishToggle }) {
+  const [expanded, setExpanded] = useState(false);
   const [title, setTitle] = useState(policy.title);
-  const [body, setBody] = useState(policy.body);
-  const dirty = title !== policy.title || body !== policy.body;
+  const [subtitle, setSubtitle] = useState(policy.subtitle || '');
+  const [effectiveDate, setEffectiveDate] = useState(policy.effectiveDate || '');
+  const [docNote, setDocNote] = useState(policy.docNote || '');
+  const [sections, setSections] = useState(policy.sections);
+
+  const dirty =
+    title !== policy.title ||
+    subtitle !== (policy.subtitle || '') ||
+    effectiveDate !== (policy.effectiveDate || '') ||
+    docNote !== (policy.docNote || '') ||
+    JSON.stringify(sections) !== JSON.stringify(policy.sections);
+
+  function updateSection(index, patch) {
+    setSections((prev) => prev.map((s, i) => (i === index ? { ...s, ...patch } : s)));
+  }
+
+  function addSection() {
+    setSections((prev) => [...prev, { heading: '', body: '' }]);
+  }
+
+  function removeSection(index) {
+    setSections((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function moveSection(index, direction) {
+    setSections((prev) => {
+      const target = index + direction;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
+
+  function handleSave() {
+    onSave({
+      title: title.trim(),
+      subtitle: subtitle.trim() || null,
+      effectiveDate: effectiveDate.trim() || null,
+      docNote: docNote.trim() || null,
+      sections: sections.map((s) => ({ heading: s.heading.trim(), body: s.body.trim() })),
+    });
+  }
 
   return (
     <Card>
-      <div className="flex items-center justify-between">
-        <p className="font-semibold">{policy.title}</p>
+      <div className="flex items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          aria-expanded={expanded}
+        >
+          <CollapseChevron collapsed={!expanded} />
+          <p className="font-semibold">{policy.title}</p>
+          <span className="text-sm text-text-muted">
+            ({policy.sections.length} section{policy.sections.length === 1 ? '' : 's'})
+          </span>
+        </button>
         <PublicationStatusBadges status={policy.status} isLive={policy.isLive} />
       </div>
 
-      <input
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        className="mt-3 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand-solid"
-      />
-      <textarea
-        rows={8}
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-        placeholder="Policy content..."
-        className="mt-2 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand-solid"
-      />
+      {expanded && (
+        <>
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Title"
+              className="rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand-solid"
+            />
+            <input
+              value={subtitle}
+              onChange={(e) => setSubtitle(e.target.value)}
+              placeholder="Subtitle"
+              className="rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand-solid"
+            />
+            <input
+              value={effectiveDate}
+              onChange={(e) => setEffectiveDate(e.target.value)}
+              placeholder="Effective date label (e.g. &quot;Effective date: 1 January 2027&quot;)"
+              className="rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand-solid"
+            />
+            <input
+              value={docNote}
+              onChange={(e) => setDocNote(e.target.value)}
+              placeholder="Footer note"
+              className="rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand-solid"
+            />
+          </div>
 
-      <div className="mt-3 flex items-center gap-2">
-        <Button
-          variant="secondary"
-          disabled={busy || !dirty}
-          onClick={() => onSave({ title: title.trim(), body: body.trim() })}
-          className="px-4 py-1.5 text-sm"
-        >
-          {busy ? 'Saving...' : 'Save'}
-        </Button>
-        <Button variant="secondary" disabled={busy} onClick={onPublishToggle} className="px-4 py-1.5 text-sm">
-          {policy.status === 'published' ? 'Unpublish' : 'Publish'}
-        </Button>
-      </div>
+          <p className="mt-4 mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">Sections</p>
+          <div className="flex flex-col gap-3">
+            {sections.map((section, i) => (
+              <div key={i} className="rounded-xl border border-border p-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    value={section.heading}
+                    onChange={(e) => updateSection(i, { heading: e.target.value })}
+                    placeholder="Section heading"
+                    className="flex-1 rounded-md border border-border bg-surface-raised px-2 py-1.5 text-sm outline-none focus:border-brand-solid"
+                  />
+                  <button
+                    type="button"
+                    disabled={i === 0}
+                    onClick={() => moveSection(i, -1)}
+                    aria-label="Move section up"
+                    className="rounded-md border border-border px-2 py-1 text-xs text-text-muted disabled:opacity-30"
+                  >
+                    &uarr;
+                  </button>
+                  <button
+                    type="button"
+                    disabled={i === sections.length - 1}
+                    onClick={() => moveSection(i, 1)}
+                    aria-label="Move section down"
+                    className="rounded-md border border-border px-2 py-1 text-xs text-text-muted disabled:opacity-30"
+                  >
+                    &darr;
+                  </button>
+                  <button
+                    type="button"
+                    disabled={sections.length === 1}
+                    onClick={() => removeSection(i)}
+                    className="rounded-md border border-border px-2 py-1 text-xs text-danger disabled:opacity-30"
+                  >
+                    Remove
+                  </button>
+                </div>
+                <textarea
+                  rows={4}
+                  value={section.body}
+                  onChange={(e) => updateSection(i, { body: e.target.value })}
+                  placeholder={'Paragraph text. Start consecutive lines with "- " for a bullet list.'}
+                  className="mt-2 w-full rounded-md border border-border bg-surface-raised px-2 py-1.5 text-sm outline-none focus:border-brand-solid"
+                />
+              </div>
+            ))}
+            <Button variant="secondary" onClick={addSection} className="self-start px-4 py-1.5 text-sm">
+              + Add section
+            </Button>
+          </div>
+
+          <div className="mt-3 flex items-center gap-2">
+            <Button variant="secondary" disabled={busy || !dirty} onClick={handleSave} className="px-4 py-1.5 text-sm">
+              {busy ? 'Saving...' : 'Save'}
+            </Button>
+            <Button variant="secondary" disabled={busy} onClick={onPublishToggle} className="px-4 py-1.5 text-sm">
+              {policy.status === 'published' ? 'Unpublish' : 'Publish'}
+            </Button>
+          </div>
+        </>
+      )}
     </Card>
   );
 }
