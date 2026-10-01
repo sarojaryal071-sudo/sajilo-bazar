@@ -39,11 +39,26 @@ export const UserSchema = z.object({
   deactivatedAt: z.string().datetime().nullable().optional(),
   deletedAt: z.string().datetime().nullable().optional(),
   createdAt: z.string().datetime().optional(),
+  // Set together, once, at signup (phone+password or Google) - see
+  // auth.service.js. Null for accounts created before this existed and for
+  // admin-created staff accounts, neither of which went through a consent
+  // screen.
+  termsAcceptedAt: z.string().datetime().nullable().optional(),
+  termsAcceptedVersion: z.string().nullable().optional(),
   // Set when an admin issues a temp password via the document-based
   // password-reset flow (target-spec Phase 9/10, Users & Verification) -
   // AppShell reads this the same way it already reads verificationStatus,
   // to force the change-password screen before anything else is reachable.
   mustChangePassword: z.boolean().optional(),
+});
+
+// termsAccepted is a consent gate, not stored as-is - the server records
+// the real acceptance (auth.service.js stamps terms_accepted_at/_version
+// on the user row at creation). Requiring the literal `true` here means an
+// omitted or false value fails validation with a clear 400, so this is a
+// real backend requirement, not just a disabled frontend button.
+const termsAcceptedSchema = z.literal(true, {
+  message: 'You must accept the Terms & Conditions and Privacy Policy to create an account.',
 });
 
 export const SignupInputSchema = z.object({
@@ -52,6 +67,7 @@ export const SignupInputSchema = z.object({
   email: z.string().email().nullable().optional(),
   password: z.string().min(8).max(72),
   role: z.enum(['customer', 'worker']), // nobody signs up as admin
+  termsAccepted: termsAcceptedSchema,
 });
 
 export const LoginInputSchema = z.object({
@@ -91,6 +107,7 @@ export const GoogleCompleteSignupInputSchema = z.object({
   pendingToken: z.string().min(1),
   phone: phoneSchema,
   role: z.enum(['customer', 'worker']),
+  termsAccepted: termsAcceptedSchema,
 });
 
 // "Forgot password" (business-accepted, no OTP/email verification for this

@@ -1,0 +1,21 @@
+-- Records that a user actually agreed to the Terms & Conditions and
+-- Privacy Policy at account creation, server-side - a frontend-only
+-- checkbox proves nothing later if there's ever a dispute about whether
+-- someone agreed to anything, since nothing about it survives past that
+-- page render.
+--
+-- Both nullable, and both only ever set together, at INSERT time, by the
+-- two real self-service signup paths (auth.service.js signup and
+-- completeGoogleSignup). Existing accounts are never retroactively forced
+-- to accept, so they keep both columns null; an admin-created staff
+-- account (admin.service.js createAdmin, via the same authModel.createUser)
+-- isn't a self-service signup with a consent screen either, and also
+-- leaves these null.
+--
+-- terms_accepted_version is a lightweight tag, not a foreign key into
+-- content_items (which holds the live, admin-editable policy text, not a
+-- history of past revisions) - just enough to know which revision of the
+-- combined Terms + Privacy copy a given user actually agreed to, should
+-- the wording change later. See CURRENT_TERMS_VERSION in auth.service.js.
+ALTER TABLE users ADD COLUMN terms_accepted_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN terms_accepted_version VARCHAR(50);

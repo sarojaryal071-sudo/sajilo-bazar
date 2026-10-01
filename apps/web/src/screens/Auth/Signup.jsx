@@ -31,6 +31,7 @@ export function Signup() {
   );
   const [form, setForm] = useState({ fullName: '', phone: '', email: '', password: '' });
   const [phoneError, setPhoneError] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [googlePending, setGooglePending] = useState(null);
@@ -61,10 +62,17 @@ export function Signup() {
       setPhoneError('Enter a valid phone number, including the country code');
       return;
     }
+    // Belt-and-suspenders alongside the submit button's own `disabled` -
+    // keeps this blocked even if a browser forwards an Enter-key submit
+    // around a disabled submit button.
+    if (!termsAccepted) {
+      setError('You must agree to the Terms & Conditions and Privacy Policy to create an account.');
+      return;
+    }
 
     setSubmitting(true);
     try {
-      const user = await signup({ ...form, email: form.email || null, role });
+      const user = await signup({ ...form, email: form.email || null, role, termsAccepted });
       await proceedAfterSignup(user);
     } catch (err) {
       setError(err.message);
@@ -199,8 +207,41 @@ export function Signup() {
           value={form.password}
           onChange={(e) => setForm({ ...form, password: e.target.value })}
         />
+        <label className="flex items-start gap-2 text-sm text-text-muted">
+          <input
+            type="checkbox"
+            checked={termsAccepted}
+            onChange={(e) => {
+              setTermsAccepted(e.target.checked);
+              if (error) setError('');
+            }}
+            className="mt-0.5 h-4 w-4 shrink-0 accent-brand-solid"
+          />
+          <span>
+            I agree to the{' '}
+            <a
+              href="/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="font-medium text-brand-solid underline"
+            >
+              Terms & Conditions
+            </a>{' '}
+            and{' '}
+            <a
+              href="/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="font-medium text-brand-solid underline"
+            >
+              Privacy Policy
+            </a>
+          </span>
+        </label>
         {error && <p className="text-sm text-danger">{error}</p>}
-        <Button type="submit" disabled={submitting} className="auth-btn mt-2 w-full">
+        <Button type="submit" disabled={submitting || !termsAccepted} className="auth-btn mt-2 w-full">
           {submitting ? 'Creating account...' : 'Create account'}
         </Button>
       </form>

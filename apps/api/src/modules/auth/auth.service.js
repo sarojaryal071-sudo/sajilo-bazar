@@ -9,6 +9,15 @@ import * as passwordResetModel from '../passwordReset/passwordReset.model.js';
 
 const SALT_ROUNDS = 10;
 
+// A lightweight tag for which revision of the combined Terms & Conditions
+// + Privacy Policy copy a signup's acceptance refers to - not a foreign
+// key into content_items (that table holds the current, admin-editable
+// text, not a history of past revisions). Bump this whenever that text
+// changes in a way that matters; existing acceptances keep whatever value
+// was current when they signed up. Matches seedPolicyContent.js's
+// EFFECTIVE_DATE ('Effective date: 24 September 2026') in ISO form.
+const CURRENT_TERMS_VERSION = '2026-09-24';
+
 // A short-lived, single-purpose token type distinct from a real session
 // token (no "role" claim, never accepted by requireAuth's route guards -
 // it's only ever read back by completeGoogleSignup below, from the request
@@ -65,8 +74,19 @@ export async function signup({ fullName, phone, email, password, role }) {
   }
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+  // termsAccepted on the input is already guaranteed `true` by
+  // SignupInputSchema (z.literal(true)) before this function ever runs -
+  // what's recorded here is the actual server-side proof of that consent.
   const user = await attachWorkerVerificationStatus(
-    await authModel.createUser({ fullName, phone, email, passwordHash, role })
+    await authModel.createUser({
+      fullName,
+      phone,
+      email,
+      passwordHash,
+      role,
+      termsAcceptedAt: new Date(),
+      termsAcceptedVersion: CURRENT_TERMS_VERSION,
+    })
   );
   return { token: issueToken(user), user };
 }
@@ -171,6 +191,8 @@ export async function completeGoogleSignup({ pendingToken, phone, role }) {
   const existingGoogleId = await authModel.findByGoogleId(claims.googleId);
   if (existingGoogleId) throw new ApiError(409, 'This Google account is already linked to a Sajilo Bazar account');
 
+  // Same consent gate as phone+password signup above - GoogleCompleteSignupInputSchema
+  // already requires termsAccepted === true before this function runs.
   const user = await attachWorkerVerificationStatus(
     await authModel.createUser({
       fullName: claims.fullName || 'Sajilo Bazar user',
@@ -178,6 +200,8 @@ export async function completeGoogleSignup({ pendingToken, phone, role }) {
       email: claims.email,
       role,
       googleId: claims.googleId,
+      termsAcceptedAt: new Date(),
+      termsAcceptedVersion: CURRENT_TERMS_VERSION,
     })
   );
   return { token: issueToken(user), user };

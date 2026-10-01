@@ -18,6 +18,8 @@ function toUser(row) {
     deletedAt: row.deleted_at,
     createdAt: row.created_at,
     mustChangePassword: row.must_change_password,
+    termsAcceptedAt: row.terms_accepted_at,
+    termsAcceptedVersion: row.terms_accepted_version,
   };
 }
 

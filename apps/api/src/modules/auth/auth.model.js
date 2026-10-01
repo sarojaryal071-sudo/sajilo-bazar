@@ -16,6 +16,8 @@ function toUser(row) {
     deletedAt: row.deleted_at,
     createdAt: row.created_at,
     mustChangePassword: row.must_change_password,
+    termsAcceptedAt: row.terms_accepted_at,
+    termsAcceptedVersion: row.terms_accepted_version,
   };
 }
 
@@ -115,17 +117,26 @@ export async function updatePasswordAndClearMustChange(userId, passwordHash) {
 // replaces. Pulling the id from the sequence up front (via a CTE, in one
 // statement) and writing the real client_id directly means no signup ever
 // touches a shared placeholder value, so there's nothing left to collide.
-export async function createUser({ fullName, phone, email, passwordHash = null, role, googleId = null }) {
+export async function createUser({
+  fullName,
+  phone,
+  email,
+  passwordHash = null,
+  role,
+  googleId = null,
+  termsAcceptedAt = null,
+  termsAcceptedVersion = null,
+}) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const insert = await client.query(
       `WITH new_id AS (SELECT nextval(pg_get_serial_sequence('users', 'id')) AS id)
-       INSERT INTO users (id, client_id, role, full_name, phone, email, password_hash, google_id)
-       SELECT id, 'U' || lpad(id::text, 4, '0'), $1, $2, $3, $4, $5, $6
+       INSERT INTO users (id, client_id, role, full_name, phone, email, password_hash, google_id, terms_accepted_at, terms_accepted_version)
+       SELECT id, 'U' || lpad(id::text, 4, '0'), $1, $2, $3, $4, $5, $6, $7, $8
        FROM new_id
        RETURNING *`,
-      [role, fullName, phone, email ?? null, passwordHash, googleId]
+      [role, fullName, phone, email ?? null, passwordHash, googleId, termsAcceptedAt, termsAcceptedVersion]
     );
     const row = insert.rows[0];
 

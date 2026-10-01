@@ -15,8 +15,8 @@ export function google(idToken) {
   return apiFetch('/auth/google', { method: 'POST', body: { idToken } });
 }
 
-export function completeGoogleSignup({ pendingToken, phone, role }) {
-  return apiFetch('/auth/google/complete', { method: 'POST', body: { pendingToken, phone, role } });
+export function completeGoogleSignup({ pendingToken, phone, role, termsAccepted }) {
+  return apiFetch('/auth/google/complete', { method: 'POST', body: { pendingToken, phone, role, termsAccepted } });
 }
 
 export function forgotPassword({ phone, newPassword }) {
