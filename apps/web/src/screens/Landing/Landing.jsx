@@ -591,9 +591,27 @@ function LaunchCities() {
           </h2>
           <p className="mt-3 leading-relaxed text-text-muted">{t('landing.launch.subcopy')}</p>
         </Reveal>
-        <Reveal delay={0.1} className="mt-10">
-          <LaunchMap />
-        </Reveal>
+        <div className="mt-10 grid grid-cols-1 items-center gap-8 lg:grid-cols-[3fr_2fr] lg:gap-12">
+          <Reveal>
+            <LaunchMap />
+          </Reveal>
+          {/* Small accent photo (round 2) - hero-alt-desktop/mobile.webp,
+              not used in About or ClosingCtaAndFooter on either side of
+              this section, so it doesn't repeat back-to-back with them. */}
+          <Reveal delay={0.1}>
+            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl lg:aspect-[3/4]">
+              <picture>
+                <source media="(min-width: 640px)" srcSet="/images/hero-alt-desktop.webp" />
+                <img
+                  src="/images/hero-alt-mobile.webp"
+                  alt="A Sajilo Bazar worker repairing a kitchen sink"
+                  className="h-full w-full object-cover"
+                />
+              </picture>
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
+            </div>
+          </Reveal>
+        </div>
       </div>
     </section>
   );
@@ -721,10 +739,11 @@ function HowItWorks() {
   );
 }
 
-// New this round - icon-only comparison of the two existing booking modes
-// (instant/"now" vs. scheduled - both already fully built, see
-// InstantRequest.jsx and BookingRequest.jsx's Now/Schedule toggle). No new
-// graphics, just two cards.
+// Comparison of the two existing booking modes (instant/"now" vs.
+// scheduled - both already fully built, see InstantRequest.jsx and
+// BookingRequest.jsx's Now/Schedule toggle). Paired with a real photo
+// (round 2) - hero-alt-desktop/mobile.webp, a worker mid-job, fitting the
+// "need it right now" half of this section.
 function UrgencySection() {
   const { t } = useLanguage();
   const items = [
@@ -738,27 +757,44 @@ function UrgencySection() {
           <p className="text-xs font-semibold uppercase tracking-wide text-brand-solid">{t('landing.urgency.eyebrow')}</p>
           <h2 className="mt-2 text-[clamp(1.5rem,1.15rem+1.8vw,2.25rem)] font-display font-bold leading-[1.15] tracking-tight">{t('landing.urgency.heading')}</h2>
         </Reveal>
-        <div className="mx-auto mt-10 grid max-w-3xl grid-cols-1 gap-4 sm:grid-cols-2">
-          {items.map((item, i) => (
-            <Reveal key={item.title} delay={i * 0.05}>
-              <Card className="flex h-full flex-col items-start gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-alt text-brand-solid">
-                  {item.icon}
-                </div>
-                <p className="font-semibold">{item.title}</p>
-                <p className="text-sm text-text-muted">{item.desc}</p>
-              </Card>
-            </Reveal>
-          ))}
+        <div className="mt-10 grid grid-cols-1 items-center gap-8 lg:grid-cols-2 lg:gap-12">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {items.map((item, i) => (
+              <Reveal key={item.title} delay={i * 0.05}>
+                <Card className="flex h-full flex-col items-start gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-alt text-brand-solid">
+                    {item.icon}
+                  </div>
+                  <p className="font-semibold">{item.title}</p>
+                  <p className="text-sm text-text-muted">{item.desc}</p>
+                </Card>
+              </Reveal>
+            ))}
+          </div>
+          <Reveal delay={0.1}>
+            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl">
+              <picture>
+                <source media="(min-width: 640px)" srcSet="/images/hero-alt-desktop.webp" />
+                <img
+                  src="/images/hero-alt-mobile.webp"
+                  alt="A Sajilo Bazar worker repairing a kitchen sink"
+                  className="h-full w-full object-cover"
+                />
+              </picture>
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
+            </div>
+          </Reveal>
         </div>
       </div>
     </section>
   );
 }
 
-// New this round - worker-facing pitch, icon-only, ending in the same
-// "I offer a service" CTA copy used by Signup.jsx's role picker and the
-// Two Sides section above, deep-linking straight past that picker.
+// Worker-facing pitch, ending in the same "I offer a service" CTA copy
+// used by Signup.jsx's role picker and the Two Sides section above,
+// deep-linking straight past that picker. Paired with a real photo (round
+// 2) - cta-desktop/mobile.webp, a worker out on a job, reused from the
+// closing banner further down (non-adjacent, so no back-to-back repeat).
 function WorkerBenefitsSection() {
   const { t } = useLanguage();
   const items = [
@@ -774,33 +810,52 @@ function WorkerBenefitsSection() {
           <h2 className="mt-2 text-[clamp(1.5rem,1.15rem+1.8vw,2.25rem)] font-display font-bold leading-[1.15] tracking-tight">{t('landing.workerBenefits.heading')}</h2>
           <p className="mt-3 leading-relaxed text-text-muted">{t('landing.workerBenefits.subcopy')}</p>
         </Reveal>
-        <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {items.map((item, i) => (
-            <Reveal key={item.title} delay={i * 0.05}>
-              <Card className="flex h-full flex-col items-start gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-brand text-text-onBrand">
-                  {item.icon}
+        <div className="mt-10 grid grid-cols-1 items-center gap-8 lg:grid-cols-2 lg:gap-12">
+          <Reveal>
+            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl">
+              <picture>
+                <source media="(min-width: 640px)" srcSet="/images/cta-desktop.webp" />
+                <img
+                  src="/images/cta-mobile.webp"
+                  alt="A Sajilo Bazar worker on their way to a job"
+                  className="h-full w-full object-cover"
+                />
+              </picture>
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
+            </div>
+          </Reveal>
+          <div className="flex flex-col gap-4">
+            {items.map((item, i) => (
+              <Reveal key={item.title} delay={i * 0.05}>
+                <div className="flex items-start gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand text-text-onBrand">
+                    {item.icon}
+                  </div>
+                  <div>
+                    <p className="font-semibold">{item.title}</p>
+                    <p className="text-sm text-text-muted">{item.desc}</p>
+                  </div>
                 </div>
-                <p className="font-semibold">{item.title}</p>
-                <p className="text-sm text-text-muted">{item.desc}</p>
-              </Card>
+              </Reveal>
+            ))}
+            <Reveal delay={0.15}>
+              <Link to="/signup?role=worker" className="mt-2 inline-block">
+                <Button className="px-8 py-3">{t('landing.workerBenefits.cta')}</Button>
+              </Link>
             </Reveal>
-          ))}
+          </div>
         </div>
-        <Reveal delay={0.15} className="mt-10 text-center">
-          <Link to="/signup?role=worker">
-            <Button className="px-8 py-3">{t('landing.workerBenefits.cta')}</Button>
-          </Link>
-        </Reveal>
       </div>
     </section>
   );
 }
 
-// New this round - icon-only, covers the one payment method that exists
-// today (cash on completion - see bookings.service.js) plus a clearly
-// marked "coming soon" for eSewa, so this doesn't claim a payment method
-// that isn't live yet.
+// Covers the one payment method that exists today (cash on completion -
+// see bookings.service.js) plus a clearly marked "coming soon" for eSewa,
+// so this doesn't claim a payment method that isn't live yet. Paired with
+// a real photo (round 2) - hero-desktop/mobile.webp (the main Hero photo),
+// reused here since none of our 4 real pairs show a cash handoff directly;
+// not adjacent to Hero itself so it doesn't repeat back-to-back.
 function PaymentsSection() {
   const { t } = useLanguage();
   const items = [
@@ -814,23 +869,38 @@ function PaymentsSection() {
           <p className="text-xs font-semibold uppercase tracking-wide text-brand-solid">{t('landing.payments.eyebrow')}</p>
           <h2 className="mt-2 text-[clamp(1.5rem,1.15rem+1.8vw,2.25rem)] font-display font-bold leading-[1.15] tracking-tight">{t('landing.payments.heading')}</h2>
         </Reveal>
-        <div className="mx-auto mt-10 grid max-w-3xl grid-cols-1 gap-4 sm:grid-cols-2">
-          {items.map((item, i) => (
-            <Reveal key={item.title} delay={i * 0.05}>
-              <Card className="relative flex h-full flex-col items-start gap-3">
-                {item.soon && (
-                  <span className="absolute right-5 top-5 rounded-full bg-surface-alt px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
-                    {t('landing.payments.esewa.badge')}
-                  </span>
-                )}
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-alt text-brand-solid">
-                  {item.icon}
-                </div>
-                <p className="font-semibold">{item.title}</p>
-                <p className="text-sm text-text-muted">{item.desc}</p>
-              </Card>
-            </Reveal>
-          ))}
+        <div className="mt-10 grid grid-cols-1 items-center gap-8 lg:grid-cols-2 lg:gap-12">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {items.map((item, i) => (
+              <Reveal key={item.title} delay={i * 0.05}>
+                <Card className="relative flex h-full flex-col items-start gap-3">
+                  {item.soon && (
+                    <span className="absolute right-5 top-5 rounded-full bg-surface-alt px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                      {t('landing.payments.esewa.badge')}
+                    </span>
+                  )}
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-alt text-brand-solid">
+                    {item.icon}
+                  </div>
+                  <p className="font-semibold">{item.title}</p>
+                  <p className="text-sm text-text-muted">{item.desc}</p>
+                </Card>
+              </Reveal>
+            ))}
+          </div>
+          <Reveal delay={0.1}>
+            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl">
+              <picture>
+                <source media="(min-width: 640px)" srcSet="/images/hero-desktop.webp" />
+                <img
+                  src="/images/hero-mobile.webp"
+                  alt="A Sajilo Bazar worker and customer looking at a booking together on a phone"
+                  className="h-full w-full object-cover"
+                />
+              </picture>
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
+            </div>
+          </Reveal>
         </div>
       </div>
     </section>
