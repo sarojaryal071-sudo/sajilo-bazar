@@ -218,16 +218,6 @@ function WalletIcon({ size = 24 }) {
   );
 }
 
-// Real, already-built steps (unchanged from the earlier scroll-animation
-// round) - this round only restyles how they're presented, see
-// HowItWorks() below.
-const STEPS = [
-  { icon: <ListIcon />, text: 'Post what you need, or list what you can do' },
-  { icon: <MatchIcon />, text: 'Get matched' },
-  { icon: <TrackIcon />, text: 'The job happens — tracked and safe' },
-  { icon: <PayIcon />, text: 'Pay and rate' },
-];
-
 // Category descriptions, not routed through t() - services.category is
 // admin-controlled dynamic data (see LanguageContext.jsx's own comment on
 // scope: static UI chrome only, never admin/db-driven content), so this
@@ -711,6 +701,17 @@ function SafetySection() {
 // rather than 4 unrelated cards.
 function HowItWorks() {
   const { t } = useLanguage();
+  // Built inline (same pattern as every other items array on this page,
+  // e.g. SafetySection/UrgencySection) rather than as a module-level
+  // constant, so each step's text goes through t() - it was previously a
+  // plain hardcoded-English STEPS array, which is why these 4 strings
+  // were the one part of this section that didn't translate to Nepali.
+  const steps = [
+    { icon: <ListIcon />, text: t('landing.how.step1') },
+    { icon: <MatchIcon />, text: t('landing.how.step2') },
+    { icon: <TrackIcon />, text: t('landing.how.step3') },
+    { icon: <PayIcon />, text: t('landing.how.step4') },
+  ];
   return (
     <section id="how-it-works" className="bg-surface-alt px-5 py-16 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl">
@@ -720,7 +721,7 @@ function HowItWorks() {
         </Reveal>
         <div className="relative mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="pointer-events-none absolute inset-x-0 top-[1.375rem] hidden border-t border-dashed border-border lg:block" />
-          {STEPS.map((step, i) => (
+          {steps.map((step, i) => (
             <Reveal key={step.text} delay={i * 0.05}>
               <Card className="relative flex h-full flex-col items-start gap-3">
                 <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand text-text-onBrand">
