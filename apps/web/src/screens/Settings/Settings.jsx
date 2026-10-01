@@ -619,7 +619,8 @@ export function Settings() {
       <SettingsSection title="Support">
         <SettingsRow label="Contact support" onClick={() => navigate('/help')} />
         <SettingsRow label="Terms & Conditions" onClick={() => navigate('/terms')} />
-        <SettingsRow label="Privacy Policy" onClick={() => navigate('/privacy')} last />
+        <SettingsRow label="Privacy Policy" onClick={() => navigate('/privacy')} />
+        <SettingsRow label="Community Guidelines" onClick={() => navigate('/community-guidelines')} last />
       </SettingsSection>
 
       {dialog === 'deactivate' && (

@@ -982,6 +982,9 @@ function ClosingCtaAndFooter() {
               <Link to="/privacy" className="text-white/70 transition-colors hover:text-white">
                 {t('landing.footer.privacy')}
               </Link>
+              <Link to="/community-guidelines" className="text-white/70 transition-colors hover:text-white">
+                {t('landing.footer.communityGuidelines')}
+              </Link>
               <a href="#footer-contact" className="text-white/70 transition-colors hover:text-white">
                 {t('landing.footer.contact')}
               </a>
